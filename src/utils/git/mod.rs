@@ -1,14 +1,30 @@
 use git2::{Blob, Error, Object, Oid, Repository, Tree};
-
+use std::fmt;
 
 pub struct Repo {
+    lib_path: String,
+    namespace: String,
+    name: String,
     repo: Repository,
+}
+
+impl fmt::Debug for Repo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Repo for {}/{} in the library at {}",
+            self.namespace, self.name, self.lib_path
+        )
+    }
 }
 
 impl Repo {
     pub fn new(lib_path: &str, namespace: &str, name: &str) -> Result<Repo, Error> {
         let repo_path = format!("{lib_path}/{namespace}/{name}");
         Ok(Repo {
+            lib_path: String::from(lib_path),
+            namespace: String::from(namespace),
+            name: String::from(name),
             repo: Repository::open(repo_path)?,
         })
     }
@@ -92,5 +108,115 @@ impl Repo {
             Ok(blob) => Ok(blob.content().to_owned()),
             Err(_) => Err(anyhow::anyhow!("Not found")),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::utils::git::Repo;
+    use std::env::current_exe;
+    use std::path::PathBuf;
+
+    fn get_test_library_path() -> PathBuf {
+        let mut library_path = current_exe()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_owned();
+        library_path.push("test");
+        library_path.push("library");
+        library_path
+    }
+
+    #[test]
+    fn test_get_bytes_at_path_when_empty_path_expect_index_html() {
+        let test_library_path = get_test_library_path();
+        let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
+        let actual = repo
+            .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", &[""])
+            .unwrap();
+        let expected = "<!DOCTYPE html>";
+        assert_eq!(
+            &std::str::from_utf8(actual.as_slice()).unwrap()[..15],
+            expected
+        );
+    }
+
+    #[test]
+    fn test_get_bytes_at_path_when_full_path_expect_data() {
+        let test_library_path = get_test_library_path();
+        let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
+        let actual = repo
+            .get_bytes_at_path(
+                "ed782e08d119a580baa3067e2ea5df06f3d1cd05",
+                &["a", "b", "c.html"],
+            )
+            .unwrap();
+        let expected = "<!DOCTYPE html>";
+        assert_eq!(
+            &std::str::from_utf8(actual.as_slice()).unwrap()[..15],
+            expected
+        );
+    }
+
+    #[test]
+    fn test_get_bytes_at_path_when_omit_html_expect_data() {
+        let test_library_path = get_test_library_path();
+        let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
+        let actual = repo
+            .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", &["a", "b", "c"])
+            .unwrap();
+        let expected = "<!DOCTYPE html>";
+        assert_eq!(
+            &std::str::from_utf8(actual.as_slice()).unwrap()[..15],
+            expected
+        );
+    }
+
+    #[test]
+    fn test_get_bytes_at_path_when_omit_index_expect_data() {
+        let test_library_path = get_test_library_path();
+        let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
+        let actual = repo
+            .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", &["a", "b", "d"])
+            .unwrap();
+        let expected = "<!DOCTYPE html>";
+        assert_eq!(
+            &std::str::from_utf8(actual.as_slice()).unwrap()[..15],
+            expected
+        );
+    }
+
+    #[test]
+    fn test_get_bytes_at_path_when_invalid_repo_namespace_expect_error() {
+        let test_library_path = get_test_library_path();
+        let actual = Repo::new(test_library_path.to_str().unwrap(), "xxx", "law-html").unwrap_err();
+        let expected = "failed to resolve path";
+        assert_eq!(&format!("{}", actual)[..22], expected);
+    }
+
+    #[test]
+    fn test_get_bytes_at_path_when_invalid_repo_name_expect_error() {
+        let test_library_path = get_test_library_path();
+        let actual = Repo::new(test_library_path.to_str().unwrap(), "test", "xxx").unwrap_err();
+        let expected = "failed to resolve path";
+        assert_eq!(&format!("{}", actual)[..22], expected);
+    }
+
+    #[test]
+    fn test_get_bytes_at_path_when_invalid_path_expect_error() {
+        let test_library_path = get_test_library_path();
+        let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
+        let actual = repo
+            .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", &["a", "b", "x"])
+            .unwrap_err();
+        let expected = "Not found";
+        assert_eq!(format!("{}", actual), expected);
     }
 }

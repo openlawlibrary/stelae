@@ -21,7 +21,10 @@ fn clean_path(path: &str) -> &str {
 }
 
 #[get("/{namespace}/{name}/{commitish}{remainder:(/[^{}]*)?}")]
-async fn get_blob(path: web::Path<(String, String, String, String)>, data: web::Data<AppState>) -> impl Responder {
+async fn get_blob(
+    path: web::Path<(String, String, String, String)>,
+    data: web::Data<AppState>,
+) -> impl Responder {
     let (namespace, name, commitish, remainder) = path.into_inner();
     let lib_path = &data.library_path;
 
@@ -57,12 +60,13 @@ struct AppState {
 async fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
     HttpServer::new(move || {
-        App::new().service(get_blob)
+        App::new()
+            .service(get_blob)
             .app_data(web::Data::new(AppState {
                 library_path: cli.library_path.clone(),
             }))
     })
-        .bind(("127.0.0.1", cli.port))?
-        .run()
-        .await
+    .bind(("127.0.0.1", cli.port))?
+    .run()
+    .await
 }
