@@ -1,40 +1,54 @@
-use git2::{Blob, Error, Object, Oid, Repository, Tree};
+use git2::{Blob, Error, Oid, Repository, Tree};
 use std::fmt;
 
+/// Represents a git repository within an oll library. includes helpers for
+/// for interacting with the Git Repo.
+/// Expects a path to the library, as well as the repo's namespace and name.
 pub struct Repo {
+    /// Path to the library
     lib_path: String,
+    /// Repo namespace
     namespace: String,
+    /// Repo name
     name: String,
+    /// git2 repository pointing to the repo in the library.
     repo: Repository,
 }
 
 impl fmt::Debug for Repo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
+        return write!(
             f,
             "Repo for {}/{} in the library at {}",
             self.namespace, self.name, self.lib_path
-        )
+        );
     }
 }
 
 impl Repo {
+    /// Create a new Repo object with helpers for interacting with a Git Repo.
+    /// Expects a path to the library, as well as the repo's namespace and name.
+    ///
+    /// # Errors
+    ///
+    /// Will return `Err` if git repository does not exist at `{namespace}/{name}`
+    /// in library, or if there is something wrong with the git repository.
     pub fn new(lib_path: &str, namespace: &str, name: &str) -> Result<Repo, Error> {
         let repo_path = format!("{lib_path}/{namespace}/{name}");
-        Ok(Repo {
+        return Ok(Repo {
             lib_path: String::from(lib_path),
             namespace: String::from(namespace),
             name: String::from(name),
             repo: Repository::open(repo_path)?,
-        })
-    }
-    fn get_commit_tree(&self, commitish: &str) -> Result<Tree, Error> {
-        let oid = Oid::from_str(commitish)?;
-        let commit = self.repo.find_commit(oid)?;
-        let tree = commit.tree()?;
-        Ok(tree)
+        });
     }
 
+    /// Helper function to get the immediate child blob of a `tree` by name/`path_part`
+    ///
+    /// # Errors
+    ///
+    /// Will return `Err` if blob does not exist as a child of Tree at `path_part`,
+    /// or if there is a problem with reading repo.
     fn get_child_blob(&self, path_part: &str, tree: &Tree) -> anyhow::Result<Blob> {
         let tree_entry = match tree.get_name(path_part) {
             Some(entry) => entry,
@@ -45,26 +59,34 @@ impl Repo {
             Ok(blob) => blob,
             Err(_) => return Err(anyhow::anyhow!("No blob")),
         };
-        Ok(blob)
+        return Ok(blob);
     }
 
-    fn get_child_object(&self, path_part: &str, tree: &Tree) -> anyhow::Result<Object> {
+    /// Helper function to get the immediate child tree of a `tree` by name/`path_part`
+    ///
+    /// # Errors
+    ///
+    /// Will return `Err` if tree does not exist as a child of Tree at `path_part`,
+    /// or if there is a problem with reading repo.
+    fn get_child_tree(&self, path_part: &str, tree: &Tree) -> anyhow::Result<Tree> {
         let tree_entry = match tree.get_name(path_part) {
             Some(entry) => entry,
             None => return Err(anyhow::anyhow!("No entry")),
         };
         let obj = tree_entry.to_object(&self.repo)?;
-        Ok(obj)
-    }
-    fn get_child_tree(&self, path_part: &str, tree: &Tree) -> anyhow::Result<Tree> {
-        let obj = self.get_child_object(path_part, tree)?;
         let new_tree = match obj.into_tree() {
-            Ok(tree) => tree,
+            Ok(new_tree) => new_tree,
             Err(_) => return Err(anyhow::anyhow!("No tree")),
         };
-        Ok(new_tree)
+        return Ok(new_tree);
     }
 
+    /// Recursively get a Tree located at `path` relative to `tree`.
+    ///
+    /// # Errors
+    ///
+    /// Will return `Err` if a Tree does not exist at `path` relative to `tree`,
+    /// or if there is a problem with reading repo.
     fn get_tree(&self, path: &[&str], tree: &Tree) -> anyhow::Result<Tree> {
         let path_part = path[0];
         let new_path = &path[1..];
@@ -75,8 +97,24 @@ impl Repo {
         }
     }
 
+    /// Returns bytes of blob found in the commit `commitish` at path `path`
+    /// if a blob is not found at path, it will try adding ".html" and
+    /// "/index.html".
+    /// Example usage:
+    ///
+    /// let content: Vec<u8> = repo.get_bytes_at_path(
+    ///    "0f2f1ef9fa213dcf83e269bc832ab63435cbd4b1",
+    ///    &["us", "ca", "cities", "san-mateo"]
+    /// );
+    ///
+    /// # Errors
+    ///
+    /// Will return `Err` if `commitish` does not exist in repo, if a blob does
+    /// not exist in commit at `path`, or if there is a problem with reading repo.
     pub fn get_bytes_at_path(&self, commitish: &str, path: &[&str]) -> anyhow::Result<Vec<u8>> {
-        let root_tree = self.get_commit_tree(commitish)?;
+        let oid = Oid::from_str(commitish)?;
+        let commit = self.repo.find_commit(oid)?;
+        let root_tree = commit.tree()?;
         let (path_part, parent_tree) = match path.len() {
             0 => ("index.html", root_tree),
             1 => match path[0] {
@@ -105,7 +143,7 @@ impl Repo {
 
         // append `.html`
         match self.get_child_blob(&format!("{path_part}.html"), &parent_tree) {
-            Ok(blob) => Ok(blob.content().to_owned()),
+            Ok(blob) => return Ok(blob.content().to_owned()),
             Err(_) => Err(anyhow::anyhow!("Not found")),
         }
     }
