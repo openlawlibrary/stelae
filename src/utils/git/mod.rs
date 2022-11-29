@@ -115,7 +115,21 @@ impl Repo {
 mod tests {
     use crate::utils::git::Repo;
     use std::env::current_exe;
+    use std::fs::create_dir_all;
     use std::path::PathBuf;
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+
+    pub fn initialize() {
+        INIT.call_once(|| {
+            let repo_path = get_test_library_path().join(PathBuf::from("test/law-html"));
+            let heads_path = repo_path.join(PathBuf::from("refs/heads"));
+            create_dir_all(heads_path).unwrap();
+            let tags_path = repo_path.join(PathBuf::from("refs/tags"));
+            create_dir_all(tags_path).unwrap();
+        });
+    }
 
     fn get_test_library_path() -> PathBuf {
         let mut library_path = current_exe()
@@ -136,6 +150,7 @@ mod tests {
 
     #[test]
     fn test_get_bytes_at_path_when_empty_path_expect_index_html() {
+        initialize();
         let test_library_path = get_test_library_path();
         let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
         let actual = repo
@@ -150,6 +165,7 @@ mod tests {
 
     #[test]
     fn test_get_bytes_at_path_when_full_path_expect_data() {
+        initialize();
         let test_library_path = get_test_library_path();
         let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
         let actual = repo
@@ -167,6 +183,7 @@ mod tests {
 
     #[test]
     fn test_get_bytes_at_path_when_omit_html_expect_data() {
+        initialize();
         let test_library_path = get_test_library_path();
         let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
         let actual = repo
@@ -181,6 +198,7 @@ mod tests {
 
     #[test]
     fn test_get_bytes_at_path_when_omit_index_expect_data() {
+        initialize();
         let test_library_path = get_test_library_path();
         let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
         let actual = repo
@@ -195,6 +213,7 @@ mod tests {
 
     #[test]
     fn test_get_bytes_at_path_when_invalid_repo_namespace_expect_error() {
+        initialize();
         let test_library_path = get_test_library_path();
         let actual = Repo::new(test_library_path.to_str().unwrap(), "xxx", "law-html").unwrap_err();
         let expected = "failed to resolve path";
@@ -203,6 +222,7 @@ mod tests {
 
     #[test]
     fn test_get_bytes_at_path_when_invalid_repo_name_expect_error() {
+        initialize();
         let test_library_path = get_test_library_path();
         let actual = Repo::new(test_library_path.to_str().unwrap(), "test", "xxx").unwrap_err();
         let expected = "failed to resolve path";
@@ -211,6 +231,7 @@ mod tests {
 
     #[test]
     fn test_get_bytes_at_path_when_invalid_path_expect_error() {
+        initialize();
         let test_library_path = get_test_library_path();
         let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
         let actual = repo
