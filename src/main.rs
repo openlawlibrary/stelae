@@ -2,8 +2,8 @@
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use clap::Parser;
 use lazy_static::lazy_static;
-use stele::utils::git::Repo;
 use regex::Regex;
+use stele::utils::git::Repo;
 
 // use std::path::Path;
 // use std::ffi::OsStr;
@@ -15,9 +15,9 @@ use regex::Regex;
 
 fn clean_path(path: &str) -> String {
     lazy_static! {
-        static ref re: Regex = Regex::new(r"(?:^/*|/*$)").unwrap();
+        static ref RE: Regex = Regex::new(r"(?:^/*|/*$)").unwrap();
     }
-    re.replace_all(path, "").to_string()
+    RE.replace_all(path, "").to_string()
 }
 
 #[get("/{namespace}/{name}/{commitish}{remainder:/+([^{}]*?)?/*}")]

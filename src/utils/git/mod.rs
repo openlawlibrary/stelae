@@ -16,12 +16,13 @@ pub struct Repo {
 }
 
 impl fmt::Debug for Repo {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        return write!(
+        write!(
             f,
             "Repo for {}/{} in the library at {}",
             self.namespace, self.name, self.lib_path
-        );
+        )
     }
 }
 
@@ -33,14 +34,15 @@ impl Repo {
     ///
     /// Will return `Err` if git repository does not exist at `{namespace}/{name}`
     /// in library, or if there is something wrong with the git repository.
-    pub fn new(lib_path: &str, namespace: &str, name: &str) -> Result<Repo, Error> {
+    #[inline]
+    pub fn new(lib_path: &str, namespace: &str, name: &str) -> Result<Self, Error> {
         let repo_path = format!("{lib_path}/{namespace}/{name}");
-        return Ok(Repo {
+        Ok(Self {
             lib_path: String::from(lib_path),
             namespace: String::from(namespace),
             name: String::from(name),
             repo: Repository::open(repo_path)?,
-        });
+        })
     }
 
     /// Returns bytes of blob found in the commit `commitish` at path `path`
@@ -48,30 +50,34 @@ impl Repo {
     /// and "/index.html".
     /// Example usage:
     ///
-    /// let content: Vec<u8> = repo.get_bytes_at_path(
-    ///    "0f2f1ef9fa213dcf83e269bc832ab63435cbd4b1",
-    ///    "us/ca/cities/san-mateo"
-    /// );
+    //// let content: Vec<u8> = repo.get_bytes_at_path(
+    ////    "0f2f1ef9fa213dcf83e269bc832ab63435cbd4b1",
+    ////    "us/ca/cities/san-mateo"
+    //// );
     ///
     /// # Errors
     ///
     /// Will return `Err` if `commitish` does not exist in repo, if a blob does
     /// not exist in commit at `path`, or if there is a problem with reading repo.
+    #[inline]
     pub fn get_bytes_at_path(&self, commitish: &str, path: &str) -> anyhow::Result<Vec<u8>> {
         let base_revision = format!("{commitish}:{path}");
         for postfix in ["", "/index.html", ".html", "index.html"] {
-            match self.repo.revparse_single(&format!("{base_revision}{postfix}")) {
+            match self
+                .repo
+                .revparse_single(&format!("{base_revision}{postfix}"))
+            {
                 Ok(obj) => {
                     let blob = match obj.into_blob() {
                         Ok(blob) => blob,
                         Err(_) => continue,
                     };
                     return Ok(blob.content().to_owned());
-                },
+                }
                 Err(_) => continue,
             }
         }
-        return Err(anyhow::anyhow!("Doesn't exist"));
+        Err(anyhow::anyhow!("Doesn't exist"))
     }
 }
 
@@ -133,10 +139,7 @@ mod tests {
         let test_library_path = get_test_library_path();
         let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
         let actual = repo
-            .get_bytes_at_path(
-                "ed782e08d119a580baa3067e2ea5df06f3d1cd05",
-                "a/b/c.html",
-            )
+            .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", "a/b/c.html")
             .unwrap();
         let expected = "<!DOCTYPE html>";
         assert_eq!(
