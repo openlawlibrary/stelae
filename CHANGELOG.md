@@ -6,16 +6,31 @@ The format is based on _[Keep a Changelog][keepachangelog]_,
 and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 (major version is the year; minor and patch are the same).
 
-
 ## [Unreleased]
 
 ### Added
-- added `/{namespace}/{name}/{commitish}{remainder}` endpoint (initial commit)
+
 ### Changed
 
 ### Fixed
 
 ### Removed
+
+
+## [0.1.0]
+
+### Added
+- added `/{namespace}/{name}/{commitish}{remainder}` endpoint (initial commits)
+- ci/cd
+
+### Changed
+
+### Fixed
+
+### Removed
+
+[Unreleased]: https://github.com/openlawlibrary/stele/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/openlawlibrary/stele/tree/v0.1.0
 
 [keepachangelog]: https://keepachangelog.com/en/1.0.0/
 [semver]: https://semver.org/spec/v2.0.0.html
