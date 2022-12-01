@@ -1411,6 +1411,8 @@ dependencies = [
  "clap 4.0.27",
  "criterion",
  "git2",
+ "lazy_static",
+ "regex",
  "serde",
 ]
 

@@ -1,7 +1,10 @@
 // use std::str::Bytes;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use clap::Parser;
+use lazy_static::lazy_static;
 use stele::utils::git::Repo;
+use regex::Regex;
+
 // use std::path::Path;
 // use std::ffi::OsStr;
 
@@ -10,17 +13,14 @@ use stele::utils::git::Repo;
 //         .extension()
 //         .and_then(OsStr::to_str)}
 
-fn clean_path(path: &str) -> &str {
-    let start = usize::from(path.starts_with('/'));
-    let end = if path.len() > 1 && path.ends_with('/') {
-        path.len() - 1
-    } else {
-        path.len()
-    };
-    &path[start..end]
+fn clean_path(path: &str) -> String {
+    lazy_static! {
+        static ref re: Regex = Regex::new(r"(?:^/*|/*$)").unwrap();
+    }
+    re.replace_all(path, "").to_string()
 }
 
-#[get("/{namespace}/{name}/{commitish}{remainder:(/[^{}]*)?}")]
+#[get("/{namespace}/{name}/{commitish}{remainder:/+([^{}]*?)?/*}")]
 async fn get_blob(
     path: web::Path<(String, String, String, String)>,
     data: web::Data<AppState>,
@@ -34,7 +34,7 @@ async fn get_blob(
             return HttpResponse::NotFound().body(format!("repo {namespace}/{name} does not exist"))
         }
     };
-    let blob_path: Vec<&str> = clean_path(&remainder).split('/').collect();
+    let blob_path = clean_path(&remainder);
 
     match repo.get_bytes_at_path(&commitish, &blob_path) {
         Ok(content) => HttpResponse::Ok().body(content),

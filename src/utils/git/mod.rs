@@ -1,4 +1,4 @@
-use git2::{Blob, Error, Oid, Repository, Tree};
+use git2::{Error, Repository};
 use std::fmt;
 
 /// Represents a git repository within an oll library. includes helpers for
@@ -43,109 +43,35 @@ impl Repo {
         });
     }
 
-    /// Helper function to get the immediate child blob of a `tree` by name/`path_part`
-    ///
-    /// # Errors
-    ///
-    /// Will return `Err` if blob does not exist as a child of Tree at `path_part`,
-    /// or if there is a problem with reading repo.
-    fn get_child_blob(&self, path_part: &str, tree: &Tree) -> anyhow::Result<Blob> {
-        let tree_entry = match tree.get_name(path_part) {
-            Some(entry) => entry,
-            None => return Err(anyhow::anyhow!("No entry")),
-        };
-        let obj = tree_entry.to_object(&self.repo)?;
-        let blob = match obj.into_blob() {
-            Ok(blob) => blob,
-            Err(_) => return Err(anyhow::anyhow!("No blob")),
-        };
-        return Ok(blob);
-    }
-
-    /// Helper function to get the immediate child tree of a `tree` by name/`path_part`
-    ///
-    /// # Errors
-    ///
-    /// Will return `Err` if tree does not exist as a child of Tree at `path_part`,
-    /// or if there is a problem with reading repo.
-    fn get_child_tree(&self, path_part: &str, tree: &Tree) -> anyhow::Result<Tree> {
-        let tree_entry = match tree.get_name(path_part) {
-            Some(entry) => entry,
-            None => return Err(anyhow::anyhow!("No entry")),
-        };
-        let obj = tree_entry.to_object(&self.repo)?;
-        let new_tree = match obj.into_tree() {
-            Ok(new_tree) => new_tree,
-            Err(_) => return Err(anyhow::anyhow!("No tree")),
-        };
-        return Ok(new_tree);
-    }
-
-    /// Recursively get a Tree located at `path` relative to `tree`.
-    ///
-    /// # Errors
-    ///
-    /// Will return `Err` if a Tree does not exist at `path` relative to `tree`,
-    /// or if there is a problem with reading repo.
-    fn get_tree(&self, path: &[&str], tree: &Tree) -> anyhow::Result<Tree> {
-        let path_part = path[0];
-        let new_path = &path[1..];
-        let new_tree = self.get_child_tree(path_part, tree)?;
-        match new_path.len() {
-            0 => Ok(new_tree),
-            _ => self.get_tree(new_path, &new_tree),
-        }
-    }
-
     /// Returns bytes of blob found in the commit `commitish` at path `path`
-    /// if a blob is not found at path, it will try adding ".html" and
-    /// "/index.html".
+    /// if a blob is not found at path, it will try adding ".html", "index.html,
+    /// and "/index.html".
     /// Example usage:
     ///
     /// let content: Vec<u8> = repo.get_bytes_at_path(
     ///    "0f2f1ef9fa213dcf83e269bc832ab63435cbd4b1",
-    ///    &["us", "ca", "cities", "san-mateo"]
+    ///    "us/ca/cities/san-mateo"
     /// );
     ///
     /// # Errors
     ///
     /// Will return `Err` if `commitish` does not exist in repo, if a blob does
     /// not exist in commit at `path`, or if there is a problem with reading repo.
-    pub fn get_bytes_at_path(&self, commitish: &str, path: &[&str]) -> anyhow::Result<Vec<u8>> {
-        let oid = Oid::from_str(commitish)?;
-        let commit = self.repo.find_commit(oid)?;
-        let root_tree = commit.tree()?;
-        let (path_part, parent_tree) = match path.len() {
-            0 => ("index.html", root_tree),
-            1 => match path[0] {
-                "" => ("index.html", root_tree),
-                _ => (path[0], root_tree),
-            },
-            _ => {
-                let last = path.len() - 1;
-                let path_part = path[last];
-                let tree_path = &path[0..last];
-                let parent_tree = self.get_tree(tree_path, &root_tree)?;
-                (path_part, parent_tree)
+    pub fn get_bytes_at_path(&self, commitish: &str, path: &str) -> anyhow::Result<Vec<u8>> {
+        let base_revision = format!("{commitish}:{path}");
+        for postfix in ["", "/index.html", ".html", "index.html"] {
+            match self.repo.revparse_single(&format!("{base_revision}{postfix}")) {
+                Ok(obj) => {
+                    let blob = match obj.into_blob() {
+                        Ok(blob) => blob,
+                        Err(_) => continue,
+                    };
+                    return Ok(blob.content().to_owned());
+                },
+                Err(_) => continue,
             }
-        };
-
-        // exact match
-        if let Ok(blob) = self.get_child_blob(path_part, &parent_tree) {
-            return Ok(blob.content().to_owned());
         }
-
-        // append `/index.html`
-        if let Ok(tree) = self.get_child_tree(path_part, &parent_tree) {
-            let blob = self.get_child_blob("index.html", &tree)?;
-            return Ok(blob.content().to_owned());
-        }
-
-        // append `.html`
-        match self.get_child_blob(&format!("{path_part}.html"), &parent_tree) {
-            Ok(blob) => return Ok(blob.content().to_owned()),
-            Err(_) => Err(anyhow::anyhow!("Not found")),
-        }
+        return Err(anyhow::anyhow!("Doesn't exist"));
     }
 }
 
@@ -192,7 +118,7 @@ mod tests {
         let test_library_path = get_test_library_path();
         let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
         let actual = repo
-            .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", &[""])
+            .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", "")
             .unwrap();
         let expected = "<!DOCTYPE html>";
         assert_eq!(
@@ -209,7 +135,7 @@ mod tests {
         let actual = repo
             .get_bytes_at_path(
                 "ed782e08d119a580baa3067e2ea5df06f3d1cd05",
-                &["a", "b", "c.html"],
+                "a/b/c.html",
             )
             .unwrap();
         let expected = "<!DOCTYPE html>";
@@ -225,7 +151,7 @@ mod tests {
         let test_library_path = get_test_library_path();
         let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
         let actual = repo
-            .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", &["a", "b", "c"])
+            .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", "a/b/c")
             .unwrap();
         let expected = "<!DOCTYPE html>";
         assert_eq!(
@@ -240,7 +166,7 @@ mod tests {
         let test_library_path = get_test_library_path();
         let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
         let actual = repo
-            .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", &["a", "b", "d"])
+            .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", "a/b/d")
             .unwrap();
         let expected = "<!DOCTYPE html>";
         assert_eq!(
@@ -273,9 +199,9 @@ mod tests {
         let test_library_path = get_test_library_path();
         let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
         let actual = repo
-            .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", &["a", "b", "x"])
+            .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", "a/b/x")
             .unwrap_err();
-        let expected = "Not found";
+        let expected = "Doesn't exist";
         assert_eq!(format!("{}", actual), expected);
     }
 }
