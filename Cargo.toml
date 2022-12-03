@@ -2,7 +2,10 @@
 name = "stele"
 version = "0.1.0"
 edition = "2021"
-
+readme = "README.md"
+license = "AGPL-3.0"
+keywords = ["authentication", "laws", "preservation"]
+categories = ["authentication", "web-programming::http-server"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

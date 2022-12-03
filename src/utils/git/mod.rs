@@ -17,6 +17,7 @@ pub struct Repo {
 
 impl fmt::Debug for Repo {
     #[inline]
+    #[allow(clippy::implicit_return)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -34,6 +35,8 @@ impl Repo {
     ///
     /// Will return `Err` if git repository does not exist at `{namespace}/{name}`
     /// in library, or if there is something wrong with the git repository.
+
+    #[allow(clippy::implicit_return)]
     #[inline]
     pub fn new(lib_path: &str, namespace: &str, name: &str) -> Result<Self, Error> {
         let repo_path = format!("{lib_path}/{namespace}/{name}");
@@ -59,6 +62,7 @@ impl Repo {
     ///
     /// Will return `Err` if `commitish` does not exist in repo, if a blob does
     /// not exist in commit at `path`, or if there is a problem with reading repo.
+    #[allow(clippy::implicit_return)]
     #[inline]
     pub fn get_bytes_at_path(&self, commitish: &str, path: &str) -> anyhow::Result<Vec<u8>> {
         let base_revision = format!("{commitish}:{path}");

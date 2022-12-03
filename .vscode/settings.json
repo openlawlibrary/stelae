@@ -1,0 +1,22 @@
+{
+    "rust-analyzer.checkOnSave.overrideCommand": [
+        "cargo",
+        "clippy",
+        "--message-format=json",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-W",
+        "clippy::all",
+        "-W",
+        "clippy::pedantic",
+        "-W",
+        "clippy::restriction",
+        "-W",
+        "clippy::nursery",
+        "-W",
+        "clippy::cargo",
+        "-W",
+        "missing_docs"
+    ]
+}

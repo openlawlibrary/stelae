@@ -1,17 +1,8 @@
-// use std::str::Bytes;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use clap::Parser;
 use lazy_static::lazy_static;
 use regex::Regex;
 use stele::utils::git::Repo;
-
-// use std::path::Path;
-// use std::ffi::OsStr;
-
-// fn get_extension_from_filename(filename: &str) -> Option<&str> {
-//     Path::new(filename)
-//         .extension()
-//         .and_then(OsStr::to_str)}
 
 fn clean_path(path: &str) -> String {
     lazy_static! {
