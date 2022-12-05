@@ -21,7 +21,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 - added `/{namespace}/{name}/{commitish}{remainder}` endpoint (initial commits)
-- ci/cd
+- added ci/cd and local verbose clippy in vscode
 
 ### Changed
 

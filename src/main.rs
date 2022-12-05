@@ -1,16 +1,29 @@
+//! Stele commandline.
+#![allow(clippy::self_named_module_files)]
+#![allow(clippy::std_instead_of_alloc)]
+#![allow(clippy::implicit_return)]
+#![allow(clippy::multiple_crate_versions)]
+#![allow(clippy::exhaustive_structs)]
+
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use clap::Parser;
 use lazy_static::lazy_static;
 use regex::Regex;
+// use std::env::current_dir;
 use stele::utils::git::Repo;
 
+#[allow(clippy::expect_used)]
+/// Remove leading and trailing `/`s from the `path` string.
 fn clean_path(path: &str) -> String {
     lazy_static! {
-        static ref RE: Regex = Regex::new(r"(?:^/*|/*$)").unwrap();
+        static ref RE: Regex = Regex::new(r"(?:^/*|/*$)").expect("Failed to compile regex!?!");
     }
     RE.replace_all(path, "").to_string()
 }
 
+/// Return the content in the stele library in the `{namespace}/{name}`
+/// repo at the `commitish` commit at the `remainder` path.
+/// Return 404 if any are not found or there are any errors.
 #[get("/{namespace}/{name}/{commitish}{remainder:/+([^{}]*?)?/*}")]
 async fn get_blob(
     path: web::Path<(String, String, String, String)>,
@@ -35,15 +48,23 @@ async fn get_blob(
     }
 }
 
+/// Stele is currently just a simple git server.
+/// run from the library directory or pass
+/// path to library.
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
+    /// Path to the Stele library. Defaults to cwd.
+    #[arg(short, long, default_value_t = String::from(".").to_owned())]
     library_path: String,
+    /// Port on which to serve the library.
     #[arg(short, long, default_value_t = 8080)]
     port: u16,
 }
 
+/// Global, read-only state passed into the actix app
 struct AppState {
+    /// path to the stele library
     library_path: String,
 }
 

@@ -85,6 +85,9 @@ impl Repo {
     }
 }
 
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::string_slice)]
+#[allow(clippy::indexing_slicing)]
 #[cfg(test)]
 mod tests {
     use crate::utils::git::Repo;
@@ -132,7 +135,7 @@ mod tests {
             .unwrap();
         let expected = "<!DOCTYPE html>";
         assert_eq!(
-            &std::str::from_utf8(actual.as_slice()).unwrap()[..15],
+            &core::str::from_utf8(actual.as_slice()).unwrap()[..15],
             expected
         );
     }

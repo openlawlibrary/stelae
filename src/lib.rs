@@ -9,6 +9,10 @@
 //! publish the law. The Code of Hammurabi, one of the earliest preserved
 //! written laws, was published on a Stele in ~1750 BCE and is still readable
 //! nearly four millennia later.
-
+#![allow(clippy::self_named_module_files)]
+#![allow(clippy::std_instead_of_alloc)]
+#![allow(clippy::implicit_return)]
+#![allow(clippy::multiple_crate_versions)]
+#![allow(clippy::std_instead_of_core)]
 /// The utils module contains utility functions and structs.
 pub mod utils;

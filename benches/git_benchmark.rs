@@ -1,4 +1,9 @@
 //! benchmark for git utils
+#![allow(clippy::self_named_module_files)]
+#![allow(clippy::std_instead_of_alloc)]
+#![allow(clippy::implicit_return)]
+#![allow(clippy::multiple_crate_versions)]
+#![allow(clippy::expect_used)]
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::env::current_exe;
@@ -7,8 +12,8 @@ use std::path::PathBuf;
 use std::sync::Once;
 use stele::utils::git::Repo;
 
-/// get the path to the test library at $REPO_ROOT/test/library
-#[allow(clippy::expect_used)]
+/// get the path to the test library at `$REPO_ROOT/test/library`.
+
 fn get_test_library_path() -> PathBuf {
     let mut library_path = current_exe()
         .expect("Something went wrong getting the library path")
@@ -32,7 +37,6 @@ static INIT: Once = Once::new();
 /// Bare git repo(s) in test library must have `refs/heads` and
 /// `refs/tags` folders. They are empty, so not stored in git,
 /// so must be created
-#[allow(clippy::expect_used)]
 pub fn initialize() {
     INIT.call_once(|| {
         let repo_path = get_test_library_path().join(PathBuf::from("test/law-html"));
@@ -44,20 +48,26 @@ pub fn initialize() {
 }
 
 /// Measure the speed of the git utils
-#[allow(clippy::expect_used)]
 fn bench_repo() {
     initialize();
     let test_library_path = get_test_library_path();
-    let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html")
-        .expect("Something went wrong creating the repo");
+    let repo = Repo::new(
+        test_library_path
+            .to_str()
+            .expect("test_library_path couldn't be convert to string"),
+        "test",
+        "law-html",
+    )
+    .expect("Something went wrong creating the repo");
     repo.get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", "a/b/c.html")
         .expect("Something went wrong calling `get_bytes_at_path`");
 }
 
 /// Initialize criterion benchmarks
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("get_bytes_at_path", |b| b.iter(|| bench_repo()));
+    c.bench_function("get_bytes_at_path", |b| b.iter(bench_repo));
 }
 
 criterion_group!(benches, criterion_benchmark);
+
 criterion_main!(benches);
