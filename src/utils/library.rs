@@ -69,8 +69,8 @@ mod test {
         let cwd = library_path.join("does_not_exist");
         let actual_err = find_library_path(&cwd).unwrap_err();
         let actual = format!("{}", actual_err);
-        let expected = "The system cannot find the file specified. (os error 2)";
-        assert_eq!(actual, expected);
+        let expected = "(os error 2)";
+        assert_eq!(&actual[actual.len() - 12..], expected);
     }
 
     #[test]
