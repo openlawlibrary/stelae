@@ -24,6 +24,7 @@ fn clean_path(path: &str) -> String {
 /// Return the content in the stele library in the `{namespace}/{name}`
 /// repo at the `commitish` commit at the `remainder` path.
 /// Return 404 if any are not found or there are any errors.
+#[allow(clippy::unused_async)]
 #[get("/{namespace}/{name}/{commitish}{remainder:/+([^{}]*?)?/*}")]
 async fn get_blob(
     path: web::Path<(String, String, String, String)>,

@@ -4,6 +4,7 @@
 #![allow(clippy::implicit_return)]
 #![allow(clippy::multiple_crate_versions)]
 #![allow(clippy::expect_used)]
+#![allow(missing_docs)]
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::env::current_exe;
@@ -13,7 +14,6 @@ use std::sync::Once;
 use stele::utils::git::Repo;
 
 /// get the path to the test library at `$REPO_ROOT/test/library`.
-
 fn get_test_library_path() -> PathBuf {
     let mut library_path = current_exe()
         .expect("Something went wrong getting the library path")

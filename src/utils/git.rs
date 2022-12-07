@@ -1,3 +1,5 @@
+//! The git module contains structs for interacting with git repositories
+//! in the Stele Library.
 use git2::{Error, Repository};
 use std::fmt;
 
