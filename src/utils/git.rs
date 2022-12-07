@@ -1,7 +1,7 @@
 //! The git module contains structs for interacting with git repositories
 //! in the Stele Library.
 use git2::{Error, Repository};
-use std::fmt;
+use std::{fmt, path::Path};
 
 /// Represents a git repository within an oll library. includes helpers for
 /// for interacting with the Git Repo.
@@ -40,10 +40,11 @@ impl Repo {
 
     #[allow(clippy::implicit_return)]
     #[inline]
-    pub fn new(lib_path: &str, namespace: &str, name: &str) -> Result<Self, Error> {
-        let repo_path = format!("{lib_path}/{namespace}/{name}");
+    pub fn new(lib_path: &Path, namespace: &str, name: &str) -> Result<Self, Error> {
+        let lib_path_str = lib_path.to_string_lossy();
+        let repo_path = format!("{lib_path_str}/{namespace}/{name}");
         Ok(Self {
-            lib_path: String::from(lib_path),
+            lib_path: String::from(lib_path_str),
             namespace: String::from(namespace),
             name: String::from(name),
             repo: Repository::open(repo_path)?,
@@ -131,7 +132,7 @@ mod tests {
     fn test_get_bytes_at_path_when_empty_path_expect_index_html() {
         initialize();
         let test_library_path = get_test_library_path();
-        let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
+        let repo = Repo::new(&test_library_path, "test", "law-html").unwrap();
         let actual = repo
             .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", "")
             .unwrap();
@@ -146,7 +147,7 @@ mod tests {
     fn test_get_bytes_at_path_when_full_path_expect_data() {
         initialize();
         let test_library_path = get_test_library_path();
-        let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
+        let repo = Repo::new(&test_library_path, "test", "law-html").unwrap();
         let actual = repo
             .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", "a/b/c.html")
             .unwrap();
@@ -161,7 +162,7 @@ mod tests {
     fn test_get_bytes_at_path_when_omit_html_expect_data() {
         initialize();
         let test_library_path = get_test_library_path();
-        let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
+        let repo = Repo::new(&test_library_path, "test", "law-html").unwrap();
         let actual = repo
             .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", "a/b/c")
             .unwrap();
@@ -176,7 +177,7 @@ mod tests {
     fn test_get_bytes_at_path_when_omit_index_expect_data() {
         initialize();
         let test_library_path = get_test_library_path();
-        let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
+        let repo = Repo::new(&test_library_path, "test", "law-html").unwrap();
         let actual = repo
             .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", "a/b/d")
             .unwrap();
@@ -191,7 +192,7 @@ mod tests {
     fn test_get_bytes_at_path_when_invalid_repo_namespace_expect_error() {
         initialize();
         let test_library_path = get_test_library_path();
-        let actual = Repo::new(test_library_path.to_str().unwrap(), "xxx", "law-html").unwrap_err();
+        let actual = Repo::new(&test_library_path, "xxx", "law-html").unwrap_err();
         let expected = "failed to resolve path";
         assert_eq!(&format!("{}", actual)[..22], expected);
     }
@@ -200,7 +201,7 @@ mod tests {
     fn test_get_bytes_at_path_when_invalid_repo_name_expect_error() {
         initialize();
         let test_library_path = get_test_library_path();
-        let actual = Repo::new(test_library_path.to_str().unwrap(), "test", "xxx").unwrap_err();
+        let actual = Repo::new(&test_library_path, "test", "xxx").unwrap_err();
         let expected = "failed to resolve path";
         assert_eq!(&format!("{}", actual)[..22], expected);
     }
@@ -209,7 +210,7 @@ mod tests {
     fn test_get_bytes_at_path_when_invalid_path_expect_error() {
         initialize();
         let test_library_path = get_test_library_path();
-        let repo = Repo::new(test_library_path.to_str().unwrap(), "test", "law-html").unwrap();
+        let repo = Repo::new(&test_library_path, "test", "law-html").unwrap();
         let actual = repo
             .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", "a/b/x")
             .unwrap_err();

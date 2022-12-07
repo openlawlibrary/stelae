@@ -18,5 +18,9 @@
         "clippy::cargo",
         "-W",
         "missing_docs"
+    ],
+    "cSpell.words": [
+        "actix",
+        "canonicalize"
     ]
 }

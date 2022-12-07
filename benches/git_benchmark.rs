@@ -51,14 +51,8 @@ pub fn initialize() {
 fn bench_repo() {
     initialize();
     let test_library_path = get_test_library_path();
-    let repo = Repo::new(
-        test_library_path
-            .to_str()
-            .expect("test_library_path couldn't be convert to string"),
-        "test",
-        "law-html",
-    )
-    .expect("Something went wrong creating the repo");
+    let repo = Repo::new(&test_library_path, "test", "law-html")
+        .expect("Something went wrong creating the repo");
     repo.get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", "a/b/c.html")
         .expect("Something went wrong calling `get_bytes_at_path`");
 }

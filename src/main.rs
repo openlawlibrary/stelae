@@ -5,12 +5,15 @@
 #![allow(clippy::multiple_crate_versions)]
 #![allow(clippy::exhaustive_structs)]
 
+use std::path::{Path, PathBuf};
+
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use clap::Parser;
 use lazy_static::lazy_static;
 use regex::Regex;
 // use std::env::current_dir;
 use stele::utils::git::Repo;
+use stele::utils::library::find_library_path;
 
 #[allow(clippy::expect_used)]
 /// Remove leading and trailing `/`s from the `path` string.
@@ -32,7 +35,6 @@ async fn get_blob(
 ) -> impl Responder {
     let (namespace, name, commitish, remainder) = path.into_inner();
     let lib_path = &data.library_path;
-
     let repo = match Repo::new(lib_path, &namespace, &name) {
         Ok(repo) => repo,
         Err(_e) => {
@@ -65,18 +67,37 @@ struct Cli {
 
 /// Global, read-only state passed into the actix app
 struct AppState {
-    /// path to the stele library
-    library_path: String,
+    /// path to the Stele library
+    library_path: PathBuf,
 }
 
 #[actix_web::main] // or #[tokio::main]
+#[allow(clippy::print_stdout)]
 async fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
+    let library_path_wd = Path::new(&cli.library_path);
+    let library_path = if let Ok(lpath) = find_library_path(library_path_wd) {
+        lpath
+    } else {
+        println!(
+            "error: could not find `.stele` folder in `{}` or any parent directory",
+            &cli.library_path
+        );
+        std::process::exit(1);
+    };
+
+    // .unwrap_or_else(|_| panic!("Unable to find a library at {}", &cli.library_path));
+
+    println!(
+        "Serving content from the Stele library at {} on port http://127.0.0.1:{}.",
+        &cli.library_path, &cli.port
+    );
+
     HttpServer::new(move || {
         App::new()
             .service(get_blob)
             .app_data(web::Data::new(AppState {
-                library_path: cli.library_path.clone(),
+                library_path: library_path.clone(),
             }))
     })
     .bind(("127.0.0.1", cli.port))?
