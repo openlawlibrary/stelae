@@ -5,14 +5,13 @@
 #![allow(clippy::multiple_crate_versions)]
 #![allow(clippy::exhaustive_structs)]
 
-use std::path::{Path, PathBuf};
-
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use clap::Parser;
 use lazy_static::lazy_static;
 use regex::Regex;
-// use std::env::current_dir;
+use std::path::{Path, PathBuf};
 use stele::utils::git::Repo;
+use stele::utils::http::get_contenttype;
 use stele::utils::library::find_library_path;
 
 #[allow(clippy::expect_used)]
@@ -42,9 +41,10 @@ async fn get_blob(
         }
     };
     let blob_path = clean_path(&remainder);
+    let contenttype = get_contenttype(&blob_path);
 
     match repo.get_bytes_at_path(&commitish, &blob_path) {
-        Ok(content) => HttpResponse::Ok().body(content),
+        Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
         Err(_e) => HttpResponse::NotFound().body(format!(
             "content at {remainder} for {commitish} in repo {namespace}/{name} does not exist"
         )),

@@ -12,6 +12,7 @@ repository = "https://github.com/openlawlibrary/stele"
 
 [dependencies]
 actix-web = "4"
+actix-files = "0.6"
 anyhow = "1.0"
 clap = { version = "4.0.27", features = ["derive"] }
 git2 = "0.15"
