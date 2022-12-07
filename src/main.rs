@@ -51,6 +51,31 @@ async fn get_blob(
     }
 }
 
+/// Serve git repositories in the Stele library.
+#[actix_web::main] // or #[tokio::main]
+#[allow(clippy::print_stdout)]
+async fn serve_git(
+    raw_library_path: &str,
+    library_path: PathBuf,
+    port: u16,
+) -> std::io::Result<()> {
+    println!(
+        "Serving content from the Stele library at {} on http://127.0.0.1:{}.",
+        raw_library_path, port
+    );
+
+    HttpServer::new(move || {
+        App::new()
+            .service(get_blob)
+            .app_data(web::Data::new(AppState {
+                library_path: library_path.clone(),
+            }))
+    })
+    .bind(("127.0.0.1", port))?
+    .run()
+    .await
+}
+
 /// Stele is currently just a simple git server.
 /// run from the library directory or pass
 /// path to library.
@@ -60,9 +85,20 @@ struct Cli {
     /// Path to the Stele library. Defaults to cwd.
     #[arg(short, long, default_value_t = String::from(".").to_owned())]
     library_path: String,
-    /// Port on which to serve the library.
-    #[arg(short, long, default_value_t = 8080)]
-    port: u16,
+    /// Stele cli subcommands
+    #[command(subcommand)]
+    subcommands: Subcommands,
+}
+
+///
+#[derive(Clone, clap::Subcommand)]
+enum Subcommands {
+    /// Serve git repositories in the Stele library
+    Serve {
+        /// Port on which to serve the library.
+        #[arg(short, long, default_value_t = 8080)]
+        port: u16,
+    },
 }
 
 /// Global, read-only state passed into the actix app
@@ -71,9 +107,8 @@ struct AppState {
     library_path: PathBuf,
 }
 
-#[actix_web::main] // or #[tokio::main]
 #[allow(clippy::print_stdout)]
-async fn main() -> std::io::Result<()> {
+fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
     let library_path_wd = Path::new(&cli.library_path);
     let library_path = if let Ok(lpath) = find_library_path(library_path_wd) {
@@ -86,21 +121,7 @@ async fn main() -> std::io::Result<()> {
         std::process::exit(1);
     };
 
-    // .unwrap_or_else(|_| panic!("Unable to find a library at {}", &cli.library_path));
-
-    println!(
-        "Serving content from the Stele library at {} on port http://127.0.0.1:{}.",
-        &cli.library_path, &cli.port
-    );
-
-    HttpServer::new(move || {
-        App::new()
-            .service(get_blob)
-            .app_data(web::Data::new(AppState {
-                library_path: library_path.clone(),
-            }))
-    })
-    .bind(("127.0.0.1", cli.port))?
-    .run()
-    .await
+    match cli.subcommands {
+        Subcommands::Serve { port } => serve_git(&cli.library_path, library_path, port),
+    }
 }
