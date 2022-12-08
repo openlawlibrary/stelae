@@ -38,7 +38,6 @@ enum Subcommands {
 /// # Errors
 /// TODO: This function should not return errors
 #[allow(clippy::print_stdout)]
-#[inline]
 pub fn run() -> std::io::Result<()> {
     let cli = Cli::parse();
     let library_path_wd = Path::new(&cli.library_path);
