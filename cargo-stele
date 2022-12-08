@@ -35,13 +35,10 @@ format() {
 
 clippy() {
 	_log_command
+	# * Lints are set in `lib.rs`
+	# * `-D warnings` converts warnings to denials, therefore failing the build
 	cargo clippy \
-		--all -- \
-		-W missing-docs \
-		-W clippy::all \
-		-W clippy::pedantic \
-		-W clippy::restriction \
-		-W clippy::nursery \
+		--all-targets --all-features -- \
 		-D warnings
 }
 

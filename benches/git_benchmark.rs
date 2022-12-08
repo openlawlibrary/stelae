@@ -1,8 +1,6 @@
 //! benchmark for git utils
 #![allow(clippy::self_named_module_files)]
-#![allow(clippy::std_instead_of_alloc)]
 #![allow(clippy::implicit_return)]
-#![allow(clippy::multiple_crate_versions)]
 #![allow(clippy::expect_used)]
 #![allow(missing_docs)]
 

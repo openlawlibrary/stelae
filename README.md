@@ -19,5 +19,12 @@ Options:
 
 ## Development
 
-Lint: `cargo stele lint`
-Test: `cargo stele test`
+It is recommended to use the [Rust Analyzer LSP](https://rust-analyzer.github.io/) to get realtime feedback in your editor.
+
+### Testing
+  * `cargo test` will run even if there are warnings.
+  * `cargo stele test` fails when lints generate warnings. Better for CI.
+
+### Formatting and Linting
+  * `cargo stele lint` checks formatting and lints
+  * `cargo stele ci` checks everything that Cargo is responsible for on CI
