@@ -18,7 +18,6 @@ pub struct Repo {
 }
 
 impl fmt::Debug for Repo {
-    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -37,7 +36,6 @@ impl Repo {
     /// Will return `Err` if git repository does not exist at `{namespace}/{name}`
     /// in library, or if there is something wrong with the git repository.
 
-    #[inline]
     pub fn new(lib_path: &Path, namespace: &str, name: &str) -> Result<Self, Error> {
         let lib_path_str = lib_path.to_string_lossy();
         let repo_path = format!("{lib_path_str}/{namespace}/{name}");
@@ -63,7 +61,6 @@ impl Repo {
     ///
     /// Will return `Err` if `commitish` does not exist in repo, if a blob does
     /// not exist in commit at `path`, or if there is a problem with reading repo.
-    #[inline]
     pub fn get_bytes_at_path(&self, commitish: &str, path: &str) -> anyhow::Result<Vec<u8>> {
         let base_revision = format!("{commitish}:{path}");
         for postfix in ["", "/index.html", ".html", "index.html"] {

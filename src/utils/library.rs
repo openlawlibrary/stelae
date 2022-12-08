@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 ///
 /// # Errors
 /// Error if the path doesn't exist or isn't inside a Stele library.
-#[inline]
 pub fn find_library_path(path: &Path) -> anyhow::Result<PathBuf> {
     let abs_path = path.canonicalize()?;
     for working_path in abs_path.ancestors() {

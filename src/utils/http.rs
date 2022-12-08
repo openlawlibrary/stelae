@@ -7,7 +7,6 @@ use std::path::Path;
 /// for the content at `path`. If there is no extension, we assume it is
 /// html. If the extension cannot be converted to a str, then we return
 /// octet stream.
-#[inline]
 #[must_use]
 pub fn get_contenttype(path: &str) -> ContentType {
     // let mimetype = get_mimetype(blob_path);
