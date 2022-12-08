@@ -1,0 +1,82 @@
+#!/bin/env bash
+# ============================================================================
+#   Helper utilities for managing project-specific development and CI tasks
+# ============================================================================
+# Usage: `cargo stele <function name>`
+# Eg: `cargo stele lint`
+#
+# This is possible because Cargo has a convention that any executable files in
+# $PATH named like: `cargo-<subcommand>` can be run as `cargo subcommand`.
+#
+# This might not be very cross-platform compatible. For a more modern and
+# compatible approach consider Rust's interpretation of Make:
+#   `just`: https://github.com/casey/just
+
+set -e
+shift
+function_to_run=$1
+
+# I found that downloading all the crate deltas was incredibly slow, like
+# hours. Using this ENV var made it fast like normal again. I don't know why,
+# and I've never seen this issue before. It could just be me.
+# @tombh, December 2022
+# `cargo --version`: 1.65.0-nightly
+export CARGO_NET_GIT_FETCH_WITH_CLI=true
+
+lint() {
+	format
+	clippy
+}
+
+format() {
+	_log_command
+	cargo fmt --all -- --check
+}
+
+clippy() {
+	_log_command
+	cargo clippy \
+		--all -- \
+		-W missing-docs \
+		-W clippy::all \
+		-W clippy::pedantic \
+		-W clippy::restriction \
+		-W clippy::nursery \
+		-D warnings
+}
+
+test() {
+	_log_command
+	cargo test
+}
+
+bench() {
+	_log_command
+	cargo bench
+}
+
+ci() {
+	test
+	lint
+	bench
+}
+
+if [[ $(type -t "$function_to_run") != function ]]; then
+	echo "Subcommand: '$function_to_run' not found."
+	exit 1
+fi
+
+# Prints the contents of a function
+_log_command() {
+	name=$(printf '%s\n' "${FUNCNAME[1]}")
+	body=$(type "$name" | sed '1,4d;$d' | _trim)
+	echo "Running: \`$body\`"
+}
+
+# Remove wrapping spaces
+_trim() {
+	awk '{$1=$1};1'
+}
+
+shift
+"$function_to_run" "$@"

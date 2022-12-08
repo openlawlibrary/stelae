@@ -19,10 +19,14 @@ jobs:
           toolchain: stable
           override: true
 
+      - name: Add curent path to $PATH
+        run: echo "./" >> $GITHUB_PATH
+
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
-          command: test
+          command: stele
+          args: test
 
   lints:
     name: Lints
@@ -39,14 +43,17 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      - name: Add curent path to $PATH
+        run: echo "./" >> $GITHUB_PATH
+
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
         with:
-          command: fmt
-          args: --all -- --check
+          command: stele
+          args: format
 
       - name: Run cargo clippy
         uses: actions-rs/cargo@v1
         with:
-          command: clippy
-          args: --all -- -W clippy::all -W clippy::pedantic -W clippy::restriction -W clippy::nursery -D warnings
+          command: stele
+          args: clippy
