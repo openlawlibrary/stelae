@@ -14,5 +14,6 @@
 #![allow(clippy::implicit_return)]
 #![allow(clippy::multiple_crate_versions)]
 #![allow(clippy::std_instead_of_core)]
-/// The utils module contains utility functions and structs.
+
+pub mod server;
 pub mod utils;
