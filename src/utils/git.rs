@@ -1,8 +1,11 @@
 //! The git module contains structs for interacting with git repositories
 //! in the Stele Library.
 use anyhow::Context;
-use git2::{Error, Repository};
+use git2::Repository;
 use std::{fmt, path::Path};
+
+/// This is the first step towards having custom errors
+pub const GIT_REQUEST_NOT_FOUND: &str = "Git object doesn't exist";
 
 /// Represents a git repository within an oll library. includes helpers for
 /// for interacting with the Git Repo.
@@ -36,7 +39,7 @@ impl Repo {
     ///
     /// Will return `Err` if git repository does not exist at `{namespace}/{name}`
     /// in library, or if there is something wrong with the git repository.
-    pub fn new(lib_path: &Path, namespace: &str, name: &str) -> Result<Self, Error> {
+    pub fn new(lib_path: &Path, namespace: &str, name: &str) -> anyhow::Result<Self> {
         let lib_path_str = lib_path.to_string_lossy();
         let repo_path = format!("{lib_path_str}/{namespace}/{name}");
         Ok(Self {
@@ -70,7 +73,7 @@ impl Repo {
                 return blob;
             }
         }
-        Err(anyhow::anyhow!("Doesn't exist"))
+        anyhow::bail!(GIT_REQUEST_NOT_FOUND)
     }
 
     /// Find something like `abc123:/path/to/something.txt` in the Git repo

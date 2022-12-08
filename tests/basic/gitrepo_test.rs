@@ -1,4 +1,4 @@
-use stele::utils::git::Repo;
+use stele::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 
 use crate::common;
 
@@ -88,6 +88,6 @@ fn test_get_bytes_at_path_when_invalid_path_expect_error() {
     let actual = repo
         .get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", "a/b/x")
         .unwrap_err();
-    let expected = "Doesn't exist";
+    let expected = GIT_REQUEST_NOT_FOUND;
     assert_eq!(format!("{}", actual), expected);
 }
