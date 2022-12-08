@@ -31,7 +31,6 @@ Stele is a system for distributing, preserving, and authenticating laws.
     - `test`: Run all tests
 - On windows, especially, you may wish to run just through the nu shell, which can be done by calling all commands with the `--shell` command, e.g. `just --shell nu lint`.
 
-
 ## Q&A
 - Why do we suggest NuShell?
   - NuShell is almost as fast on windows as cmd, but is compattible with bash. If you do not use NuShell on windows, you will need to make sure Git Bash is installed. If you have performance issues, consider switching to Nu.
