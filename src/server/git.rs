@@ -7,12 +7,13 @@
     clippy::unused_async
 )]
 
-use crate::utils::git::Repo;
+use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use crate::utils::http::get_contenttype;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
+use git2;
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Global, read-only state passed into the actix app
 struct AppState {
@@ -39,20 +40,48 @@ async fn get_blob(
 ) -> impl Responder {
     let (namespace, name, commitish, remainder) = path.into_inner();
     let lib_path = &data.library_path;
-    let repo = match Repo::new(lib_path, &namespace, &name) {
-        Ok(repo) => repo,
-        Err(_e) => {
-            return HttpResponse::NotFound().body(format!("repo {namespace}/{name} does not exist"))
-        }
-    };
+    let blob = find_blob(lib_path, &namespace, &name, &remainder, &commitish);
     let blob_path = clean_path(&remainder);
     let contenttype = get_contenttype(&blob_path);
-
-    match repo.get_bytes_at_path(&commitish, &blob_path) {
+    match blob {
         Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
-        Err(_e) => HttpResponse::NotFound().body(format!(
-            "content at {remainder} for {commitish} in repo {namespace}/{name} does not exist"
-        )),
+        Err(error) => blob_error_response(&error, &namespace, &name),
+    }
+}
+
+/// Do the work of looking for the requested Git object.
+// TODO: This, and `clean_path`, look like they could live in `utils::git::Repo`
+fn find_blob(
+    lib_path: &Path,
+    namespace: &str,
+    name: &str,
+    remainder: &str,
+    commitish: &str,
+) -> anyhow::Result<Vec<u8>> {
+    let repo = Repo::new(lib_path, namespace, name)?;
+    let blob_path = clean_path(remainder);
+    let blob = repo.get_bytes_at_path(commitish, &blob_path)?;
+    Ok(blob)
+}
+
+/// A centralised place to match potentially unsafe internal errors to safe user-facing error responses
+#[allow(clippy::wildcard_enum_match_arm)]
+fn blob_error_response(error: &anyhow::Error, namespace: &str, name: &str) -> HttpResponse {
+    if let Some(git_error) = error.downcast_ref::<git2::Error>() {
+        return match git_error.code() {
+            // TODO: check this is the right error
+            git2::ErrorCode::NotFound => {
+                HttpResponse::NotFound().body(format!("repo {namespace}/{name} does not exist"))
+            }
+            _ => HttpResponse::InternalServerError().body("Unexpected Git error"),
+        };
+    }
+    match error {
+        // TODO: Obviously it's better to use custom `Error` types
+        _ if error.to_string() == GIT_REQUEST_NOT_FOUND => {
+            HttpResponse::NotFound().body(GIT_REQUEST_NOT_FOUND)
+        }
+        _ => HttpResponse::InternalServerError().body("Unexpected server error"),
     }
 }
 

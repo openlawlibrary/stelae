@@ -13,8 +13,8 @@ pub fn find_library_path(path: &Path) -> anyhow::Result<PathBuf> {
             return Ok(working_path.to_owned());
         }
     }
-    Err(anyhow::anyhow!(format!(
+    anyhow::bail!(format!(
         "{} is not inside a Stele Library. Run `stele init` to create a library at this location.",
         abs_path.to_string_lossy()
-    )))
+    ))
 }
