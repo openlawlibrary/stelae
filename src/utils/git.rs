@@ -1,5 +1,6 @@
 //! The git module contains structs for interacting with git repositories
 //! in the Stele Library.
+use anyhow::Context;
 use git2::{Error, Repository};
 use std::{fmt, path::Path};
 
@@ -35,7 +36,6 @@ impl Repo {
     ///
     /// Will return `Err` if git repository does not exist at `{namespace}/{name}`
     /// in library, or if there is something wrong with the git repository.
-
     pub fn new(lib_path: &Path, namespace: &str, name: &str) -> Result<Self, Error> {
         let lib_path_str = lib_path.to_string_lossy();
         let repo_path = format!("{lib_path_str}/{namespace}/{name}");
@@ -64,20 +64,19 @@ impl Repo {
     pub fn get_bytes_at_path(&self, commitish: &str, path: &str) -> anyhow::Result<Vec<u8>> {
         let base_revision = format!("{commitish}:{path}");
         for postfix in ["", "/index.html", ".html", "index.html"] {
-            match self
-                .repo
-                .revparse_single(&format!("{base_revision}{postfix}"))
-            {
-                Ok(obj) => {
-                    let blob = match obj.into_blob() {
-                        Ok(blob) => blob,
-                        Err(_) => continue,
-                    };
-                    return Ok(blob.content().to_owned());
-                }
-                Err(_) => continue,
+            let query = &format!("{base_revision}{postfix}");
+            let blob = self.find(query);
+            if blob.is_ok() {
+                return blob;
             }
         }
         Err(anyhow::anyhow!("Doesn't exist"))
+    }
+
+    /// Find something like `abc123:/path/to/something.txt` in the Git repo
+    fn find(&self, query: &str) -> anyhow::Result<Vec<u8>> {
+        let obj = self.repo.revparse_single(query)?;
+        let blob = obj.as_blob().context("Couldn't cast Git object to blob")?;
+        Ok(blob.content().to_owned())
     }
 }
