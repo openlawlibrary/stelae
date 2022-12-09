@@ -19,11 +19,10 @@ pub fn get_contenttype(path: &str) -> ContentType {
 
 #[cfg(test)]
 mod test {
-    use crate::utils::http::get_contenttype;
+    use crate::utils::http::get_contenttype as cut;
 
     #[test]
     fn test_get_contenttype_when_html_ext_expect_html() {
-        let cut = get_contenttype;
         let actual = cut("a/b.html").to_string();
         let expected = String::from("text/html");
         assert_eq!(expected, actual);
@@ -31,7 +30,6 @@ mod test {
 
     #[test]
     fn test_get_contenttype_when_no_ext_expect_html() {
-        let cut = get_contenttype;
         let actual = cut("a/b").to_string();
         let expected = String::from("text/html");
         assert_eq!(expected, actual);
@@ -39,7 +37,6 @@ mod test {
 
     #[test]
     fn test_get_contenttype_when_png_ext_expect_image() {
-        let cut = get_contenttype;
         let actual = cut("a/b.png").to_string();
         let expected = String::from("image/png");
         assert_eq!(expected, actual);
@@ -47,7 +44,6 @@ mod test {
 
     #[test]
     fn test_get_contenttype_when_xml_ext_expect_xml() {
-        let cut = get_contenttype;
         let actual = cut("a/b.xml").to_string();
         let expected = String::from("text/xml");
         assert_eq!(expected, actual);
