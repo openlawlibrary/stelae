@@ -43,9 +43,9 @@ impl Repo {
         let lib_path_str = lib_path.to_string_lossy();
         let repo_path = format!("{lib_path_str}/{namespace}/{name}");
         Ok(Self {
-            lib_path: String::from(lib_path_str),
-            namespace: String::from(namespace),
-            name: String::from(name),
+            lib_path: lib_path_str.into(),
+            namespace: namespace.into(),
+            name: name.into(),
             repo: Repository::open(repo_path)?,
         })
     }
