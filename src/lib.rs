@@ -76,7 +76,10 @@
     // `#[inline]` doesn't mean that a function won't be inlined. And if performance does start
     // to become a problem, there are other avenues to explore before deciding on which functions
     // would benefit from explicit inlining.
-    clippy::missing_inline_in_public_items
+    clippy::missing_inline_in_public_items,
+
+    // I think marking `#[non_exhaustive]` is more for structs that are imported into other crates
+    clippy::exhaustive_structs
 )]
 
 pub mod server;
