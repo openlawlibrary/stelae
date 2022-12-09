@@ -5,15 +5,17 @@
     clippy::unused_async
 )]
 
-use crate::server::tracing::SteleRootSpanBuilder;
-use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
-use crate::utils::http::get_contenttype;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use git2;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::path::{Path, PathBuf};
 use tracing_actix_web::TracingLogger;
+
+use super::errors::SteleError;
+use crate::server::tracing::SteleRootSpanBuilder;
+use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
+use crate::utils::http::get_contenttype;
 
 /// Global, read-only state passed into the actix app
 struct AppState {
@@ -28,6 +30,21 @@ fn clean_path(path: &str) -> String {
         static ref RE: Regex = Regex::new(r"(?:^/*|/*$)").expect("Failed to compile regex!?!");
     }
     RE.replace_all(path, "").to_string()
+}
+
+/// Root index path
+#[get("/")]
+async fn index() -> &'static str {
+    "Welcome to Stele"
+}
+
+/// Just for development purposes at the moment
+#[get("{path}")]
+async fn misc(path: web::Path<String>) -> actix_web::Result<&'static str, SteleError> {
+    match path.as_str() {
+        "error" => Err(SteleError::GitError),
+        _ => Ok("\u{2728}"),
+    }
 }
 
 /// Return the content in the stele library in the `{namespace}/{name}`
@@ -99,6 +116,8 @@ pub async fn serve_git(
     HttpServer::new(move || {
         App::new()
             .wrap(TracingLogger::<SteleRootSpanBuilder>::new())
+            .service(index)
+            .service(misc)
             .service(get_blob)
             .app_data(web::Data::new(AppState {
                 library_path: library_path.clone(),
