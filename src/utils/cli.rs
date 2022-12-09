@@ -7,6 +7,7 @@ use crate::server::git::serve_git;
 use crate::utils::library::find_library_path;
 use clap::Parser;
 use std::path::Path;
+use tracing;
 
 /// Stele is currently just a simple git server.
 /// run from the library directory or pass
@@ -33,18 +34,27 @@ enum Subcommands {
     },
 }
 
+///
+fn init_tracing() {
+    tracing_subscriber::fmt::init();
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "info");
+    }
+}
+
 /// Main entrypoint to application
 ///
 /// # Errors
 /// TODO: This function should not return errors
-#[allow(clippy::print_stdout)]
 pub fn run() -> std::io::Result<()> {
+    init_tracing();
+    tracing::debug!("Starting application");
     let cli = Cli::parse();
     let library_path_wd = Path::new(&cli.library_path);
     let library_path = if let Ok(lpath) = find_library_path(library_path_wd) {
         lpath
     } else {
-        println!(
+        tracing::error!(
             "error: could not find `.stele` folder in `{}` or any parent directory",
             &cli.library_path
         );

@@ -87,16 +87,14 @@ fn blob_error_response(error: &anyhow::Error, namespace: &str, name: &str) -> Ht
 
 /// Serve git repositories in the Stele library.
 #[actix_web::main] // or #[tokio::main]
-#[allow(clippy::print_stdout)]
 pub async fn serve_git(
     raw_library_path: &str,
     library_path: PathBuf,
     port: u16,
 ) -> std::io::Result<()> {
-    println!(
-        "Serving content from the Stele library at {} on http://127.0.0.1:{}.",
-        raw_library_path, port
-    );
+    let bind = "127.0.0.1";
+    let message = "Serving content from the Stele library at";
+    tracing::info!("{message} '{raw_library_path}' on http://{bind}:{port}.",);
 
     HttpServer::new(move || {
         App::new()
@@ -105,7 +103,7 @@ pub async fn serve_git(
                 library_path: library_path.clone(),
             }))
     })
-    .bind(("127.0.0.1", port))?
+    .bind((bind, port))?
     .run()
     .await
 }
