@@ -23,19 +23,23 @@ fn test_find_library_path_when_in_library_expect_library_path() {
 fn test_find_library_path_when_nonexistant_path_expect_error() {
     let library_path = common::get_test_library_path();
     let cwd = library_path.join("does_not_exist");
-    let actual_err = find_library_path(&cwd).unwrap_err();
-    let actual = format!("{}", actual_err);
+    let actual = find_library_path(&cwd).unwrap_err();
     let expected = "(os error 2)";
-    assert_eq!(&actual[actual.len() - 12..], expected);
+    assert!(
+        actual.to_string().contains(expected),
+        "\"{actual}\" doesn't contain {expected}"
+    );
 }
 
 #[test]
 fn test_find_library_path_when_not_in_library_expect_error() {
     let library_path = common::get_test_library_path();
     let cwd = library_path.parent().unwrap();
-    let actual_err = find_library_path(cwd).unwrap_err();
-    let actual = format!("{}", actual_err);
+    let actual = find_library_path(cwd).unwrap_err();
     let expected =
         "is not inside a Stele Library. Run `stele init` to create a library at this location.";
-    assert_eq!(&actual[actual.len() - 85..], expected);
+    assert!(
+        actual.to_string().contains(expected),
+        "\"{actual}\" doesn't contain {expected}"
+    );
 }
