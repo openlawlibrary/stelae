@@ -70,14 +70,17 @@ impl Repo {
             let query = &format!("{base_revision}{postfix}");
             let blob = self.find(query);
             if blob.is_ok() {
+                tracing::trace!(query, "Found Git object");
                 return blob;
             }
         }
+        tracing::debug!(base_revision, "Couldn't find requeted Git object");
         anyhow::bail!(GIT_REQUEST_NOT_FOUND)
     }
 
     /// Find something like `abc123:/path/to/something.txt` in the Git repo
     fn find(&self, query: &str) -> anyhow::Result<Vec<u8>> {
+        tracing::trace!(query, "Git reverse parse search");
         let obj = self.repo.revparse_single(query)?;
         let blob = obj.as_blob().context("Couldn't cast Git object to blob")?;
         Ok(blob.content().to_owned())
