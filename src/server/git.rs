@@ -1,12 +1,11 @@
 //! Legacy git microserver.
 
 #![allow(
-    // Will be deprecated upon completion of Publish Server migration to rust.
-    clippy::exhaustive_structs,
     // Unused asyncs are the norm in Actix route definition files
     clippy::unused_async
 )]
 
+use crate::server::tracing::SteleRootSpanBuilder;
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use crate::utils::http::get_contenttype;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
@@ -14,6 +13,7 @@ use git2;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::path::{Path, PathBuf};
+use tracing_actix_web::TracingLogger;
 
 /// Global, read-only state passed into the actix app
 struct AppState {
@@ -98,6 +98,7 @@ pub async fn serve_git(
 
     HttpServer::new(move || {
         App::new()
+            .wrap(TracingLogger::<SteleRootSpanBuilder>::new())
             .service(get_blob)
             .app_data(web::Data::new(AppState {
                 library_path: library_path.clone(),
