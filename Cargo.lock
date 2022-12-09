@@ -1501,6 +1501,7 @@ dependencies = [
  "anyhow",
  "clap 4.0.27",
  "criterion",
+ "derive_more",
  "git2",
  "lazy_static",
  "regex",

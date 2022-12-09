@@ -19,7 +19,7 @@ struct RequestStart(Instant);
 
 impl RootSpanBuilder for SteleRootSpanBuilder {
     fn on_request_start(request: &ServiceRequest) -> tracing::Span {
-        // The `{}` block to tells the compiler to return ownership of `request`.
+        // The `{}` block tells the compiler to return ownership of `request`.
         // NOTE:
         //   Because the `request` variable is included in the `*span!` macro, we're not likely to
         //   get linting feedback that the macro also mutably borrows `request`. Or at least I
@@ -53,7 +53,7 @@ impl RootSpanBuilder for SteleRootSpanBuilder {
         //   I couldn't find a way of triggering the case where `outcome` is
         //   `Result::Err(actix_web::Error)`. It doesn't seem to be when a route method returns an
         //   error, as I assume that's considered a handled error. So maybe `outcome` is only ever
-        //   and error for an Actix-internal error? Either way, the root span and timings all work
+        //   an error for an Actix-internal error? Either way, the root span and timings all work
         //   normally for known and handled request errors.
         outcome.as_ref().map_or((), |response| {
             if let Some(req_start) = response.request().extensions().get::<RequestStart>() {

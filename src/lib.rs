@@ -78,8 +78,9 @@
     // would benefit from explicit inlining.
     clippy::missing_inline_in_public_items,
 
-    // I think marking `#[non_exhaustive]` is more for structs that are imported into other crates
-    clippy::exhaustive_structs
+    // I think marking `#[non_exhaustive]` is more for structs/enums that are imported into other crates
+    clippy::exhaustive_structs,
+    clippy::exhaustive_enums
 )]
 
 pub mod server;
