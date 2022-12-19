@@ -8,6 +8,7 @@ license = "AGPL-3.0"
 keywords = ["authentication", "laws", "preservation"]
 categories = ["authentication", "web-programming::http-server"]
 repository = "https://github.com/openlawlibrary/stele"
+rust-version = "1.66"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

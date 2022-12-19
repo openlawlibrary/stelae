@@ -17,6 +17,7 @@ pub enum SteleError {
     GitError,
 }
 
+#[allow(clippy::missing_trait_methods)]
 impl error::ResponseError for SteleError {
     fn error_response(&self) -> HttpResponse {
         HttpResponse::build(self.status_code()).body(self.to_string())
