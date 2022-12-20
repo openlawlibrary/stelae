@@ -10,7 +10,7 @@ Stele is a system for distributing, preserving, and authenticating laws.
   - Windows:
     - [C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
   - Linux:
-    - ...
+    - `sudo apt-get install build-essential pkg-config libssl-dev `
 2. Install [Rust](https://www.rust-lang.org/tools/install)
 3. Install [Just](https://just.systems/man/en/chapter_3.html) (Our build tool)
 4. Install [NuShell](https://www.nushell.sh/book/installation.html) (A fast, cross-platform shell used by Just)
@@ -30,7 +30,6 @@ Stele is a system for distributing, preserving, and authenticating laws.
     - `test`: Run all tests
 
 
-
 ## Q&A
 - Why are we using NuShell?
-  - Build needs to work across both windows and linux, so we must have a shell that works on both. Because speed is important for linting it must also be fast on both. In tests on Windows, Nu was approximately 10x faster to start up than PowerShell, and 2x faster than Git for windows' Bash.
+  - Build needs to work across both windows and linux, so we must have a shell that works on both. Because speed is important for linting it must also be fast on both. In tests on Windows, Nu was approximately 10x faster to start up than PowerShell, and 2x faster than Git for Windows' Bash.
