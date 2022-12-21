@@ -69,7 +69,7 @@
     clippy::std_instead_of_core,
 
     // TODO: But I think the mod.rs is more conventional — @tombh
-    clippy::self_named_module_files,
+    clippy::mod_module_files,
 
     // Although performance is of course important for this application, it is not currently
     // such that it would benefit from explicit inline suggestions. Besides, not specifying
