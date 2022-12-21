@@ -1,7 +1,5 @@
 #!/usr/bin/env just --justfile
 
-set shell := ["nu", "-c"]
-
 # List all available commands
 default:
   @just --list
