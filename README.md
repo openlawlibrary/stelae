@@ -18,7 +18,6 @@ Stele is a system for distributing, preserving, and authenticating laws.
 6. We recommend using [VSCode](https://code.visualstudio.com/Download) (default settings provided in repo), but you can use any editor you like.
 
 ### Development
-
 - Lints must pass before merging into master
 - All code must have tests. Tests should conform to our testing guidelines.
 - Run `just` from within the repository to list all available just commands. Currently:
@@ -31,6 +30,11 @@ Stele is a system for distributing, preserving, and authenticating laws.
     - `test`: Run all tests
 - On windows, especially, you may wish to run just through the nu shell, which can be done by calling all commands with the `--shell` command, e.g. `just --shell nu lint`.
 
+## Logging
+
+The ENV variable `RUST_LOG` can be set with one of `trace`, `debug`, `info`, `warn`, `error`. Filters can be set based on the `target` components seen in the logs lines, for example: to use `trace` but turn down the noise from the Actix dispatcher: `RUST_LOG="trace,actix_http::h1::dispatcher=warn"`
+
+See [tracing-subscriber docs](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/fmt/index.html#filtering-events-with-environment-variables) and [env_logger syntax](https://docs.rs/env_logger/latest/env_logger/#enabling-logging]).
 
 ## Q&A
 - Why do we suggest NuShell?

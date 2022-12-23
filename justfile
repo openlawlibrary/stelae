@@ -9,7 +9,7 @@ lint: format clippy
 
 # Format code
 format:
-	cargo fmt --all -- --check
+  cargo fmt --all -- --check
 
 # Run all tests
 test:

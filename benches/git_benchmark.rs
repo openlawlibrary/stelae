@@ -1,34 +1,20 @@
 //! benchmark for git utils
 #![allow(clippy::self_named_module_files)]
-#![allow(clippy::std_instead_of_alloc)]
 #![allow(clippy::implicit_return)]
-#![allow(clippy::multiple_crate_versions)]
 #![allow(clippy::expect_used)]
 #![allow(missing_docs)]
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use std::env::current_exe;
 use std::fs::create_dir_all;
 use std::path::PathBuf;
 use std::sync::Once;
 use stele::utils::git::Repo;
 
-/// get the path to the test library at `$REPO_ROOT/test/library`.
+/// get the path to the test library at `$REPO_ROOT/tests/fixtures/library`.
 fn get_test_library_path() -> PathBuf {
-    let mut library_path = current_exe()
-        .expect("Something went wrong getting the library path")
-        .parent()
-        .expect("Something went wrong getting the library path")
-        .parent()
-        .expect("Something went wrong getting the library path")
-        .parent()
-        .expect("Something went wrong getting the library path")
-        .parent()
-        .expect("Something went wrong getting the library path")
-        .to_owned();
-    library_path.push("test");
-    library_path.push("library");
-    library_path
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.push("tests/fixtures/library");
+    path
 }
 
 /// ensure `initialize` function, below, is only called once
