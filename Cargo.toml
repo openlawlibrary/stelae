@@ -24,6 +24,8 @@ tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
 tracing-actix-web = "0.6.2"
 derive_more = "0.99.17"
+toml = "0.5.10"
+serde_derive = "1.0.152"
 
 [dev-dependencies]
 criterion = "0.3"
