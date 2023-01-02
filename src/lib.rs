@@ -84,4 +84,5 @@
 )]
 
 pub mod server;
+pub mod stelae;
 pub mod utils;
