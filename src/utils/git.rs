@@ -1,5 +1,5 @@
 //! The git module contains structs for interacting with git repositories
-//! in the Stelae Library.
+//! in the Stelae Archive.
 use anyhow::Context;
 use git2::Repository;
 use std::{fmt, path::Path};
@@ -7,17 +7,17 @@ use std::{fmt, path::Path};
 /// This is the first step towards having custom errors
 pub const GIT_REQUEST_NOT_FOUND: &str = "Git object doesn't exist";
 
-/// Represents a git repository within an oll library. includes helpers for
+/// Represents a git repository within an oll archive. includes helpers for
 /// for interacting with the Git Repo.
-/// Expects a path to the library, as well as the repo's namespace and name.
+/// Expects a path to the archive, as well as the repo's namespace and name.
 pub struct Repo {
-    /// Path to the library
-    lib_path: String,
+    /// Path to the archive
+    archive_path: String,
     /// Repo namespace
     namespace: String,
     /// Repo name
     name: String,
-    /// git2 repository pointing to the repo in the library.
+    /// git2 repository pointing to the repo in the archive.
     repo: Repository,
 }
 
@@ -25,26 +25,26 @@ impl fmt::Debug for Repo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Repo for {}/{} in the library at {}",
-            self.namespace, self.name, self.lib_path
+            "Repo for {}/{} in the archive at {}",
+            self.namespace, self.name, self.archive_path
         )
     }
 }
 
 impl Repo {
     /// Create a new Repo object with helpers for interacting with a Git Repo.
-    /// Expects a path to the library, as well as the repo's namespace and name.
+    /// Expects a path to the archive, as well as the repo's namespace and name.
     ///
     /// # Errors
     ///
     /// Will return `Err` if git repository does not exist at `{namespace}/{name}`
-    /// in library, or if there is something wrong with the git repository.
-    pub fn new(lib_path: &Path, namespace: &str, name: &str) -> anyhow::Result<Self> {
-        let lib_path_str = lib_path.to_string_lossy();
-        tracing::debug!(namespace, name, "Creating new Repo at {lib_path_str}");
-        let repo_path = format!("{lib_path_str}/{namespace}/{name}");
+    /// in archive, or if there is something wrong with the git repository.
+    pub fn new(archive_path: &Path, namespace: &str, name: &str) -> anyhow::Result<Self> {
+        let archive_path_str = archive_path.to_string_lossy();
+        tracing::debug!(namespace, name, "Creating new Repo at {archive_path_str}");
+        let repo_path = format!("{archive_path_str}/{namespace}/{name}");
         Ok(Self {
-            lib_path: lib_path_str.into(),
+            archive_path: archive_path_str.into(),
             namespace: namespace.into(),
             name: name.into(),
             repo: Repository::open(repo_path)?,

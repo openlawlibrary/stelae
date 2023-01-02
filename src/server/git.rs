@@ -21,8 +21,8 @@ use crate::utils::http::get_contenttype;
 
 /// Global, read-only state passed into the actix app
 struct AppState {
-    /// path to the Stelae library
-    library_path: PathBuf,
+    /// path to the Stelae archive
+    archive_path: PathBuf,
 }
 
 #[allow(clippy::expect_used)]
@@ -49,7 +49,7 @@ async fn misc(path: web::Path<String>) -> actix_web::Result<&'static str, Stelae
     }
 }
 
-/// Return the content in the stelae library in the `{namespace}/{name}`
+/// Return the content in the stelae archive in the `{namespace}/{name}`
 /// repo at the `commitish` commit at the `remainder` path.
 /// Return 404 if any are not found or there are any errors.
 #[get("/{namespace}/{name}/{commitish}{remainder:/+([^{}]*?)?/*}")]
@@ -59,8 +59,8 @@ async fn get_blob(
     data: web::Data<AppState>,
 ) -> impl Responder {
     let (namespace, name, commitish, remainder) = path.into_inner();
-    let lib_path = &data.library_path;
-    let blob = find_blob(lib_path, &namespace, &name, &remainder, &commitish);
+    let archive_path = &data.archive_path;
+    let blob = find_blob(archive_path, &namespace, &name, &remainder, &commitish);
     let blob_path = clean_path(&remainder);
     let contenttype = get_contenttype(&blob_path);
     match blob {
@@ -72,13 +72,13 @@ async fn get_blob(
 /// Do the work of looking for the requested Git object.
 // TODO: This, and `clean_path`, look like they could live in `utils::git::Repo`
 fn find_blob(
-    lib_path: &Path,
+    archive_path: &Path,
     namespace: &str,
     name: &str,
     remainder: &str,
     commitish: &str,
 ) -> anyhow::Result<Vec<u8>> {
-    let repo = Repo::new(lib_path, namespace, name)?;
+    let repo = Repo::new(archive_path, namespace, name)?;
     let blob_path = clean_path(remainder);
     let blob = repo.get_bytes_at_path(commitish, &blob_path)?;
     Ok(blob)
@@ -107,16 +107,16 @@ fn blob_error_response(error: &anyhow::Error, namespace: &str, name: &str) -> Ht
     }
 }
 
-/// Serve git repositories in the Stelae library.
+/// Serve git repositories in the Stelae archive.
 #[actix_web::main] // or #[tokio::main]
 pub async fn serve_git(
-    raw_library_path: &str,
-    library_path: PathBuf,
+    raw_archive_path: &str,
+    archive_path: PathBuf,
     port: u16,
 ) -> std::io::Result<()> {
     let bind = "127.0.0.1";
-    let message = "Serving content from the Stelae library at";
-    tracing::info!("{message} '{raw_library_path}' on http://{bind}:{port}.",);
+    let message = "Serving content from the Stelae archive at";
+    tracing::info!("{message} '{raw_archive_path}' on http://{bind}:{port}.",);
 
     HttpServer::new(move || {
         App::new()
@@ -125,7 +125,7 @@ pub async fn serve_git(
             .service(misc)
             .service(get_blob)
             .app_data(web::Data::new(AppState {
-                library_path: library_path.clone(),
+                archive_path: archive_path.clone(),
             }))
     })
     .bind((bind, port))?
