@@ -4,20 +4,20 @@
 #![allow(clippy::exit)]
 
 use crate::server::git::serve_git;
-use crate::utils::library::find_library_path;
+use crate::utils::archive::find_archive_path;
 use clap::Parser;
 use std::path::Path;
 use tracing;
 
 /// Stele is currently just a simple git server.
-/// run from the library directory or pass
-/// path to library.
+/// run from the archive directory or pass
+/// path to archive.
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    /// Path to the Stele library. Defaults to cwd.
+    /// Path to the Stele archive. Defaults to cwd.
     #[arg(short, long, default_value_t = String::from(".").to_owned())]
-    library_path: String,
+    archive_path: String,
     /// Stele cli subcommands
     #[command(subcommand)]
     subcommands: Subcommands,
@@ -26,9 +26,9 @@ struct Cli {
 ///
 #[derive(Clone, clap::Subcommand)]
 enum Subcommands {
-    /// Serve git repositories in the Stele library
+    /// Serve git repositories in the Stele archive
     Git {
-        /// Port on which to serve the library.
+        /// Port on which to serve the archive.
         #[arg(short, long, default_value_t = 8080)]
         port: u16,
     },
@@ -50,18 +50,18 @@ pub fn run() -> std::io::Result<()> {
     init_tracing();
     tracing::debug!("Starting application");
     let cli = Cli::parse();
-    let library_path_wd = Path::new(&cli.library_path);
-    let library_path = if let Ok(lpath) = find_library_path(library_path_wd) {
+    let archive_path_wd = Path::new(&cli.archive_path);
+    let archive_path = if let Ok(lpath) = find_archive_path(archive_path_wd) {
         lpath
     } else {
         tracing::error!(
             "error: could not find `.stele` folder in `{}` or any parent directory",
-            &cli.library_path
+            &cli.archive_path
         );
         std::process::exit(1);
     };
 
     match cli.subcommands {
-        Subcommands::Git { port } => serve_git(&cli.library_path, library_path, port),
+        Subcommands::Git { port } => serve_git(&cli.archive_path, archive_path, port),
     }
 }
