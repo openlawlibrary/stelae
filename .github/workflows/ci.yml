@@ -22,12 +22,12 @@ jobs:
       - name: Install NuShell
         uses: hustcer/setup-nu@v3
         env:
-          GITHUB_TOKEN: ${{ secrets.STELE_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.STELAE_GITHUB_TOKEN }}
       
       - name: Install Just
         uses: extractions/setup-just@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.STELE_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.STELAE_GITHUB_TOKEN }}
 
       - name: Run tests
         run: just test
@@ -50,7 +50,7 @@ jobs:
       - name: Install Just
         uses: extractions/setup-just@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.STELE_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.STELAE_GITHUB_TOKEN }}
 
       - name: Run just lint
         run: just lint

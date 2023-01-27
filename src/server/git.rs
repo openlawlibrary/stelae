@@ -12,14 +12,14 @@ use regex::Regex;
 use std::path::{Path, PathBuf};
 use tracing_actix_web::TracingLogger;
 
-use super::errors::SteleError;
-use crate::server::tracing::SteleRootSpanBuilder;
+use super::errors::StelaeError;
+use crate::server::tracing::StelaeRootSpanBuilder;
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use crate::utils::http::get_contenttype;
 
 /// Global, read-only state passed into the actix app
 struct AppState {
-    /// path to the Stele library
+    /// path to the Stelae library
     library_path: PathBuf,
 }
 
@@ -35,19 +35,19 @@ fn clean_path(path: &str) -> String {
 /// Root index path
 #[get("/")]
 async fn index() -> &'static str {
-    "Welcome to Stele"
+    "Welcome to Stelae"
 }
 
 /// Just for development purposes at the moment
 #[get("{path}")]
-async fn misc(path: web::Path<String>) -> actix_web::Result<&'static str, SteleError> {
+async fn misc(path: web::Path<String>) -> actix_web::Result<&'static str, StelaeError> {
     match path.as_str() {
-        "error" => Err(SteleError::GitError),
+        "error" => Err(StelaeError::GitError),
         _ => Ok("\u{2728}"),
     }
 }
 
-/// Return the content in the stele library in the `{namespace}/{name}`
+/// Return the content in the stelae library in the `{namespace}/{name}`
 /// repo at the `commitish` commit at the `remainder` path.
 /// Return 404 if any are not found or there are any errors.
 #[get("/{namespace}/{name}/{commitish}{remainder:/+([^{}]*?)?/*}")]
@@ -102,7 +102,7 @@ fn blob_error_response(error: &anyhow::Error, namespace: &str, name: &str) -> Ht
     }
 }
 
-/// Serve git repositories in the Stele library.
+/// Serve git repositories in the Stelae library.
 #[actix_web::main] // or #[tokio::main]
 pub async fn serve_git(
     raw_library_path: &str,
@@ -110,12 +110,12 @@ pub async fn serve_git(
     port: u16,
 ) -> std::io::Result<()> {
     let bind = "127.0.0.1";
-    let message = "Serving content from the Stele library at";
+    let message = "Serving content from the Stelae library at";
     tracing::info!("{message} '{raw_library_path}' on http://{bind}:{port}.",);
 
     HttpServer::new(move || {
         App::new()
-            .wrap(TracingLogger::<SteleRootSpanBuilder>::new())
+            .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
             .service(index)
             .service(misc)
             .service(get_blob)

@@ -8,7 +8,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use std::fs::create_dir_all;
 use std::path::PathBuf;
 use std::sync::Once;
-use stele::utils::git::Repo;
+use stelae::utils::git::Repo;
 
 /// get the path to the test library at `$REPO_ROOT/tests/fixtures/library`.
 fn get_test_library_path() -> PathBuf {

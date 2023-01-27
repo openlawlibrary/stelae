@@ -1,6 +1,6 @@
-# Stele
+# Stelae
 
-Stele is a system for distributing, preserving, and authenticating laws.
+Stelae is a system for distributing, preserving, and authenticating laws.
 
 ## Contributing
 

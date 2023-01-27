@@ -29,8 +29,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-[Unreleased]: https://github.com/openlawlibrary/stele/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/openlawlibrary/stele/tree/v0.1.0
+[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/openlawlibrary/stelae/tree/v0.1.0
 
 [keepachangelog]: https://keepachangelog.com/en/1.0.0/
 [semver]: https://semver.org/spec/v2.0.0.html

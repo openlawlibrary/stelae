@@ -18,7 +18,7 @@ jobs:
           # (optional) Path to changelog.
           changelog: CHANGELOG.md
           # (required) GitHub token for creating GitHub Releases.
-          token: ${{ secrets.STELE_GITHUB_TOKEN }}
+          token: ${{ secrets.STELAE_GITHUB_TOKEN }}
 
   upload-assets:
     strategy:
@@ -34,7 +34,7 @@ jobs:
         with:
           # (required) Comma-separated list of binary names (non-extension portion of filename) to build and upload.
           # Note that glob pattern is not supported yet.
-          bin: stele
+          bin: stelae
           # (optional) On which platform to distribute the `.tar.gz` file.
           # [default value: unix]
           # [possible values: all, unix, windows, none]
@@ -44,4 +44,4 @@ jobs:
           # [possible values: all, unix, windows, none]
           zip: windows
           # (required) GitHub token for uploading assets to GitHub Releases.
-          token: ${{ secrets.STELE_GITHUB_TOKEN }}
+          token: ${{ secrets.STELAE_GITHUB_TOKEN }}

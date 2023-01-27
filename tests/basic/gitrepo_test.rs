@@ -1,4 +1,4 @@
-use stele::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
+use stelae::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 
 use crate::common;
 
