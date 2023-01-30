@@ -51,9 +51,7 @@ pub fn run() -> std::io::Result<()> {
     tracing::debug!("Starting application");
     let cli = Cli::parse();
     let library_path_wd = Path::new(&cli.library_path);
-    let library_path = if let Ok(lpath) = find_library_path(library_path_wd) {
-        lpath
-    } else {
+    let Ok(library_path) = find_library_path(library_path_wd) else {
         tracing::error!(
             "error: could not find `.stelae` folder in `{}` or any parent directory",
             &cli.library_path
