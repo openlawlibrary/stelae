@@ -9,16 +9,16 @@ use clap::Parser;
 use std::path::Path;
 use tracing;
 
-/// Stele is currently just a simple git server.
+/// Stelae is currently just a simple git server.
 /// run from the library directory or pass
 /// path to library.
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    /// Path to the Stele library. Defaults to cwd.
+    /// Path to the Stelae library. Defaults to cwd.
     #[arg(short, long, default_value_t = String::from(".").to_owned())]
     library_path: String,
-    /// Stele cli subcommands
+    /// Stelae cli subcommands
     #[command(subcommand)]
     subcommands: Subcommands,
 }
@@ -26,7 +26,7 @@ struct Cli {
 ///
 #[derive(Clone, clap::Subcommand)]
 enum Subcommands {
-    /// Serve git repositories in the Stele library
+    /// Serve git repositories in the Stelae library
     Git {
         /// Port on which to serve the library.
         #[arg(short, long, default_value_t = 8080)]
@@ -51,11 +51,9 @@ pub fn run() -> std::io::Result<()> {
     tracing::debug!("Starting application");
     let cli = Cli::parse();
     let library_path_wd = Path::new(&cli.library_path);
-    let library_path = if let Ok(lpath) = find_library_path(library_path_wd) {
-        lpath
-    } else {
+    let Ok(library_path) = find_library_path(library_path_wd) else {
         tracing::error!(
-            "error: could not find `.stele` folder in `{}` or any parent directory",
+            "error: could not find `.stelae` folder in `{}` or any parent directory",
             &cli.library_path
         );
         std::process::exit(1);

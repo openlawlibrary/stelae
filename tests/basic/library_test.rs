@@ -1,4 +1,4 @@
-use stele::utils::library::find_library_path;
+use stelae::utils::library::find_library_path;
 
 use crate::common;
 
@@ -37,7 +37,7 @@ fn test_find_library_path_when_not_in_library_expect_error() {
     let cwd = library_path.parent().unwrap();
     let actual = find_library_path(cwd).unwrap_err();
     let expected =
-        "is not inside a Stele Library. Run `stele init` to create a library at this location.";
+        "is not inside a Stelae Library. Run `stelae init` to create a library at this location.";
     assert!(
         actual.to_string().contains(expected),
         "\"{actual}\" doesn't contain {expected}"

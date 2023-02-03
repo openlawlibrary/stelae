@@ -6,7 +6,7 @@
 #![allow(clippy::cargo)]
 #![allow(clippy::restriction)]
 
-use stele::utils::cli::run;
+use stelae::utils::cli::run;
 
 fn main() -> std::io::Result<()> {
     run()

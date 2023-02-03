@@ -1,5 +1,5 @@
 //! The git module contains structs for interacting with git repositories
-//! in the Stele Library.
+//! in the Stelae Library.
 use anyhow::Context;
 use git2::Repository;
 use std::{fmt, path::Path};

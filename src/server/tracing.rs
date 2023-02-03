@@ -12,12 +12,12 @@ use tracing_actix_web::{DefaultRootSpanBuilder, RootSpanBuilder};
 const SLOW_REQUEST_MS: u128 = 5 * 1000;
 
 /// More or less an alias just to add custom functionality to `DefaultRootSpanBuilder`
-pub struct SteleRootSpanBuilder;
+pub struct StelaeRootSpanBuilder;
 
 /// For measuring the duration of a request
 struct RequestStart(Instant);
 
-impl RootSpanBuilder for SteleRootSpanBuilder {
+impl RootSpanBuilder for StelaeRootSpanBuilder {
     fn on_request_start(request: &ServiceRequest) -> tracing::Span {
         // The `{}` block tells the compiler to return ownership of `request`.
         // NOTE:

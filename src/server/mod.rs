@@ -1,4 +1,4 @@
-//! Functionality for serving Stele libraries.
+//! Functionality for serving Stelae libraries.
 //!
 //! Currently contains only a git microserver.
 

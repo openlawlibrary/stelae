@@ -1493,7 +1493,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "stele"
+name = "stelae"
 version = "0.1.0"
 dependencies = [
  "actix-files",
