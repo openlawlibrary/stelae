@@ -13,12 +13,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      # production release
       - uses: taiki-e/create-gh-release-action@v1
         with:
-          # (optional) Path to changelog.
+          # (optional) Path to changelog
           changelog: CHANGELOG.md
           # (required) GitHub token for creating GitHub Releases.
           token: ${{ secrets.STELAE_GITHUB_TOKEN }}
+        if: ${{ !contains(github.ref_name, '-') }}
+      # development (pre)release
+      # we do not need changelog changes
+      - uses: taiki-e/create-gh-release-action@v1
+        with:
+          token: ${{ secrets.STELAE_GITHUB_TOKEN }}
+        if: ${{ contains(github.ref_name, '-') }}
 
   upload-assets:
     strategy:
@@ -43,5 +51,14 @@ jobs:
           # [default value: windows]
           # [possible values: all, unix, windows, none]
           zip: windows
+            # (optional) Archive name (non-extension portion of filename) to be uploaded.
+          # [default value: $bin-$target]
+          # [possible values: the following variables and any string]
+          #   variables:
+          #     - $bin    - Binary name (non-extension portion of filename).
+          #     - $target - Target triple.
+          #     - $tag    - Tag of this release.
+          # When multiple binary names are specified, default archive name or $bin variable cannot be used.
+          archive: $bin-$target-$tag
           # (required) GitHub token for uploading assets to GitHub Releases.
           token: ${{ secrets.STELAE_GITHUB_TOKEN }}
