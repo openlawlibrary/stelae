@@ -4,6 +4,7 @@
 #![allow(clippy::exit)]
 
 use crate::server::git::serve_git;
+use crate::server::publish::serve_archive;
 use crate::utils::library::find_library_path;
 use clap::Parser;
 use std::path::Path;
@@ -29,6 +30,12 @@ enum Subcommands {
     /// Serve git repositories in the Stelae library
     Git {
         /// Port on which to serve the library.
+        #[arg(short, long, default_value_t = 8080)]
+        port: u16,
+    },
+    /// Serve documents in a Stelae archive.
+    Serve {
+        /// Port on which to serve the archive.
         #[arg(short, long, default_value_t = 8080)]
         port: u16,
     },
@@ -61,5 +68,6 @@ pub fn run() -> std::io::Result<()> {
 
     match cli.subcommands {
         Subcommands::Git { port } => serve_git(&cli.library_path, library_path, port),
+        Subcommands::Serve { port } => serve_archive(&cli.library_path, library_path, port),
     }
 }
