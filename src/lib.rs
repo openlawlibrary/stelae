@@ -83,5 +83,6 @@
     clippy::exhaustive_enums
 )]
 
+pub mod db;
 pub mod server;
 pub mod utils;
