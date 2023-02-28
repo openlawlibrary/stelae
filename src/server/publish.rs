@@ -1,5 +1,6 @@
 //! Serve documents in a Stelae archive.
 #![allow(clippy::exit)]
+#![allow(clippy::unused_async)]
 use crate::db;
 use crate::server::tracing::StelaeRootSpanBuilder;
 use actix_web::{get, web, App, HttpServer};
