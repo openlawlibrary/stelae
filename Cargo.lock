@@ -1081,6 +1081,7 @@ name = "entity"
 version = "0.1.0"
 dependencies = [
  "sea-orm",
+ "serde",
  "serde_json",
 ]
 
@@ -1737,7 +1738,10 @@ name = "migration"
 version = "0.1.0"
 dependencies = [
  "async-std",
+ "sea-orm",
  "sea-orm-migration",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

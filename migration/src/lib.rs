@@ -3,6 +3,7 @@ pub use sea_orm_migration::prelude::*;
 pub mod m00001_create_repository;
 pub mod m00002_create_publication;
 pub mod m00003_create_commit;
+pub mod m00004_create_change_and_change_commit;
 
 pub struct Migrator;
 
@@ -13,6 +14,7 @@ impl MigratorTrait for Migrator {
             Box::new(m00001_create_repository::Migration),
             Box::new(m00002_create_publication::Migration),
             Box::new(m00003_create_commit::Migration),
+            Box::new(m00004_create_change_and_change_commit::Migration),
         ]
     }
 }

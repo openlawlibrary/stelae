@@ -17,28 +17,16 @@ pub mod commit {
         pub revoked: bool,
         pub publication_id: i32,
     }
-    #[derive(Copy, Clone, Debug, EnumIter)]
+    #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
     pub enum Relation {
+        #[sea_orm(
+            belongs_to = "publication::Entity",
+            from = "Column::PublicationId",
+            to = "publication::Column::Id",
+            on_update = "Cascade",
+            on_delete = "Cascade"
+        )]
         Publication,
-    }
-
-    impl RelationTrait for Relation {
-        fn def(&self) -> RelationDef {
-            match self {
-                Self::Publication => Entity::belongs_to(publication::Entity)
-                    .from(Column::PublicationId)
-                    .to(publication::Column::Id)
-                    .on_delete(ForeignKeyAction::Cascade)
-                    .on_update(ForeignKeyAction::Cascade)
-                    .into(),
-            }
-        }
-    }
-
-    impl Related<publication::Entity> for Entity {
-        fn to() -> RelationDef {
-            Relation::Publication.def()
-        }
     }
 
     impl ActiveModelBehavior for ActiveModel {}
@@ -54,6 +42,37 @@ impl MigrationTrait for Migration {
         let schema = Schema::new(builder);
         manager
             .create_table(schema.create_table_from_entity(commit::Entity))
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .table(commit::Entity)
+                    .name("commit__unique__publication_id__sha")
+                    .unique()
+                    .col(commit::Column::PublicationId)
+                    .col(commit::Column::Sha)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .table(commit::Entity)
+                    .name("commit__date__id")
+                    .col(commit::Column::Date)
+                    .col(commit::Column::Id)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .table(commit::Entity)
+                    .name("commit__publication_id__date")
+                    .col(commit::Column::PublicationId)
+                    .col(commit::Column::Date)
+                    .to_owned(),
+            )
             .await
     }
 

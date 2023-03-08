@@ -19,13 +19,8 @@ pub mod repository {
     impl ActiveModelBehavior for ActiveModel {}
 }
 
+#[derive(DeriveMigrationName)]
 pub struct Migration;
-
-impl MigrationName for Migration {
-    fn name(&self) -> &str {
-        "m00001_create_repository"
-    }
-}
 
 
 #[async_trait::async_trait]

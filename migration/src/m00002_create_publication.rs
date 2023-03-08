@@ -19,22 +19,16 @@ pub mod publication {
         pub core_version: Option<String>,
     }
 
-    #[derive(Copy, Clone, Debug, EnumIter)]
+    #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
     pub enum Relation {
+        #[sea_orm(
+            belongs_to = "repository::Entity",
+            from = "Column::RepositoryId",
+            to = "repository::Column::Id",
+            on_update = "Cascade",
+            on_delete = "Cascade"
+        )]
         Repository,
-    }
-
-    impl RelationTrait for Relation {
-        fn def(&self) -> RelationDef {
-            match self {
-                Self::Repository => Entity::belongs_to(repository::Entity)
-                    .from(Column::RepositoryId)
-                    .to(repository::Column::Id)
-                    .on_delete(ForeignKeyAction::Cascade)
-                    .on_update(ForeignKeyAction::Cascade)
-                    .into(),
-            }
-        }
     }
 
     impl Related<repository::Entity> for Entity {
@@ -42,16 +36,10 @@ pub mod publication {
             Relation::Repository.def()
         }
     }
-
     impl ActiveModelBehavior for ActiveModel {}
 }
+#[derive(DeriveMigrationName)]
 pub struct Migration;
-
-impl MigrationName for Migration {
-    fn name(&self) -> &str {
-        "m00002_create_publication"
-    }
-}
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
@@ -60,6 +48,17 @@ impl MigrationTrait for Migration {
         let schema = Schema::new(builder);
         manager
             .create_table(schema.create_table_from_entity(publication::Entity))
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .table(publication::Entity)
+                    .name("publication__unique__repository_id__name")
+                    .unique()
+                    .col(publication::Column::RepositoryId)
+                    .col(publication::Column::Name)
+                    .to_owned(),
+            )
             .await
     }
 
