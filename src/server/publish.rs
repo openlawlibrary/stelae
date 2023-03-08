@@ -3,9 +3,9 @@
 #![allow(clippy::unused_async)]
 use crate::db;
 use crate::server::tracing::StelaeRootSpanBuilder;
-use actix_web::{get, web, App, HttpServer};
+use actix_web::{get, web, App, HttpRequest, HttpServer};
 use entity::sea_orm::DatabaseConnection;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 use tracing_actix_web::TracingLogger;
 /// Global, read-only state
 #[derive(Debug, Clone)]
@@ -17,9 +17,20 @@ struct AppState {
 }
 
 /// Index path for testing purposes
-#[get("/")]
+#[get("/t")]
 async fn index() -> &'static str {
     "Welcome to Publish Server"
+}
+
+/// Index path for testing purposes
+#[get("/test")]
+async fn test(req: HttpRequest, data: web::Data<HashMap<String, String>>) -> String {
+    format!(
+        "{}, {}",
+        req.path().to_owned(),
+        data.get("cityofsanmateo")
+            .unwrap_or(&("no value").to_owned())
+    )
 }
 
 /// Serve documents in a Stelae archive.
@@ -58,5 +69,25 @@ pub async fn serve_archive(
 
 /// Routes
 fn init(cfg: &mut web::ServiceConfig) {
-    cfg.service(index);
+    {
+        let mut smc_hashmap = HashMap::new();
+        smc_hashmap.insert("cityofsanmateo".to_owned(), "some value for SMC".to_owned());
+
+        cfg.service(
+            web::scope("/us/ca/cities/san-mateo")
+                .app_data(web::Data::new(smc_hashmap))
+                .service(index)
+                .service(test),
+        );
+    }
+    {
+        let mut dc_hashmap = HashMap::new();
+        dc_hashmap.insert("dc".to_owned(), "some value for DC".to_owned());
+
+        cfg.service(
+            web::scope("/us/dc")
+                .app_data(web::Data::new(dc_hashmap))
+                .service(test),
+        );
+    }
 }
