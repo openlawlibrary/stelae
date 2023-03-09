@@ -10,14 +10,15 @@ use std::fs::{create_dir_all, read_to_string, write};
 use std::path::{Path, PathBuf};
 
 /// The Archive struct is used for interacting with a Stelae Archive.
-pub struct Archive<'archive> {
+#[derive(Debug, Clone)]
+pub struct Archive {
     /// Path to the Archive
     pub path: PathBuf,
     /// map of auth repo name to Stele object
-    pub stelae: HashMap<String, Stele<'archive>>,
+    pub stelae: HashMap<String, Stele>,
 }
 
-impl Archive<'_> {
+impl Archive {
     /// Get an archive's config object.
     /// # Errors
     /// Will error if unable to find or parse config file at `.stelae/config.toml`
@@ -32,14 +33,14 @@ impl Archive<'_> {
     /// # Errors
     /// Will raise error if unable to determine the current
     /// root Stele.
-    pub fn get_root(&mut self) -> anyhow::Result<&Stele> {
+    pub fn get_root(&mut self) -> anyhow::Result<Stele> {
         let conf = self.get_config()?;
         let root = Stele {
-            archive: self,
+            archive_path: self.path.clone(),
             name: conf.root.name,
         };
-        self.stelae.insert(root.name, root);
-        Ok(&root)
+        self.stelae.insert(root.clone().name, root.clone());
+        Ok(root)
     }
 }
 
@@ -72,7 +73,7 @@ pub fn init(
     root_hash: Option<String>,
     root_url: Option<String>,
     shallow: bool,
-) -> anyhow::Result<Box<Archive<'static>>> {
+) -> anyhow::Result<Box<Archive>> {
     raise_error_if_in_existing_archive(&path)?;
     let stelae_dir = path.join(PathBuf::from("./.stelae"));
     create_dir_all(&stelae_dir)?;
