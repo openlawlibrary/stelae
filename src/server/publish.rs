@@ -3,6 +3,7 @@
 #![allow(clippy::unused_async)]
 use crate::server::tracing::StelaeRootSpanBuilder;
 use crate::stelae::archive::Archive;
+use crate::stelae::stele::Stele;
 use actix_web::{get, web, App, HttpRequest, HttpServer};
 use std::{collections::HashMap, path::PathBuf};
 use tracing_actix_web::TracingLogger;
@@ -41,12 +42,18 @@ pub async fn serve_archive(
     let message = "Running Publish Server on a Stelae archive at";
     tracing::info!("{message} '{raw_archive_path}' on http://{bind}:{port}.",);
 
-    let state = AppState {
+    let mut state = AppState {
         archive: Archive {
             path: archive_path,
             stelae: HashMap::new(),
         },
     };
+
+    let root_stele = state.archive.get_root();
+    if let Ok(root_stele) = root_stele {
+        //load dependencies.json file from stelae root
+        let dependencies = root_stele.get_dependencies();
+    }
 
     HttpServer::new(move || {
         App::new()

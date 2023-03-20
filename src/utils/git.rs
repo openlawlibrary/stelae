@@ -74,7 +74,7 @@ impl Repo {
                 return blob;
             }
         }
-        tracing::debug!(base_revision, "Couldn't find requeted Git object");
+        tracing::debug!(base_revision, "Couldn't find requested Git object");
         anyhow::bail!(GIT_REQUEST_NOT_FOUND)
     }
 

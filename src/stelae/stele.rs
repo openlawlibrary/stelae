@@ -3,7 +3,10 @@
 
 use std::path::PathBuf;
 
+use crate::stelae::dependency::Dependencies;
 use serde_derive::{Deserialize, Serialize};
+use serde_json;
+use std::fs::read_to_string;
 
 /// Stele
 #[derive(Debug, Clone)]
@@ -15,6 +18,18 @@ pub struct Stele {
 }
 
 impl Stele {
+    /// Get the Stele's dependencies.
+    /// # Errors
+    /// Will error if unable to find or parse dependencies file at `targets/dependencies.json`
+    pub fn get_dependencies(&self) -> anyhow::Result<Dependencies> {
+        let dependencies_path = &self.archive_path.join(PathBuf::from(format!(
+            "{}/targets/dependencies.json",
+            self.name
+        )));
+        let dependencies_str = read_to_string(dependencies_path)?;
+        let dependencies = serde_json::from_str(&dependencies_str)?;
+        Ok(dependencies)
+    }
 }
 
 ///Config object for a Stele
