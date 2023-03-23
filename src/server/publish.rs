@@ -5,7 +5,7 @@ use crate::server::tracing::StelaeRootSpanBuilder;
 use crate::stelae::archive::Archive;
 use crate::stelae::stele::Stele;
 use actix_web::{get, web, App, HttpRequest, HttpServer};
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::Path, path::PathBuf};
 use tracing_actix_web::TracingLogger;
 /// Global, read-only state
 #[derive(Debug, Clone)]
@@ -15,13 +15,13 @@ struct AppState {
 }
 
 /// Index path for testing purposes
-#[get("/t")]
+// #[get("/t")]
 async fn index() -> &'static str {
     "Welcome to Publish Server"
 }
 
 /// Index path for testing purposes
-#[get("/test")]
+// #[get("/test")]
 async fn test(req: HttpRequest, data: web::Data<HashMap<String, String>>) -> String {
     format!(
         "{}, {}",
@@ -50,9 +50,14 @@ pub async fn serve_archive(
     };
 
     let root_stele = state.archive.get_root();
+    //TODO: figure out how to access specific stele instead of root stele
+    // let stele = state.archive.get_current_stele(Path::new(&raw_archive_path));
     if let Ok(root_stele) = root_stele {
         //load dependencies.json file from stelae root
-        let dependencies = root_stele.get_dependencies();
+        // let dependencies = root_stele.get_dependencies().unwrap();
+        // for stele_name in dependencies.dependencies.keys() {
+// 
+        // }
     }
 
     HttpServer::new(move || {
@@ -68,15 +73,26 @@ pub async fn serve_archive(
 
 /// Routes
 fn init(cfg: &mut web::ServiceConfig) {
+    //for stele in archive.stelae.values {
+        // for repository in stele.repositories {
+        //     for scope in scopes {
+                
+        //     }
+        // }
+    //}
     {
         let mut smc_hashmap = HashMap::new();
         smc_hashmap.insert("cityofsanmateo".to_owned(), "some value for SMC".to_owned());
 
+        //for each scope:
+            //
         cfg.service(
             web::scope("/us/ca/cities/san-mateo")
                 .app_data(web::Data::new(smc_hashmap))
-                .service(index)
-                .service(test),
+                .route("/{prefix:_reader/.*}", web::get().to(test))
+                .route("/{pdfs:.*/.*pdf}", web::get().to(index))
+                // .service(index)
+                // .service(test),
         );
     }
     {
@@ -86,7 +102,7 @@ fn init(cfg: &mut web::ServiceConfig) {
         cfg.service(
             web::scope("/us/dc")
                 .app_data(web::Data::new(dc_hashmap))
-                .service(test),
+                // .service(test),
         );
     }
 }

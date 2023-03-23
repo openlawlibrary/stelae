@@ -37,11 +37,82 @@ impl Archive {
         let conf = self.get_config()?;
         let root = Stele {
             archive_path: self.path.clone(),
-            name: conf.root.name,
+            name: conf.root.name.clone(),
+            path: self.path.clone().join(conf.root.name),
         };
-        self.stelae.insert(root.clone().name, root.clone());
+        self.stelae.insert(root.clone().name, root.clone()).or(None);
         Ok(root)
     }
+
+    /// Parse an Archive.
+    /// # Errors
+    /// Will raise error if unable to determine the current root stele or if unable to traverse the child steles.
+    pub fn parse_archive(path: PathBuf) -> anyhow::Result<Self> {
+        let mut archive = Self {
+            path: path.clone(),
+            stelae: HashMap::new(),
+        };
+        let root = archive.get_root()?;
+        archive.traverse_children(&root, path)?;
+        Ok(archive)
+    }
+
+    /// Traverse the child Steles of the current Stele.
+    /// # Errors
+    /// Will raise error if unable to traverse the child steles.
+    pub fn traverse_children(
+        &mut self,
+        current_stele: &Stele,
+        current_path: PathBuf,
+    ) -> anyhow::Result<()> {
+        if let Some(dependencies) = current_stele.get_dependencies()? {
+            for (name, _) in dependencies.dependencies {
+                let parent_dir = current_path.parent().unwrap_or(default); //TODO: handle 
+                let stele = Stele {
+                    archive_path: self.path.clone(),
+                    name: name.clone(),
+                    path: current_path.join(name),
+                };
+                self.stelae
+                    .insert(stele.clone().name, stele.clone())
+                    .or(None);
+                self.traverse_children(&stele, stele.path.clone())?;
+            }
+        }
+        Ok(())
+    }
+
+    // Determines whether the given path contains a root or a child stele and
+    // returns the given stele.
+    // pub fn determine_stele(&mut self, path: &Path) -> anyhow::Result<Stele> {
+    //     let abs_path = path.canonicalize()?;
+    //     let root_stele = self.get_root()?;
+    //     let root_stele_path = Path::new(&root_stele.archive_path);
+    //     let root_stele_path = root_stele_path.join(&root_stele.name);
+    //     let root_stele_path = root_stele_path
+    //         .parent()
+    //         .expect("Path to current stele must be set");
+    //     for working_path in abs_path.ancestors() {
+    //         dbg!(working_path);
+    //         // if working_path.join(".stelae").exists() {
+    //         //     // return Ok(working_path.to_owned());
+    //         // }
+    //     }
+    //     if root_stele_path.starts_with(abs_path) {
+
+    //     }
+    //     for working_path in root_stele_path.ancestors() {
+    //         dbg!(working_path);
+    //         // if working_path.join(".stelae").exists() {
+    //         //     // return Ok(working_path.to_owned());
+    //         // }
+    //     }
+    //     Ok(Stele::default())
+    // }
+
+    // pub fn get_stele(&self, path: &Path) -> anyhow::Result<Stele> {
+
+    // }
 }
 
 /// Check if the `path` is inside an existing archive
@@ -87,9 +158,10 @@ pub fn init(
     };
     let conf_str = toml::to_string_pretty(&conf)?;
     write(config_path, conf_str)?;
-    let archive = Archive { path, stelae: HashMap::new() };
-    if root_url.is_some() {
-        
-    }
+    let archive = Archive {
+        path,
+        stelae: HashMap::new(),
+    };
+    if root_url.is_some() {}
     Ok(Box::new(archive))
 }
