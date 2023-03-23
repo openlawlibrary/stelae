@@ -1507,6 +1507,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_derive",
+ "serde_json",
  "toml",
  "tracing",
  "tracing-actix-web",
