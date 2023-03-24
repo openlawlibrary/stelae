@@ -44,31 +44,42 @@ impl Archive {
         Ok(root)
     }
 
-    pub fn traverse(&mut self) -> anyhow::Result<()> {
-        let root = self.get_root()?;
-        let root_path = Path::new(&root.archive_path);
-        let root_path = root_path.join(&root.name);
-        let root_path = root_path
-            .parent()
-            .expect("Path to current stele must be set");
-        let dependencies = root.get_dependencies()?.unwrap();
-        for (name, dependency) in dependencies.dependencies {
-            let stele = Stele {
-                archive_path: self.path.clone(),
-                name: name,
-                path: self.path.clone().join(dependency.name),
-            };
-            self.stelae.insert(stele.clone().name, stele.clone()).or(None);
+    /// Parse an Archive.
+    /// # Errors
+    /// Will raise error if unable to determine the current root stele or if unable to traverse the child steles.
+    pub fn parse_archive(path: PathBuf) -> anyhow::Result<Self> {
+        let mut archive = Self {
+            path: path.clone(),
+            stelae: HashMap::new(),
+        };
+        let root = archive.get_root()?;
+        archive.traverse_children(&root, path)?;
+        Ok(archive)
+    }
+
+    /// Traverse the child Steles of the current Stele.
+    /// # Errors
+    /// Will raise error if unable to traverse the child steles.
+    pub fn traverse_children(
+        &mut self,
+        current_stele: &Stele,
+        current_path: PathBuf,
+    ) -> anyhow::Result<()> {
+        if let Some(dependencies) = current_stele.get_dependencies()? {
+            for (name, _) in dependencies.dependencies {
+                let parent_dir = current_path.parent().unwrap_or(default); //TODO: handle 
+                let stele = Stele {
+                    archive_path: self.path.clone(),
+                    name: name.clone(),
+                    path: current_path.join(name),
+                };
+                self.stelae
+                    .insert(stele.clone().name, stele.clone())
+                    .or(None);
+                self.traverse_children(&stele, stele.path.clone())?;
+            }
         }
-        // for entry in root_path.read_dir()? {
-        //     let entry = entry?;
-        //     let path = entry.path();
-        //     if path.is_dir() {
-        //         let stele = stele::Stele::from_path(&path)?;
-        //         self.stelae.insert(stele.name.clone(), stele);
-        //     }
-        // }
-        // Ok(())
+        Ok(())
     }
 
     // Determines whether the given path contains a root or a child stele and

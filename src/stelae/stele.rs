@@ -30,8 +30,7 @@ impl Stele {
         )));
         match read_to_string(dependencies_path) {
             Ok(dependencies_str) => {
-                let dependencies = serde_json::from_str(&dependencies_str)
-                    .expect("Unable to parse dependencies.json");
+                let dependencies = serde_json::from_str(&dependencies_str)?;
                 Ok(Some(dependencies))
             }
             Err(_) => Ok(None),

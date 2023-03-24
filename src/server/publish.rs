@@ -73,8 +73,12 @@ pub async fn serve_archive(
 
 /// Routes
 fn init(cfg: &mut web::ServiceConfig) {
-    //for stelae in archive.stelae.values {
-        
+    //for stele in archive.stelae.values {
+        // for repository in stele.repositories {
+        //     for scope in scopes {
+                
+        //     }
+        // }
     //}
     {
         let mut smc_hashmap = HashMap::new();
