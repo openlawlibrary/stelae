@@ -35,84 +35,71 @@ impl Archive {
     /// root Stele.
     pub fn get_root(&mut self) -> anyhow::Result<Stele> {
         let conf = self.get_config()?;
-        let root = Stele {
-            archive_path: self.path.clone(),
-            name: conf.root.name.clone(),
-            path: self.path.clone().join(conf.root.name),
-        };
-        self.stelae.insert(root.clone().name, root.clone()).or(None);
+
+        let org = conf.root.org;
+        let name = conf.root.name;
+
+        let root = Stele::new(
+            self.path.clone(),
+            name,
+            org.clone(),
+            self.path.clone().join(org),
+        )?;
+
+        self.stelae
+            .entry(format!("{}/{}", root.org, root.name))
+            .or_insert_with(|| root.clone());
         Ok(root)
     }
 
     /// Parse an Archive.
     /// # Errors
     /// Will raise error if unable to determine the current root stele or if unable to traverse the child steles.
-    pub fn parse_archive(path: PathBuf) -> anyhow::Result<Self> {
+    pub fn parse(archive_path: PathBuf, mut actual_path: PathBuf) -> anyhow::Result<Self> {
         let mut archive = Self {
-            path: path.clone(),
+            path: archive_path,
             stelae: HashMap::new(),
         };
-        let root = archive.get_root()?;
-        archive.traverse_children(&root, path)?;
+
+        actual_path = actual_path.canonicalize()?;
+        let root = if actual_path == archive.path {
+            tracing::info!("Parsing from root Stele at path: {:?}", actual_path);
+            archive.get_root()?
+        } else {
+            tracing::info!("Parsing from individual Stele at path: {:?}", actual_path);
+            let stele = Stele::new_individual(archive.path.clone(), actual_path)?;
+            archive
+                .stelae
+                .insert(format!("{}/{}", stele.org, stele.name), stele.clone());
+            stele
+        };
+
+        archive.traverse_children(&root)?;
         Ok(archive)
     }
 
     /// Traverse the child Steles of the current Stele.
     /// # Errors
     /// Will raise error if unable to traverse the child steles.
-    pub fn traverse_children(
-        &mut self,
-        current_stele: &Stele,
-        current_path: PathBuf,
-    ) -> anyhow::Result<()> {
+    /// # Panics
+    /// If unable to unwrap the parent directory of the current path.
+    pub fn traverse_children(&mut self, current_stele: &Stele) -> anyhow::Result<()> {
         if let Some(dependencies) = current_stele.get_dependencies()? {
             for (name, _) in dependencies.dependencies {
-                let parent_dir = current_path.parent().unwrap_or(default); //TODO: handle 
-                let stele = Stele {
-                    archive_path: self.path.clone(),
-                    name: name.clone(),
-                    path: current_path.join(name),
-                };
+                let parent_dir = current_stele.clone().path;
+                let name_parts: Vec<&str> = name.split("/").collect();
+                let org = name_parts.get(0).unwrap().to_string();
+                let name = name_parts.get(1).unwrap().to_string();
+
+                let stele = Stele::new(self.path.clone(), name, org.clone(), parent_dir.join(org))?;
                 self.stelae
-                    .insert(stele.clone().name, stele.clone())
-                    .or(None);
-                self.traverse_children(&stele, stele.path.clone())?;
+                    .entry(format!("{}/{}", stele.org, stele.name))
+                    .or_insert_with(|| stele.clone());
+                self.traverse_children(&stele)?;
             }
         }
         Ok(())
     }
-
-    // Determines whether the given path contains a root or a child stele and
-    // returns the given stele.
-    // pub fn determine_stele(&mut self, path: &Path) -> anyhow::Result<Stele> {
-    //     let abs_path = path.canonicalize()?;
-    //     let root_stele = self.get_root()?;
-    //     let root_stele_path = Path::new(&root_stele.archive_path);
-    //     let root_stele_path = root_stele_path.join(&root_stele.name);
-    //     let root_stele_path = root_stele_path
-    //         .parent()
-    //         .expect("Path to current stele must be set");
-    //     for working_path in abs_path.ancestors() {
-    //         dbg!(working_path);
-    //         // if working_path.join(".stelae").exists() {
-    //         //     // return Ok(working_path.to_owned());
-    //         // }
-    //     }
-    //     if root_stele_path.starts_with(abs_path) {
-
-    //     }
-    //     for working_path in root_stele_path.ancestors() {
-    //         dbg!(working_path);
-    //         // if working_path.join(".stelae").exists() {
-    //         //     // return Ok(working_path.to_owned());
-    //         // }
-    //     }
-    //     Ok(Stele::default())
-    // }
-
-    // pub fn get_stele(&self, path: &Path) -> anyhow::Result<Stele> {
-
-    // }
 }
 
 /// Check if the `path` is inside an existing archive
@@ -141,6 +128,7 @@ pub struct Config {
 pub fn init(
     path: PathBuf,
     root_name: String,
+    root_org: String,
     root_hash: Option<String>,
     root_url: Option<String>,
     shallow: bool,
@@ -152,6 +140,7 @@ pub fn init(
     let conf = Config {
         root: stele::Config {
             name: root_name,
+            org: root_org,
             hash: root_hash,
         },
         shallow,
