@@ -39,7 +39,7 @@ impl Stele {
             path,
             repositories: None,
         };
-        //stele.get_repositories()?; TODO: fix this
+        stele.get_repositories()?;
         Ok(stele)
     }
 
@@ -57,7 +57,7 @@ impl Stele {
             archive_path,
             repositories: None,
         };
-        //stele.get_repositories()?; TODO: fix this
+        stele.get_repositories()?;
         Ok(stele)
     }
     /// Get Stele's dependencies.
@@ -68,26 +68,26 @@ impl Stele {
             "{}/targets/dependencies.json",
             self.name
         )));
-        match read_to_string(dependencies_path) {
-            Ok(dependencies_str) => {
-                let dependencies = serde_json::from_str(&dependencies_str)?;
-                Ok(Some(dependencies))
-            }
-            Err(_) => Ok(None),
+        if let Ok(dependencies_str) = read_to_string(dependencies_path) {
+            let dependencies = serde_json::from_str(&dependencies_str)?;
+            return Ok(Some(dependencies));
         }
+        Ok(None)
     }
     /// Get Stele's repositories.
     /// # Errors
     /// Will error if unable to find or parse repositories file at `targets/repositories.json`
-    pub fn get_repositories(&mut self) -> anyhow::Result<Repositories> {
+    pub fn get_repositories(&mut self) -> anyhow::Result<Option<Repositories>> {
         let repositories_path = &self.path.join(PathBuf::from(format!(
             "{}/targets/repositories.json",
             self.name
         )));
-        let repositories_str = read_to_string(repositories_path)?;
-        let repositories: Repositories = serde_json::from_str(&repositories_str)?;
-        self.repositories = Some(repositories.clone());
-        Ok(repositories)
+        if let Ok(repositories_str) = read_to_string(repositories_path) {
+            let repositories: Repositories = serde_json::from_str(&repositories_str)?;
+            self.repositories = Some(repositories.clone());
+            return Ok(Some(repositories));
+        }
+        Ok(None)
     }
 }
 

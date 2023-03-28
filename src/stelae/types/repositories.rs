@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Repositories {
-    scopes: Vec<String>,
+    scopes: Option<Vec<String>>,
     repositories: HashMap<String, Repository>,
 }
 
@@ -16,9 +16,10 @@ struct Custom {
     #[serde(rename = "type")]
     repository_type: Option<String>,
     #[serde(rename = "allow-unauthenticated-commits")]
-    allow_unauthenticated_commits: bool,
+    allow_unauthenticated_commits: Option<bool>,
     serve: String,
-    routes: Vec<String>,
+    routes: Option<Vec<String>>,
     #[serde(rename = "serve-prefix")]
     scope: Option<String>,
+    is_fallback: Option<bool>,
 }
