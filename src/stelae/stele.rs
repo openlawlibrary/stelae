@@ -19,6 +19,7 @@ pub struct Stele {
     pub org: String,
     ///Full path to the Stele's directory.
     pub path: PathBuf,
+    /// Stele's repositories.
     pub repositories: Option<Repositories>,
 }
 
