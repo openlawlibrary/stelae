@@ -17,9 +17,9 @@ pub struct Stele {
     pub name: String,
     /// Name of the Stele's directory, also known as Stele's organization (e.g. openlawlibrary).
     pub org: String,
-    ///Full path to the Stele's directory.
+    /// Full path to the Stele's directory.
     pub path: PathBuf,
-    /// Stele's repositories.
+    /// Stele's repositories (as specified in repositories.json).
     pub repositories: Option<Repositories>,
 }
 

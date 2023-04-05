@@ -4,13 +4,54 @@
 use crate::server::tracing::StelaeRootSpanBuilder;
 use crate::stelae::archive::Archive;
 use actix_web::{get, web, App, HttpRequest, HttpServer, Route, Scope};
-use std::{collections::HashMap, path::Path, path::PathBuf};
+use git2::Repository;
+use std::{collections::HashMap, fmt, path::Path, path::PathBuf};
 use tracing_actix_web::TracingLogger;
 /// Global, read-only state
 #[derive(Debug, Clone)]
 struct AppState {
-    /// Path to the Stelae archive
+    /// Fully initialized Stelae archive
     archive: Archive,
+}
+
+
+struct RepoState {
+    /// Path to Stele
+    path: PathBuf,
+    /// Repo org
+    org: String,
+    /// Repo name
+    name: String,
+    /// git2 repository pointing to the repo in the archive.
+    repo: Repository,
+    ///Latest or historical
+    serve: String,
+    ///Fallback Repository if this one is not found
+    fallback: Option<Box<RepoState>>,
+}
+
+impl fmt::Debug for RepoState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Repo for {} in the archive at {}",
+            self.name,
+            self.path.display()
+        )
+    }
+}
+
+impl Clone for RepoState {
+    fn clone(&self) -> Self {
+        RepoState {
+            path: self.path.clone(),
+            org: self.org.clone(),
+            name: self.name.clone(),
+            repo: Repository::open(self.path.clone()).unwrap(),
+            serve: self.serve.clone(),
+            fallback: self.fallback.clone(),
+        }
+    }
 }
 
 /// Index path for testing purposes
@@ -19,9 +60,22 @@ async fn index() -> &'static str {
     "Welcome to Publish Server"
 }
 
-
 async fn default() -> &'static str {
     "Default"
+}
+
+async fn serve(req: HttpRequest, data: web::Data<RepoState>) -> String {
+    dbg!(&data);
+    format!("{}, {}", req.path().to_owned(), data.path.to_string_lossy())
+    // let repo = data.repo.clone();
+    // let path = data.path.clone();
+    // let commitish = data.commitish.clone();
+    // let blob = find_blob(&repo, &path, &commitish);
+    // let contenttype = get_contenttype(&path);
+    // match blob {
+    //     Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
+    //     Err(_) => HttpResponse::NotFound().body(GIT_REQUEST_NOT_FOUND),
+    // }
 }
 
 /// Index path for testing purposes
@@ -71,54 +125,96 @@ pub async fn serve_archive(
 
 /// Routes
 fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
-    // let mut scopes: Vec<Scope> = vec![];
-    // for stele in state.archive.stelae.values() {
-    //     // dbg!(&stele.path);
-    //     if let Some(repositories) = &stele.repositories {
-    //         // dbg!(&repositories);
-    //         for scope in repositories.scopes.iter().flat_map(|s| s.iter()) {
-    //             // dbg!(&scope);
-    //             // let scope = web::scope(scope.as_str());
-    //             for repository in repositories.repositories.values() {
-    //                 let custom = &repository.custom;
-    //                 for route in custom.routes.iter().flat_map(|r| r.iter()) {
-    //                     //ignore routes that start with underscore
-    //                     if route.starts_with("~ _") {
-    //                         continue;
-    //                     }
-    //                     let actix_route = format!("/{{prefix:{}}}", &route);
-    //                     dbg!(&actix_route);
-    //                     dbg!(&scope);
-    //                     let actix_scope = web::scope(scope.as_str())
-    //                         .route(actix_route.as_str(), web::get().to(default));
-    //                     scopes.push(actix_scope);
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-    // for scope in scopes {
-    //     cfg.service(scope);
-    // }
-
-    {
-        let mut smc_hashmap = HashMap::new();
-        smc_hashmap.insert("cityofsanmateo".to_owned(), "some value for SMC".to_owned());
-        let mut dc_hashmap = HashMap::new();
-        dc_hashmap.insert("dc".to_owned(), "some value for DC".to_owned());
-
-        cfg.service(
-            web::scope("/us/ca/cities/san-mateo")
-                .service(web::resource("/{prefix:_reader/.*}")
-                // .route("/{prefix:_reader/.*}", web::get().to(test))
-                .app_data(web::Data::new(smc_hashmap))
-                .route(web::get().to(test)))
-                // .route("/{pdfs:.*/.*pdf}", web::get().to(test))
-                // .app_data(web::Data::new(dc_hashmap))
-                .service(web::resource("/{pdfs:.*/.*pdf}").app_data(web::Data::new(dc_hashmap)).route(web::get().to(test))), // .service(index)
-                                                                                                 // .service(test),
-        );
+    let mut scopes: Vec<Scope> = vec![];
+    //initialize root stele routes and scopes
+    for stele in state.archive.stelae.values() {
+        if let Some(repositories) = &stele.repositories {
+            for scope in repositories.scopes.iter().flat_map(|s| s.iter()) {
+                let mut actix_scope = web::scope(scope.as_str());
+                for (name, repository) in &repositories.repositories {
+                    let custom = &repository.custom;
+                    // let repo = {
+                    //     let repo_path = stele
+                    //         .path
+                    //         .clone()
+                    //         .parent()
+                    //         .unwrap()
+                    //         .to_string_lossy()
+                    //         .into_owned();
+                    //     dbg!(&repo_path);
+                    //     RepoState {
+                    //         path: stele.path.clone(),
+                    //         org: stele.org.clone(),
+                    //         name: name.to_string(),
+                    //         repo: Repository::open(format!("{repo_path}/{name}"))
+                    //             .expect("Unable to open repo"),
+                    //         serve: custom.serve.clone(),
+                    //         fallback: None,
+                    //     }
+                    // };
+                    for route in custom.routes.iter().flat_map(|r| r.iter()) {
+                        //ignore routes in child stele that start with underscore
+                        if route.starts_with("~ _") {
+                            // TODO: append route to root stele scope
+                            continue;
+                        }
+                        let actix_route = format!("/{{prefix:{}}}", &route);
+                        dbg!(&actix_route);
+                        dbg!(&scope);
+                        actix_scope = actix_scope.service(
+                            web::resource(actix_route.as_str())
+                                .app_data(web::Data::new({
+                                    let repo_path = stele
+                                        .path
+                                        .clone()
+                                        .parent()
+                                        .unwrap()
+                                        .to_string_lossy()
+                                        .into_owned();
+                                    dbg!(&repo_path);
+                                    RepoState {
+                                        path: stele.path.clone(),
+                                        org: stele.org.clone(),
+                                        name: name.to_string(),
+                                        repo: Repository::open(format!("{repo_path}/{name}"))
+                                            .expect("Unable to open repo"),
+                                        serve: custom.serve.clone(),
+                                        fallback: None,
+                                    }
+                                }))
+                                .route(web::get().to(serve)),
+                        );
+                        // let actix_scope = web::scope(scope.as_str())
+                        //     .service(web::resource(actix_route.as_str())
+                        //     .route(web::get().to(default)));
+                    }
+                }
+                scopes.push(actix_scope);
+            }
+        }
     }
+    for scope in scopes {
+        cfg.service(scope);
+    }
+
+    // {
+    //     let mut smc_hashmap = HashMap::new();
+    //     smc_hashmap.insert("cityofsanmateo".to_owned(), "some value for SMC".to_owned());
+    //     let mut dc_hashmap = HashMap::new();
+    //     dc_hashmap.insert("dc".to_owned(), "some value for DC".to_owned());
+
+    //     cfg.service(
+    //         web::scope("/us/ca/cities/san-mateo")
+    //             .service(web::resource("/{prefix:_reader/.*}")
+    //             // .route("/{prefix:_reader/.*}", web::get().to(test))
+    //             .app_data(web::Data::new(smc_hashmap))
+    //             .route(web::get().to(test)))
+    //             // .route("/{pdfs:.*/.*pdf}", web::get().to(test))
+    //             // .app_data(web::Data::new(dc_hashmap))
+    //             .service(web::resource("/{pdfs:.*/.*pdf}").app_data(web::Data::new(dc_hashmap)).route(web::get().to(test))), // .service(index)
+    //                                                                                              // .service(test),
+    //     );
+    // }
     // {
     //     let mut dc_hashmap = HashMap::new();
     //     dc_hashmap.insert("dc".to_owned(), "some value for DC".to_owned());
