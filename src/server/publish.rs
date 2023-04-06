@@ -3,7 +3,7 @@
 #![allow(clippy::unused_async)]
 use crate::server::tracing::StelaeRootSpanBuilder;
 use crate::stelae::archive::Archive;
-use actix_web::{get, web, App, HttpRequest, HttpServer, Route, Scope};
+use actix_web::{get, web, App, HttpRequest, HttpServer, Route, Scope, Resource};
 use git2::Repository;
 use std::{collections::HashMap, fmt, path::Path, path::PathBuf};
 use tracing_actix_web::TracingLogger;
@@ -133,25 +133,7 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
                 let mut actix_scope = web::scope(scope.as_str());
                 for (name, repository) in &repositories.repositories {
                     let custom = &repository.custom;
-                    // let repo = {
-                    //     let repo_path = stele
-                    //         .path
-                    //         .clone()
-                    //         .parent()
-                    //         .unwrap()
-                    //         .to_string_lossy()
-                    //         .into_owned();
-                    //     dbg!(&repo_path);
-                    //     RepoState {
-                    //         path: stele.path.clone(),
-                    //         org: stele.org.clone(),
-                    //         name: name.to_string(),
-                    //         repo: Repository::open(format!("{repo_path}/{name}"))
-                    //             .expect("Unable to open repo"),
-                    //         serve: custom.serve.clone(),
-                    //         fallback: None,
-                    //     }
-                    // };
+                    let mut actix_resource: Resource;
                     for route in custom.routes.iter().flat_map(|r| r.iter()) {
                         //ignore routes in child stele that start with underscore
                         if route.starts_with("~ _") {
@@ -159,35 +141,33 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
                             continue;
                         }
                         let actix_route = format!("/{{prefix:{}}}", &route);
-                        dbg!(&actix_route);
-                        dbg!(&scope);
                         actix_scope = actix_scope.service(
                             web::resource(actix_route.as_str())
-                                .app_data(web::Data::new({
-                                    let repo_path = stele
-                                        .path
-                                        .clone()
-                                        .parent()
-                                        .unwrap()
-                                        .to_string_lossy()
-                                        .into_owned();
-                                    dbg!(&repo_path);
-                                    RepoState {
-                                        path: stele.path.clone(),
-                                        org: stele.org.clone(),
-                                        name: name.to_string(),
-                                        repo: Repository::open(format!("{repo_path}/{name}"))
-                                            .expect("Unable to open repo"),
-                                        serve: custom.serve.clone(),
-                                        fallback: None,
-                                    }
-                                }))
                                 .route(web::get().to(serve)),
                         );
                         // let actix_scope = web::scope(scope.as_str())
                         //     .service(web::resource(actix_route.as_str())
                         //     .route(web::get().to(default)));
                     }
+                    actix_scope = actix_scope.app_data(web::Data::new({
+                        let repo_path = stele
+                            .path
+                            .clone()
+                            .parent()
+                            .unwrap()
+                            .to_string_lossy()
+                            .into_owned();
+                        dbg!(&repo_path);
+                        RepoState {
+                            path: stele.path.clone(),
+                            org: stele.org.clone(),
+                            name: name.to_string(),
+                            repo: Repository::open(format!("{repo_path}/{name}"))
+                                .expect("Unable to open repo"),
+                            serve: custom.serve.clone(),
+                            fallback: None,
+                        }
+                    }));
                 }
                 scopes.push(actix_scope);
             }
