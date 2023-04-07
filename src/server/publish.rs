@@ -3,7 +3,7 @@
 #![allow(clippy::unused_async)]
 use crate::server::tracing::StelaeRootSpanBuilder;
 use crate::stelae::archive::Archive;
-use actix_web::{get, web, App, HttpRequest, HttpServer, Route, Scope, Resource};
+use actix_web::{get, web, App, HttpRequest, HttpServer, Resource, Route, Scope};
 use git2::Repository;
 use std::{collections::HashMap, fmt, path::Path, path::PathBuf};
 use tracing_actix_web::TracingLogger;
@@ -13,7 +13,6 @@ struct AppState {
     /// Fully initialized Stelae archive
     archive: Archive,
 }
-
 
 struct RepoState {
     /// Path to Stele
@@ -43,7 +42,7 @@ impl fmt::Debug for RepoState {
 
 impl Clone for RepoState {
     fn clone(&self) -> Self {
-        RepoState {
+        Self {
             path: self.path.clone(),
             org: self.org.clone(),
             name: self.name.clone(),
@@ -133,25 +132,26 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
                 let mut actix_scope = web::scope(scope.as_str());
                 for (name, repository) in &repositories.repositories {
                     let custom = &repository.custom;
-                    actix_scope = actix_scope.app_data(web::Data::new({
-                        let repo_path = stele
+                    let repo_state = {
+                        let mut repo_path = stele
                             .path
                             .clone()
                             .parent()
                             .unwrap()
                             .to_string_lossy()
                             .into_owned();
-                        dbg!(&repo_path);
+                        repo_path = format!("{repo_path}/{name}");
                         RepoState {
-                            path: stele.path.clone(),
+                            path: PathBuf::from(repo_path.clone()),
                             org: stele.org.clone(),
                             name: name.to_string(),
-                            repo: Repository::open(format!("{repo_path}/{name}"))
-                                .expect("Unable to open repo"),
+                            repo: Repository::open(repo_path)
+                                .expect("Unable to open Git repository"),
                             serve: custom.serve.clone(),
                             fallback: None,
                         }
-                    }));
+                    };
+                    dbg!(&repo_state);
                     for route in custom.routes.iter().flat_map(|r| r.iter()) {
                         //ignore routes in child stele that start with underscore
                         if route.starts_with("~ _") {
@@ -161,10 +161,9 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
                         let actix_route = format!("/{{prefix:{}}}", &route);
                         actix_scope = actix_scope.service(
                             web::resource(actix_route.as_str())
-                                .route(web::get().to(serve)));
-                        // let actix_scope = web::scope(scope.as_str())
-                        //     .service(web::resource(actix_route.as_str())
-                        //     .route(web::get().to(default)));
+                                .route(web::get().to(serve))
+                                .app_data(web::Data::new(repo_state.clone())),
+                        );
                     }
                 }
                 scopes.push(actix_scope);
@@ -174,7 +173,6 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
     for scope in scopes {
         cfg.service(scope);
     }
-
     // {
     //     let mut smc_hashmap = HashMap::new();
     //     smc_hashmap.insert("cityofsanmateo".to_owned(), "some value for SMC".to_owned());
@@ -191,7 +189,23 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
     //             // .app_data(web::Data::new(dc_hashmap))
     //             .service(web::resource("/{pdfs:.*/.*pdf}").route(web::get().to(test))), // .service(index)
     //                                                                                              // .service(test),
-    //     ).app_data(web::Data::new(smc_hashmap));
+    //     ).app_data(web::Data::new(smc_hashmap.clone()));
+
+    //     let mut scope = web::scope("/congress");
+
+    //     scope = scope.service(web::resource("/{prefix:_reader/.*}").route(web::get().to(test)));
+    //     scope = scope.service(web::resource("/{pdfs:.*/.*pdf}").route(web::get().to(test)));
+    //     scope = scope.app_data(web::Data::new(smc_hashmap.clone()));
+    //     scope = scope.app_data(web::Data::new(dc_hashmap.clone()));
+    //     cfg.service(scope);
+
+    //     cfg.service(web::scope("/fedlaws")
+    //         .service(web::resource("/{prefix:_reader/.*}")
+    //         .route(web::get().to(test)))
+    //         // .app_data(web::Data::new(smc_hashmap.clone()))
+    //         .service(web::resource("/{pdfs:.*/.*pdf}").route(web::get().to(test))
+    //         .app_data(web::Data::new(smc_hashmap)))
+    //     );
     // }
     // {
     //     let mut dc_hashmap = HashMap::new();
