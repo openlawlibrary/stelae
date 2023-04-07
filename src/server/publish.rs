@@ -65,16 +65,16 @@ async fn default() -> &'static str {
 
 async fn serve(req: HttpRequest, data: web::Data<RepoState>) -> String {
     dbg!(&data);
-    format!("{}, {}", req.path().to_owned(), data.path.to_string_lossy())
-    // let repo = data.repo.clone();
-    // let path = data.path.clone();
-    // let commitish = data.commitish.clone();
-    // let blob = find_blob(&repo, &path, &commitish);
-    // let contenttype = get_contenttype(&path);
-    // match blob {
-    //     Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
-    //     Err(_) => HttpResponse::NotFound().body(GIT_REQUEST_NOT_FOUND),
-    // }
+    format!("{}, {}", req.path().to_owned(), data.path.to_string_lossy());
+    let repo = data.repo.clone();
+    let path = data.path.clone();
+    let commitish = data.commitish.clone();
+    let blob = find_blob(&repo, &path, &commitish);
+    let contenttype = get_contenttype(&path);
+    match blob {
+        Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
+        Err(_) => HttpResponse::NotFound().body(GIT_REQUEST_NOT_FOUND),
+    }
 }
 
 /// Index path for testing purposes
@@ -129,6 +129,7 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
     for stele in state.archive.stelae.values() {
         if let Some(repositories) = &stele.repositories {
             for scope in repositories.scopes.iter().flat_map(|s| s.iter()) {
+                dbg!(&scope);
                 let mut actix_scope = web::scope(scope.as_str());
                 for (name, repository) in &repositories.repositories {
                     let custom = &repository.custom;
@@ -151,7 +152,6 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
                             fallback: None,
                         }
                     };
-                    dbg!(&repo_state);
                     for route in custom.routes.iter().flat_map(|r| r.iter()) {
                         //ignore routes in child stele that start with underscore
                         if route.starts_with("~ _") {
