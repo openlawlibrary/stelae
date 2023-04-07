@@ -126,29 +126,13 @@ pub async fn serve_archive(
 /// Routes
 fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
     let mut scopes: Vec<Scope> = vec![];
-    //initialize root stele routes and scopes
+    // initialize root stele routes and scopes
     for stele in state.archive.stelae.values() {
         if let Some(repositories) = &stele.repositories {
             for scope in repositories.scopes.iter().flat_map(|s| s.iter()) {
                 let mut actix_scope = web::scope(scope.as_str());
                 for (name, repository) in &repositories.repositories {
                     let custom = &repository.custom;
-                    let mut actix_resource: Resource;
-                    for route in custom.routes.iter().flat_map(|r| r.iter()) {
-                        //ignore routes in child stele that start with underscore
-                        if route.starts_with("~ _") {
-                            // TODO: append route to root stele scope
-                            continue;
-                        }
-                        let actix_route = format!("/{{prefix:{}}}", &route);
-                        actix_scope = actix_scope.service(
-                            web::resource(actix_route.as_str())
-                                .route(web::get().to(serve)),
-                        );
-                        // let actix_scope = web::scope(scope.as_str())
-                        //     .service(web::resource(actix_route.as_str())
-                        //     .route(web::get().to(default)));
-                    }
                     actix_scope = actix_scope.app_data(web::Data::new({
                         let repo_path = stele
                             .path
@@ -168,6 +152,20 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
                             fallback: None,
                         }
                     }));
+                    for route in custom.routes.iter().flat_map(|r| r.iter()) {
+                        //ignore routes in child stele that start with underscore
+                        if route.starts_with("~ _") {
+                            // TODO: append route to root stele scope
+                            continue;
+                        }
+                        let actix_route = format!("/{{prefix:{}}}", &route);
+                        actix_scope = actix_scope.service(
+                            web::resource(actix_route.as_str())
+                                .route(web::get().to(serve)));
+                        // let actix_scope = web::scope(scope.as_str())
+                        //     .service(web::resource(actix_route.as_str())
+                        //     .route(web::get().to(default)));
+                    }
                 }
                 scopes.push(actix_scope);
             }
@@ -187,13 +185,13 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
     //         web::scope("/us/ca/cities/san-mateo")
     //             .service(web::resource("/{prefix:_reader/.*}")
     //             // .route("/{prefix:_reader/.*}", web::get().to(test))
-    //             .app_data(web::Data::new(smc_hashmap))
+    //             // .app_data(web::Data::new(smc_hashmap))
     //             .route(web::get().to(test)))
     //             // .route("/{pdfs:.*/.*pdf}", web::get().to(test))
     //             // .app_data(web::Data::new(dc_hashmap))
-    //             .service(web::resource("/{pdfs:.*/.*pdf}").app_data(web::Data::new(dc_hashmap)).route(web::get().to(test))), // .service(index)
+    //             .service(web::resource("/{pdfs:.*/.*pdf}").route(web::get().to(test))), // .service(index)
     //                                                                                              // .service(test),
-    //     );
+    //     ).app_data(web::Data::new(smc_hashmap));
     // }
     // {
     //     let mut dc_hashmap = HashMap::new();
