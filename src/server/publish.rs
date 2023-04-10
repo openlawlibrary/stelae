@@ -3,10 +3,26 @@
 #![allow(clippy::unused_async)]
 use crate::server::tracing::StelaeRootSpanBuilder;
 use crate::stelae::archive::Archive;
-use actix_web::{get, web, App, HttpRequest, HttpServer, Resource, Route, Scope};
+use crate::utils::git::Repo;
+use crate::utils::http::get_contenttype;
+use actix_web::{
+    get, web, App, HttpRequest, HttpResponse, HttpServer, Resource, Responder, Route, Scope,
+};
 use git2::Repository;
+use lazy_static::lazy_static;
+use regex::Regex;
 use std::{collections::HashMap, fmt, path::Path, path::PathBuf};
 use tracing_actix_web::TracingLogger;
+
+#[allow(clippy::expect_used)]
+/// Remove leading and trailing `/`s from the `path` string.
+fn clean_path(path: &str) -> String {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"(?:^/*|/*$)").expect("Failed to compile regex!?!");
+    }
+    RE.replace_all(path, "").to_string()
+}
+
 /// Global, read-only state
 #[derive(Debug, Clone)]
 struct AppState {
@@ -15,14 +31,8 @@ struct AppState {
 }
 
 struct RepoState {
-    /// Path to Stele
-    path: PathBuf,
-    /// Repo org
-    org: String,
-    /// Repo name
-    name: String,
     /// git2 repository pointing to the repo in the archive.
-    repo: Repository,
+    repo: Repo,
     ///Latest or historical
     serve: String,
     ///Fallback Repository if this one is not found
@@ -34,8 +44,8 @@ impl fmt::Debug for RepoState {
         write!(
             f,
             "Repo for {} in the archive at {}",
-            self.name,
-            self.path.display()
+            self.repo.name,
+            self.repo.path.display()
         )
     }
 }
@@ -43,10 +53,7 @@ impl fmt::Debug for RepoState {
 impl Clone for RepoState {
     fn clone(&self) -> Self {
         Self {
-            path: self.path.clone(),
-            org: self.org.clone(),
-            name: self.name.clone(),
-            repo: Repository::open(self.path.clone()).unwrap(),
+            repo: self.repo.clone(),
             serve: self.serve.clone(),
             fallback: self.fallback.clone(),
         }
@@ -63,17 +70,25 @@ async fn default() -> &'static str {
     "Default"
 }
 
-async fn serve(req: HttpRequest, data: web::Data<RepoState>) -> String {
+/// Serve current document
+async fn serve(req: HttpRequest, data: web::Data<RepoState>) -> impl Responder {
     dbg!(&data);
-    format!("{}, {}", req.path().to_owned(), data.path.to_string_lossy());
-    let repo = data.repo.clone();
-    let path = data.path.clone();
-    let commitish = data.commitish.clone();
-    let blob = find_blob(&repo, &path, &commitish);
+    dbg!(&req.path().to_owned());
+    let mut path = req.path().to_owned();
+    dbg!(&path);
+    // let mut prefix: String = req.match_info().get("prefix").unwrap().parse().unwrap();
+    // dbg!(&prefix);
+    path = clean_path(&path);
+    let blob = data.repo.get_bytes_at_path("HEAD", &path);
     let contenttype = get_contenttype(&path);
+    format!(
+        "{}, {}",
+        req.path().to_owned(),
+        data.repo.path.to_string_lossy()
+    );
     match blob {
         Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
-        Err(_) => HttpResponse::NotFound().body(GIT_REQUEST_NOT_FOUND),
+        Err(error) => HttpResponse::BadRequest().into(),
     }
 }
 
@@ -104,7 +119,7 @@ pub async fn serve_archive(
             tracing::error!("Unable to parse archive at '{raw_archive_path}'.");
             std::process::exit(1);
         });
-    let mut state = AppState { archive };
+    let state = AppState { archive };
     //TODO: root stele is a stele from which we began serving the archive
     // let root = state.archive.get_root().unwrap_or_else(|_| {
     //     tracing::error!("Unable to determine root Stele.");
@@ -114,8 +129,7 @@ pub async fn serve_archive(
     HttpServer::new(move || {
         App::new()
             .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
-            .app_data(web::Data::new(state.clone()))
-            .configure(|cfg| init_routes(cfg, state.clone()))
+            .configure(|cfg| init_routes(cfg, &state))
     })
     .bind((bind, port))?
     .run()
@@ -123,15 +137,16 @@ pub async fn serve_archive(
 }
 
 /// Routes
-fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
+fn init_routes(cfg: &mut web::ServiceConfig, state: &AppState) {
     let mut scopes: Vec<Scope> = vec![];
     // initialize root stele routes and scopes
     for stele in state.archive.stelae.values() {
-        if let Some(repositories) = &stele.repositories {
+        if let &Some(ref repositories) = &stele.repositories {
             for scope in repositories.scopes.iter().flat_map(|s| s.iter()) {
                 dbg!(&scope);
                 let mut actix_scope = web::scope(scope.as_str());
                 for (name, repository) in &repositories.repositories {
+                    dbg!(&name);
                     let custom = &repository.custom;
                     let repo_state = {
                         let mut repo_path = stele
@@ -143,11 +158,14 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
                             .into_owned();
                         repo_path = format!("{repo_path}/{name}");
                         RepoState {
-                            path: PathBuf::from(repo_path.clone()),
-                            org: stele.org.clone(),
-                            name: name.to_string(),
-                            repo: Repository::open(repo_path)
-                                .expect("Unable to open Git repository"),
+                            repo: Repo {
+                                archive_path: state.archive.path.to_string_lossy().to_string(),
+                                path: PathBuf::from(repo_path.clone()),
+                                org: stele.org.clone(),
+                                name: name.to_string(),
+                                repo: Repository::open(repo_path)
+                                    .expect("Unable to open Git repository"),
+                            },
                             serve: custom.serve.clone(),
                             fallback: None,
                         }

@@ -1,12 +1,12 @@
 use serde_derive::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Repositories {
     /// Scopes of the repositories
     pub scopes: Option<Vec<String>>,
-    /// Data repositories
-    pub repositories: HashMap<String, Repository>,
+    /// Data repositories sorted by routes top down (most strict to least strict)
+    pub repositories: BTreeMap<String, Repository>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
