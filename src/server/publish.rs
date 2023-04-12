@@ -119,7 +119,7 @@ pub async fn serve_archive(
             tracing::error!("Unable to parse archive at '{raw_archive_path}'.");
             std::process::exit(1);
         });
-    let mut state = AppState { archive };
+    let state = AppState { archive };
     //TODO: root stele is a stele from which we began serving the archive
     // let root = state.archive.get_root().unwrap_or_else(|_| {
     //     tracing::error!("Unable to determine root Stele.");
@@ -129,8 +129,7 @@ pub async fn serve_archive(
     HttpServer::new(move || {
         App::new()
             .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
-            .app_data(web::Data::new(state.clone()))
-            .configure(|cfg| init_routes(cfg, state.clone()))
+            .configure(|cfg| init_routes(cfg, &state))
     })
     .bind((bind, port))?
     .run()
@@ -138,11 +137,11 @@ pub async fn serve_archive(
 }
 
 /// Routes
-fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
+fn init_routes(cfg: &mut web::ServiceConfig, state: &AppState) {
     let mut scopes: Vec<Scope> = vec![];
     // initialize root stele routes and scopes
     for stele in state.archive.stelae.values() {
-        if let Some(repositories) = &stele.repositories {
+        if let &Some(ref repositories) = &stele.repositories {
             for scope in repositories.scopes.iter().flat_map(|s| s.iter()) {
                 dbg!(&scope);
                 let mut actix_scope = web::scope(scope.as_str());
