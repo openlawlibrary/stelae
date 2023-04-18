@@ -146,6 +146,7 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: &AppState) {
                 dbg!(&scope);
                 let mut actix_scope = web::scope(scope.as_str());
                 for (name, repository) in &repositories.repositories {
+                    dbg!(&name);
                     let custom = &repository.custom;
                     let repo_state = {
                         let mut repo_path = stele
