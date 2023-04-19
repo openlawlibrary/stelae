@@ -84,16 +84,8 @@ impl Stele {
             self.name
         )));
         if let Ok(repositories_str) = read_to_string(repositories_path) {
-            let repositories: Repositories = serde_json::from_str(&repositories_str)?;
-            let mut vec: Vec<_> = repositories.repositories.into_iter().collect();
-            vec.sort_by(|(_, a), (_, b)| {
-                let empty_v: Vec<String> = Vec::new();
-                let a_routes = a.custom.routes.as_ref().unwrap_or(&empty_v);
-                let b_routes = b.custom.routes.as_ref().unwrap_or(&empty_v);
-                b_routes.cmp(&a_routes)
-            });
-            // let mut v = Vec::from_iter(repositories.repositories.clone());
-            // v.sort_by(|&(_, a), &(_, b)| b.custom.routes.cmp(&a.custom.routes));
+            let mut repositories: Repositories = serde_json::from_str(&repositories_str)?;
+            dbg!(&repositories);
             self.repositories = Some(repositories.clone());
             return Ok(Some(repositories));
         }
