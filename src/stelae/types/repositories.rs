@@ -1,12 +1,13 @@
+use serde::{Deserialize, Deserializer};
 use serde_derive::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Repositories {
     /// Scopes of the repositories
     pub scopes: Option<Vec<String>>,
     /// Data repositories sorted by routes top down (most strict to least strict)
-    pub repositories: BTreeMap<String, Repository>,
+    #[serde(deserialize_with = "deserialize_repositories")]
+    pub repositories: Vec<(String, Repository)>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -24,4 +25,36 @@ pub struct Custom {
     #[serde(rename = "serve-prefix")]
     pub scope: Option<String>,
     pub is_fallback: Option<bool>,
+}
+
+/// Deserialize a map of repositories into a vector of sorted repositories
+fn deserialize_repositories<'de, D>(deserializer: D) -> Result<Vec<(String, Repository)>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let repositories: serde_json::Map<String, serde_json::Value> =
+        serde_json::Map::deserialize(deserializer)?;
+    let mut result = Vec::new();
+
+    for (name, value) in repositories {
+        let custom_value = value
+            .get("custom")
+            .ok_or_else(|| serde::de::Error::custom("Missing 'custom' field"))?;
+        let custom: Custom = serde_json::from_value(custom_value.clone()).map_err(|e| {
+            serde::de::Error::custom(format!("Failed to deserialize 'custom': {e}"))
+        })?;
+        result.push((name, Repository { custom }));
+    }
+    // Sort the repositories by the length of their routes, longest first
+    // This is needed because Actix routes are matched in the order they are added
+    result.sort_by(|&(_, ref repo1), &(_, ref repo2)| {
+        let routes1 = repo1.custom.routes.as_ref().map_or(0, |r| {
+            r.iter().map(std::string::String::len).max().unwrap_or(0)
+        });
+        let routes2 = repo2.custom.routes.as_ref().map_or(0, |r| {
+            r.iter().map(std::string::String::len).max().unwrap_or(0)
+        });
+        routes2.cmp(&routes1)
+    });
+    Ok(result)
 }
