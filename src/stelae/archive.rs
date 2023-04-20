@@ -52,6 +52,16 @@ impl Archive {
         Ok(root)
     }
 
+    pub fn set_root(&mut self, org: String, name: String) -> anyhow::Result<()> {
+        let mut conf = self.get_config()?;
+        conf.root.org = org;
+        conf.root.name = name;
+        let config_path = &self.path.join(PathBuf::from(".stelae/config.toml"));
+        let config_str = toml::to_string(&conf)?;
+        write(config_path, config_str)?;
+        Ok(())
+    }
+
     /// Parse an Archive.
     /// # Errors
     /// Will raise error if unable to determine the current root stele or if unable to traverse the child steles.
