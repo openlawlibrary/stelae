@@ -129,7 +129,7 @@ pub async fn serve_archive(
     HttpServer::new(move || {
         App::new()
             .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
-            .configure(|cfg| init_routes(cfg, &state))
+            .configure(|cfg| init_routes(cfg, state.clone()))
     })
     .bind((bind, port))?
     .run()
@@ -137,16 +137,15 @@ pub async fn serve_archive(
 }
 
 /// Routes
-fn init_routes(cfg: &mut web::ServiceConfig, state: &AppState) {
+fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
     let mut scopes: Vec<Scope> = vec![];
     // initialize root stele routes and scopes
+    let root = state.archive.get_root();
     for stele in state.archive.stelae.values() {
         if let &Some(ref repositories) = &stele.repositories {
             for scope in repositories.scopes.iter().flat_map(|s| s.iter()) {
-                dbg!(&scope);
                 let mut actix_scope = web::scope(scope.as_str());
                 for (name, repository) in &repositories.repositories {
-                    dbg!(&name);
                     let custom = &repository.custom;
                     let repo_state = {
                         let mut repo_path = stele
@@ -182,6 +181,17 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: &AppState) {
                                 .route(web::get().to(serve))
                                 .app_data(web::Data::new(repo_state.clone())),
                         );
+                    }
+                    if let &Some(ref subscope) = &custom.scope {
+                        let actix_subscope = web::scope(subscope.as_str()).service(
+                            web::scope(scope.as_str()).service(
+                                web::resource("/{prefix:.*}")
+                                    .route(web::get().to(serve))
+                                    .app_data(web::Data::new(repo_state.clone())),
+                            ),
+                        );
+                        dbg!(&subscope);
+                        scopes.push(actix_subscope);
                     }
                 }
                 scopes.push(actix_scope);

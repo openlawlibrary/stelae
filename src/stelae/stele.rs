@@ -84,8 +84,7 @@ impl Stele {
             self.name
         )));
         if let Ok(repositories_str) = read_to_string(repositories_path) {
-            let mut repositories: Repositories = serde_json::from_str(&repositories_str)?;
-            dbg!(&repositories);
+            let repositories: Repositories = serde_json::from_str(&repositories_str)?;
             self.repositories = Some(repositories.clone());
             return Ok(Some(repositories));
         }
