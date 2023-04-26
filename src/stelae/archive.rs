@@ -93,19 +93,19 @@ impl Archive {
     /// Will raise error if unable to traverse the child steles.
     /// # Panics
     /// If unable to unwrap the parent directory of the current path.
-    pub fn traverse_children(&mut self, current_stele: &Stele) -> anyhow::Result<()> {
-        if let Some(dependencies) = current_stele.get_dependencies()? {
+    pub fn traverse_children(&mut self, current: &Stele) -> anyhow::Result<()> {
+        if let Some(dependencies) = current.get_dependencies()? {
             for (name, _) in dependencies.dependencies {
-                let parent_dir = current_stele.clone().path;
+                let parent_dir = current.clone().path;
                 let name_parts: Vec<&str> = name.split("/").collect();
                 let org = name_parts.get(0).unwrap().to_string();
                 let name = name_parts.get(1).unwrap().to_string();
 
-                let stele = Stele::new(self.path.clone(), name, org.clone(), parent_dir.join(org))?;
+                let child = Stele::new(self.path.clone(), name, org.clone(), parent_dir.join(org))?;
                 self.stelae
-                    .entry(format!("{}/{}", stele.org, stele.name))
-                    .or_insert_with(|| stele.clone());
-                self.traverse_children(&stele)?;
+                    .entry(format!("{}/{}", child.org, child.name))
+                    .or_insert_with(|| child.clone());
+                self.traverse_children(&child)?;
             }
         }
         Ok(())
