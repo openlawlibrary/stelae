@@ -75,10 +75,13 @@ async fn serve(req: HttpRequest, data: web::Data<RepoState>) -> impl Responder {
     dbg!(&data);
     dbg!(&req.path().to_owned());
     let mut path = req.path().to_owned();
-    dbg!(&path);
-    // let mut prefix: String = req.match_info().get("prefix").unwrap().parse().unwrap();
-    // dbg!(&prefix);
+    // dbg!(&path);
+    // let mut namespace: String = req.match_info().get("namespace").unwrap().parse().unwrap();
+    // dbg!(&namespace);
+    let mut prefix: String = req.match_info().get("prefix").unwrap().parse().unwrap();
+    dbg!(&prefix);
     path = clean_path(&path);
+    dbg!(&path);
     let blob = data.repo.get_bytes_at_path("HEAD", &path);
     let contenttype = get_contenttype(&path);
     format!(
@@ -144,8 +147,13 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
     for stele in state.archive.stelae.values() {
         if let &Some(ref repositories) = &stele.repositories {
             for scope in repositories.scopes.iter().flat_map(|s| s.iter()) {
+                let escaped_scope = regex::escape(scope);
+                // let url_namespace = format!("{{namespace:^{}/.*}}", &scope.as_str());
+                // let url_namespace = format!("{{namespace:({})+}}", &scope.as_str());
+                // dbg!(&url_namespace);
+                // let mut actix_scope = web::scope("/{namespace:us/ca/cities/san-mateo}");
                 let mut actix_scope = web::scope(scope.as_str());
-                for (name, repository) in &repositories.repositories {
+                for &(ref name, ref repository) in &repositories.repositories {
                     let custom = &repository.custom;
                     let repo_state = {
                         let mut repo_path = stele
@@ -182,16 +190,16 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
                                 .app_data(web::Data::new(repo_state.clone())),
                         );
                     }
-                    if let &Some(ref subscope) = &custom.scope {
-                        let actix_subscope = web::scope(subscope.as_str()).service(
+                    if let &Some(ref underscore_scope) = &custom.scope {
+                        let actix_underscore_scope = web::scope(underscore_scope.as_str()).service(
                             web::scope(scope.as_str()).service(
                                 web::resource("/{prefix:.*}")
                                     .route(web::get().to(serve))
                                     .app_data(web::Data::new(repo_state.clone())),
                             ),
                         );
-                        dbg!(&subscope);
-                        scopes.push(actix_subscope);
+                        dbg!(&underscore_scope);
+                        scopes.push(actix_underscore_scope);
                     }
                 }
                 scopes.push(actix_scope);
