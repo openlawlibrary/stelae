@@ -41,9 +41,10 @@ impl Archive {
 
         let root = Stele::new(
             self.path.clone(),
-            name,
-            org.clone(),
-            self.path.clone().join(org),
+            Some(name),
+            Some(org.clone()),
+            Some(self.path.clone().join(org)),
+            true,
         )?;
 
         self.stelae
@@ -77,7 +78,7 @@ impl Archive {
             archive.get_root()?
         } else {
             tracing::info!("Parsing from individual Stele at path: {:?}", actual_path);
-            let stele = Stele::new_individual(archive.path.clone(), actual_path)?;
+            let stele = Stele::new(archive.path.clone(), None, None, Some(actual_path), true)?;
             archive
                 .stelae
                 .insert(format!("{}/{}", stele.org, stele.name), stele.clone());
@@ -101,7 +102,13 @@ impl Archive {
                 let org = name_parts.get(0).unwrap().to_string();
                 let name = name_parts.get(1).unwrap().to_string();
 
-                let child = Stele::new(self.path.clone(), name, org.clone(), parent_dir.join(org))?;
+                let child = Stele::new(
+                    self.path.clone(),
+                    Some(name),
+                    Some(org.clone()),
+                    Some(parent_dir.join(org)),
+                    false,
+                )?;
                 self.stelae
                     .entry(format!("{}/{}", child.org, child.name))
                     .or_insert_with(|| child.clone());

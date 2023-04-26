@@ -21,47 +21,47 @@ pub struct Stele {
     pub path: PathBuf,
     /// Stele's repositories (as specified in repositories.json).
     pub repositories: Option<Repositories>,
+    /// Indicates whether or not the Stele is the root Stele.
+    pub root: bool,
 }
 
 impl Stele {
     /// Create a new Stele object
     /// # Errors
     /// Will error if unable to find or parse repositories file at `targets/repositories.json`
+    /// # Panics
+    /// Will panic if unable to determine the current root Stele.
+    #[allow(clippy::unwrap_used, clippy::shadow_reuse)]
     pub fn new(
         archive_path: PathBuf,
-        name: String,
-        org: String,
-        path: PathBuf,
+        name: Option<String>,
+        org: Option<String>,
+        path: Option<PathBuf>,
+        root: bool,
     ) -> anyhow::Result<Self> {
+        let name = name.unwrap_or_else(|| "law".to_owned());
+        let org = org.unwrap_or_else(|| {
+            path.as_ref()
+                .unwrap()
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_owned()
+        });
+        let path = path.unwrap_or_else(|| archive_path.join(&org));
         let mut stele = Self {
             archive_path,
             name,
             org,
             path,
             repositories: None,
+            root,
         };
         stele.get_repositories()?;
         Ok(stele)
     }
 
-    // TODO: this looks like it could be the same as ::new()
-    /// Create a new Stele object given a file path and an archive.
-    /// # Errors
-    /// Will if unable to find or parse repositories file at `targets/repositories.json`.
-    /// # Panics
-    /// Will panic if unable to determine the Stele's organization.
-    pub fn new_individual(archive_path: PathBuf, path: PathBuf) -> anyhow::Result<Self> {
-        let org = path.file_name().unwrap().to_str().unwrap();
-        let mut stele = Self {
-            org: org.to_owned(),
-            name: "law".to_owned(),
-            path,
-            archive_path,
-            repositories: None,
-        };
-        stele.get_repositories()?;
-        Ok(stele)
-    }
     /// Get Stele's dependencies.
     /// # Errors
     /// Will error if unable to parse dependencies file from `targets/dependencies.json`
