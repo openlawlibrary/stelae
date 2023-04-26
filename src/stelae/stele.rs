@@ -44,6 +44,7 @@ impl Stele {
         Ok(stele)
     }
 
+    // TODO: this looks like it could be the same as ::new()
     /// Create a new Stele object given a file path and an archive.
     /// # Errors
     /// Will if unable to find or parse repositories file at `targets/repositories.json`.
