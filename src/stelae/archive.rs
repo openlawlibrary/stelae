@@ -31,61 +31,65 @@ impl Archive {
 
     /// Get the Archive's root Stele.
     /// # Errors
-    /// Will raise error if unable to determine the current
-    /// root Stele.
-    pub fn get_root(&mut self) -> anyhow::Result<Stele> {
-        let conf = self.get_config()?;
-
-        let org = conf.root.org;
-        let name = conf.root.name;
-
-        let root = Stele::new(
-            self.path.clone(),
-            Some(name),
-            Some(org.clone()),
-            Some(self.path.clone().join(org)),
-            true,
-        )?;
-
-        self.stelae
-            .entry(format!("{}/{}", root.org, root.name))
-            .or_insert_with(|| root.clone());
+    /// Will raise error if unable to find the current root Stele
+    pub fn get_root(&self) -> anyhow::Result<&Stele> {
+        let root = self
+            .stelae
+            .values()
+            .find(|s| s.is_root())
+            .ok_or_else(|| anyhow::anyhow!("No root Stele found in archive"))?;
         Ok(root)
     }
 
-    pub fn set_root(&mut self, org: String, name: String) -> anyhow::Result<()> {
-        let mut conf = self.get_config()?;
-        conf.root.org = org;
-        conf.root.name = name;
-        let config_path = &self.path.join(PathBuf::from(".stelae/config.toml"));
-        let config_str = toml::to_string(&conf)?;
-        write(config_path, config_str)?;
+    /// Set the Archive's root Stele.
+    /// # Errors
+    /// Will raise error if unable to determine the current
+    /// root Stele.
+    pub fn set_root(&mut self, path: Option<PathBuf>) -> anyhow::Result<()> {
+        let root: Stele;
+        if let Some(path) = path {
+            tracing::info!("Serving individual Stele at path: {:?}", path);
+            root = Stele::new(self.path.clone(), None, None, Some(path), true)?;
+        } else {
+            tracing::info!("Serving an archive at path: {:?}", self.path);
+            let conf = self.get_config()?;
+
+            let org = conf.root.org;
+            let name = conf.root.name;
+
+            root = Stele::new(
+                self.path.clone(),
+                Some(name),
+                Some(org.clone()),
+                Some(self.path.clone().join(org)),
+                true,
+            )?;
+        }
+        self.stelae.insert(root.get_qualified_name(), root);
         Ok(())
     }
 
     /// Parse an Archive.
     /// # Errors
     /// Will raise error if unable to determine the current root stele or if unable to traverse the child steles.
-    pub fn parse(archive_path: PathBuf, mut actual_path: PathBuf) -> anyhow::Result<Self> {
+    pub fn parse(
+        archive_path: PathBuf,
+        mut actual_path: PathBuf,
+        individual: bool,
+    ) -> anyhow::Result<Self> {
         let mut archive = Self {
             path: archive_path,
             stelae: HashMap::new(),
         };
 
-        actual_path = actual_path.canonicalize()?;
-        let root = if actual_path == archive.path {
-            tracing::info!("Parsing from root Stele at path: {:?}", actual_path);
-            archive.get_root()?
+        if individual {
+            actual_path = actual_path.canonicalize()?;
+            archive.set_root(Some(actual_path))?;
         } else {
-            tracing::info!("Parsing from individual Stele at path: {:?}", actual_path);
-            let stele = Stele::new(archive.path.clone(), None, None, Some(actual_path), true)?;
-            archive
-                .stelae
-                .insert(format!("{}/{}", stele.org, stele.name), stele.clone());
-            stele
+            archive.set_root(None)?;
         };
 
-        archive.traverse_children(&root)?;
+        archive.traverse_children(&archive.get_root()?.clone())?;
         Ok(archive)
     }
 

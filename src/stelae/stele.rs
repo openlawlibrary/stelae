@@ -91,6 +91,18 @@ impl Stele {
         }
         Ok(None)
     }
+
+    /// Get Stele's qualified name.
+    #[must_use]
+    pub fn get_qualified_name(&self) -> String {
+        format!("{}/{}", self.org, self.name)
+    }
+
+    /// See if Stele is a root Stele.
+    #[must_use]
+    pub const fn is_root(&self) -> bool {
+        self.root
+    }
 }
 
 ///Config object for a Stele
