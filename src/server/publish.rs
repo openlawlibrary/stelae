@@ -112,13 +112,14 @@ pub async fn serve_archive(
     raw_archive_path: &str,
     archive_path: PathBuf,
     port: u16,
+    individual: bool,
 ) -> std::io::Result<()> {
     let bind = "127.0.0.1";
     let message = "Running Publish Server on a Stelae archive at";
     tracing::info!("{message} '{raw_archive_path}' on http://{bind}:{port}.",);
 
-    let archive =
-        Archive::parse(archive_path, PathBuf::from(raw_archive_path)).unwrap_or_else(|_| {
+    let archive = Archive::parse(archive_path, PathBuf::from(raw_archive_path), individual)
+        .unwrap_or_else(|_| {
             tracing::error!("Unable to parse archive at '{raw_archive_path}'.");
             std::process::exit(1);
         });
@@ -143,7 +144,7 @@ pub async fn serve_archive(
 fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
     let mut scopes: Vec<Scope> = vec![];
     // initialize root stele routes and scopes
-    let root = state.archive.get_root();
+    let root = state.archive.get_root().unwrap();
     for stele in state.archive.stelae.values() {
         if let &Some(ref repositories) = &stele.repositories {
             for scope in repositories.scopes.iter().flat_map(|s| s.iter()) {

@@ -38,6 +38,8 @@ enum Subcommands {
         /// Port on which to serve the archive.
         #[arg(short, long, default_value_t = 8080)]
         port: u16,
+        #[arg(short, long, default_value_t = false)]
+        individual: bool,
     },
 }
 
@@ -68,6 +70,6 @@ pub fn run() -> std::io::Result<()> {
 
     match cli.subcommands {
         Subcommands::Git { port } => serve_git(&cli.archive_path, archive_path, port),
-        Subcommands::Serve { port } => serve_archive(&cli.archive_path, archive_path, port),
+        Subcommands::Serve { port, individual } => serve_archive(&cli.archive_path, archive_path, port, individual),
     }
 }
