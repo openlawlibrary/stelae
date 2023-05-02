@@ -47,9 +47,9 @@ impl Archive {
     /// root Stele.
     pub fn set_root(&mut self, path: Option<PathBuf>) -> anyhow::Result<()> {
         let root: Stele;
-        if let Some(path) = path {
-            tracing::info!("Serving individual Stele at path: {:?}", path);
-            root = Stele::new(self.path.clone(), None, None, Some(path), true)?;
+        if let Some(individual_path) = path {
+            tracing::info!("Serving individual Stele at path: {:?}", individual_path);
+            root = Stele::new(self.path.clone(), None, None, Some(individual_path), true)?;
         } else {
             tracing::info!("Serving an archive at path: {:?}", self.path);
             let conf = self.get_config()?;
@@ -101,7 +101,8 @@ impl Archive {
     pub fn traverse_children(&mut self, current: &Stele) -> anyhow::Result<()> {
         if let Some(dependencies) = current.get_dependencies()? {
             for (name, _) in dependencies.dependencies {
-                let parent_dir = current.clone().path;
+                dbg!(&name);
+                let parent_dir = self.path.clone();
                 let name_parts: Vec<&str> = name.split("/").collect();
                 let org = name_parts.get(0).unwrap().to_string();
                 let name = name_parts.get(1).unwrap().to_string();
