@@ -22,6 +22,7 @@ pub struct Stele {
     /// Stele's repositories (as specified in repositories.json).
     pub repositories: Option<Repositories>,
     /// Indicates whether or not the Stele is the root Stele.
+    /// TODO: this does not seem correct
     pub root: bool,
 }
 
@@ -66,9 +67,9 @@ impl Stele {
     /// # Errors
     /// Will error if unable to parse dependencies file from `targets/dependencies.json`
     pub fn get_dependencies(&self) -> anyhow::Result<Option<Dependencies>> {
-        let dependencies_path = &self.path.join(PathBuf::from(format!(
+        let dependencies_path = &self.archive_path.join(PathBuf::from(format!(
             "{}/targets/dependencies.json",
-            self.name
+            self.get_qualified_name()
         )));
         if let Ok(dependencies_str) = read_to_string(dependencies_path) {
             let dependencies = serde_json::from_str(&dependencies_str)?;
@@ -80,9 +81,9 @@ impl Stele {
     /// # Errors
     /// Will error if unable to find or parse repositories file at `targets/repositories.json`
     pub fn get_repositories(&mut self) -> anyhow::Result<Option<Repositories>> {
-        let repositories_path = &self.path.join(PathBuf::from(format!(
+        let repositories_path = &self.archive_path.join(PathBuf::from(format!(
             "{}/targets/repositories.json",
-            self.name
+            self.get_qualified_name()
         )));
         if let Ok(repositories_str) = read_to_string(repositories_path) {
             let repositories: Repositories = serde_json::from_str(&repositories_str)?;

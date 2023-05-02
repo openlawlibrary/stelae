@@ -124,11 +124,6 @@ pub async fn serve_archive(
             std::process::exit(1);
         });
     let state = AppState { archive };
-    //TODO: root stele is a stele from which we began serving the archive
-    // let root = state.archive.get_root().unwrap_or_else(|_| {
-    //     tracing::error!("Unable to determine root Stele.");
-    //     std::process::exit(1);
-    // });
 
     HttpServer::new(move || {
         App::new()
@@ -157,13 +152,13 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
                 for &(ref name, ref repository) in &repositories.repositories {
                     let custom = &repository.custom;
                     let repo_state = {
-                        let mut repo_path = stele
-                            .path
-                            .clone()
-                            .parent()
-                            .unwrap()
-                            .to_string_lossy()
-                            .into_owned();
+                        // let mut repo_path = stele
+                        //     .path
+                        //     .clone()
+                        //     .parent()
+                        //     .unwrap()
+                        //     .to_string_lossy();
+                        let mut repo_path = state.archive.path.to_string_lossy().into_owned();
                         repo_path = format!("{repo_path}/{name}");
                         RepoState {
                             repo: Repo {
@@ -199,7 +194,6 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
                                     .app_data(web::Data::new(repo_state.clone())),
                             ),
                         );
-                        dbg!(&underscore_scope);
                         scopes.push(actix_underscore_scope);
                     }
                 }
