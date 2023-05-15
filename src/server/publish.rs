@@ -6,7 +6,7 @@ use crate::stelae::archive::Archive;
 use crate::utils::git::Repo;
 use crate::utils::http::get_contenttype;
 use actix_web::{
-    get, web, App, HttpRequest, HttpResponse, HttpServer, Resource, Responder, Route, Scope,
+    get, guard, web, App, HttpRequest, HttpResponse, HttpServer, Resource, Responder, Route, Scope,
 };
 use git2::Repository;
 use lazy_static::lazy_static;
@@ -30,13 +30,20 @@ struct AppState {
     archive: Archive,
 }
 
+/// Git repository to serve
 struct RepoState {
     /// git2 repository pointing to the repo in the archive.
     repo: Repo,
     ///Latest or historical
     serve: String,
-    ///Fallback Repository if this one is not found
+    // /Fallback Repository if this one is not found
     fallback: Option<Box<RepoState>>,
+}
+
+/// Repository to fall back to if the current one is not found
+struct FallbackState {
+    ///Fallback Repository if this one is not found
+    fallback: Box<RepoState>,
 }
 
 impl fmt::Debug for RepoState {
@@ -118,13 +125,13 @@ pub async fn serve_archive(
     let message = "Running Publish Server on a Stelae archive at";
     tracing::info!("{message} '{raw_archive_path}' on http://{bind}:{port}.",);
 
-    let archive = Archive::parse(archive_path, PathBuf::from(raw_archive_path), individual)
+    let archive = Archive::parse(archive_path, &PathBuf::from(raw_archive_path), individual)
         .unwrap_or_else(|_| {
             tracing::error!("Unable to parse archive at '{raw_archive_path}'.");
             std::process::exit(1);
         });
     let state = AppState { archive };
-
+    // TODO: intiialize fallback repository
     HttpServer::new(move || {
         App::new()
             .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
@@ -140,15 +147,25 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
     let mut scopes: Vec<Scope> = vec![];
     // initialize root stele routes and scopes
     let root = state.archive.get_root().unwrap();
+
+    // if let &Some(ref repositories) = &root.repositories {
+
+    // }
+    // TODO: fallback repository
+
     for stele in state.archive.stelae.values() {
         if let &Some(ref repositories) = &stele.repositories {
+            if stele.get_qualified_name() == root.get_qualified_name() {
+                continue;
+            }
             for scope in repositories.scopes.iter().flat_map(|s| s.iter()) {
-                let escaped_scope = regex::escape(scope);
+                // let escaped_scope = regex::escape(scope);
                 // let url_namespace = format!("{{namespace:^{}/.*}}", &scope.as_str());
                 // let url_namespace = format!("{{namespace:({})+}}", &scope.as_str());
                 // dbg!(&url_namespace);
                 // let mut actix_scope = web::scope("/{namespace:us/ca/cities/san-mateo}");
                 let mut actix_scope = web::scope(scope.as_str());
+                // dbg!(&scope);
                 for &(ref name, ref repository) in &repositories.repositories {
                     let custom = &repository.custom;
                     let repo_state = {
@@ -222,11 +239,11 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
     //                                                                                              // .service(test),
     //     ).app_data(web::Data::new(smc_hashmap.clone()));
 
-    //     let mut scope = web::scope("/congress");
+    //     let mut scope = web::scope("");
 
     //     scope = scope.service(web::resource("/{prefix:_reader/.*}").route(web::get().to(test)));
     //     scope = scope.service(web::resource("/{pdfs:.*/.*pdf}").route(web::get().to(test)));
-    //     scope = scope.app_data(web::Data::new(smc_hashmap.clone()));
+    //     // scope = scope.app_data(web::Data::new(smc_hashmap.clone()));
     //     scope = scope.app_data(web::Data::new(dc_hashmap.clone()));
     //     cfg.service(scope);
 
