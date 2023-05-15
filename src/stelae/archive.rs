@@ -74,7 +74,7 @@ impl Archive {
     /// Will raise error if unable to determine the current root stele or if unable to traverse the child steles.
     pub fn parse(
         archive_path: PathBuf,
-        mut actual_path: PathBuf,
+        actual_path: &PathBuf,
         individual: bool,
     ) -> anyhow::Result<Self> {
         let mut archive = Self {
@@ -82,12 +82,12 @@ impl Archive {
             stelae: HashMap::new(),
         };
 
-        if individual {
-            actual_path = actual_path.canonicalize()?;
-            archive.set_root(Some(actual_path))?;
+        let path = if individual {
+            actual_path.canonicalize().ok()
         } else {
-            archive.set_root(None)?;
+            None
         };
+        archive.set_root(path)?;
 
         archive.traverse_children(&archive.get_root()?.clone())?;
         Ok(archive)
@@ -101,7 +101,6 @@ impl Archive {
     pub fn traverse_children(&mut self, current: &Stele) -> anyhow::Result<()> {
         if let Some(dependencies) = current.get_dependencies()? {
             for (name, _) in dependencies.dependencies {
-                dbg!(&name);
                 let parent_dir = self.path.clone();
                 let name_parts: Vec<&str> = name.split("/").collect();
                 let org = name_parts.get(0).unwrap().to_string();
