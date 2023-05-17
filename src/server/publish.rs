@@ -37,13 +37,13 @@ struct RepoState {
     ///Latest or historical
     serve: String,
     // /Fallback Repository if this one is not found
-    fallback: Option<Box<RepoState>>,
+    // fallback: Option<Box<RepoState>>,
 }
 
 /// Repository to fall back to if the current one is not found
 struct FallbackState {
     ///Fallback Repository if this one is not found
-    fallback: Box<RepoState>,
+    fallback: Option<Box<RepoState>>,
 }
 
 impl fmt::Debug for RepoState {
@@ -57,12 +57,37 @@ impl fmt::Debug for RepoState {
     }
 }
 
+impl fmt::Debug for FallbackState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if let &Some(ref fallback) = &self.fallback {
+            write!(
+                f,
+                "Repo for {} in the archive at {}",
+                fallback.repo.name,
+                fallback.repo.path.display()
+            )
+        } else {
+            write!(f, "No fallback repo")
+        }
+    }
+}
+
 impl Clone for RepoState {
     fn clone(&self) -> Self {
         Self {
             repo: self.repo.clone(),
             serve: self.serve.clone(),
+            // fallback: self.fallback.clone(),
+        }
+    }
+}
+
+impl Clone for FallbackState {
+    fn clone(&self) -> Self {
+        Self {
             fallback: self.fallback.clone(),
+            // serve: self.serve.clone(),
+            // fallback: self.fallback.clone(),
         }
     }
 }
@@ -78,8 +103,13 @@ async fn default() -> &'static str {
 }
 
 /// Serve current document
-async fn serve(req: HttpRequest, data: web::Data<RepoState>) -> impl Responder {
+async fn serve(
+    req: HttpRequest,
+    fallback: web::Data<FallbackState>,
+    data: web::Data<RepoState>,
+) -> impl Responder {
     dbg!(&data);
+    dbg!(&fallback);
     dbg!(&req.path().to_owned());
     let mut path = req.path().to_owned();
     // dbg!(&path);
@@ -134,8 +164,36 @@ pub async fn serve_archive(
 
     HttpServer::new(move || {
         App::new()
-            .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
-            .configure(|cfg| init_routes(cfg, state.clone()))
+            .service(
+                web::scope("")
+                    .guard(guard::Host("www.openlawlib.org"))
+                    .app_data(web::Data::new(FallbackState {
+                        fallback: Some(Box::new({
+                            let mut repo_path = state.archive.path.to_string_lossy().into_owned();
+                            repo_path = format!("{repo_path}/cityofsanmateo/law-html");
+                            RepoState {
+                                repo: Repo {
+                                    archive_path: state.archive.path.to_string_lossy().to_string(),
+                                    path: PathBuf::from(repo_path.clone()),
+                                    org: "org".to_owned(),
+                                    name: "name".to_owned(),
+                                    repo: Repository::open(repo_path)
+                                        .expect("Unable to open Git repository"),
+                                },
+                                serve: "latest".to_owned(),
+                            }
+                        })),
+                    }))
+                    .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
+                    .configure(|cfg| init_routes(cfg, state.clone())),
+            )
+            .service(
+                web::scope("")
+                    .guard(guard::Host("www.rust-lang.org"))
+                    .app_data(web::Data::new(FallbackState { fallback: None }))
+                    .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
+                    .configure(|cfg| init_routes(cfg, state.clone())),
+            )
     })
     .bind((bind, port))?
     .run()
@@ -187,7 +245,7 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
                                     .expect("Unable to open Git repository"),
                             },
                             serve: custom.serve.clone(),
-                            fallback: None,
+                            // fallback: None,
                         }
                     };
                     for route in custom.routes.iter().flat_map(|r| r.iter()) {
