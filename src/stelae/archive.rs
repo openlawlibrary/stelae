@@ -3,7 +3,7 @@
 
 use crate::stelae::stele;
 use crate::stelae::stele::Stele;
-use crate::utils::archive::find_archive_path;
+use crate::utils::archive::{find_archive_path, get_name_parts};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{create_dir_all, read_to_string, write};
@@ -74,7 +74,7 @@ impl Archive {
     /// Will raise error if unable to determine the current root stele or if unable to traverse the child steles.
     pub fn parse(
         archive_path: PathBuf,
-        actual_path: &PathBuf,
+        actual_path: &Path,
         individual: bool,
     ) -> anyhow::Result<Self> {
         let mut archive = Self {
@@ -100,12 +100,9 @@ impl Archive {
     /// If unable to unwrap the parent directory of the current path.
     pub fn traverse_children(&mut self, current: &Stele) -> anyhow::Result<()> {
         if let Some(dependencies) = current.get_dependencies()? {
-            for (name, _) in dependencies.dependencies {
+            for (qualified_name, _) in dependencies.dependencies {
                 let parent_dir = self.path.clone();
-                let name_parts: Vec<&str> = name.split("/").collect();
-                let org = name_parts.get(0).unwrap().to_string();
-                let name = name_parts.get(1).unwrap().to_string();
-
+                let (org, name) = get_name_parts(&qualified_name)?;
                 let child = Stele::new(
                     self.path.clone(),
                     Some(name),
