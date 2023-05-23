@@ -2,7 +2,10 @@
 //! in the Stelae Archive.
 use anyhow::Context;
 use git2::Repository;
-use std::{fmt, path::{Path, PathBuf}};
+use std::{
+    fmt,
+    path::{Path, PathBuf},
+};
 
 /// This is the first step towards having custom errors
 pub const GIT_REQUEST_NOT_FOUND: &str = "Git object doesn't exist";
@@ -40,7 +43,7 @@ impl Clone for Repo {
             org: self.org.clone(),
             name: self.name.clone(),
             path: self.path.clone(),
-            repo: Repository::open(self.path.clone()).unwrap()
+            repo: Repository::open(self.path.clone()).unwrap(),
         }
     }
 }
