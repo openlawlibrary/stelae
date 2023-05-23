@@ -8,6 +8,8 @@ use serde_derive::{Deserialize, Serialize};
 use serde_json;
 use std::fs::read_to_string;
 
+use super::types::repositories::Repository;
+
 /// Stele
 #[derive(Debug, Clone)]
 pub struct Stele {
@@ -97,6 +99,25 @@ impl Stele {
     #[must_use]
     pub fn get_qualified_name(&self) -> String {
         format!("{}/{}", self.org, self.name)
+    }
+
+    /// Get Stele's fallback repo.
+    /// A fallback repository is a data repository which contains `is_fallback` = true in its custom field.
+    /// # Returns
+    /// Returns the first fallback repository found, or None if no fallback repository is found.
+    #[must_use]
+    pub fn get_fallback_repo(&self) -> Option<Repository> {
+        if let &Some(ref repositories) = &self.repositories {
+            for repository in &repositories.repositories {
+                let custom = &repository.custom;
+                if let Some(ref is_fallback) = custom.is_fallback {
+                    if *is_fallback {
+                        return Some(repository.clone());
+                    }
+                }
+            }
+        }
+        None
     }
 
     /// See if Stele is a root Stele.
