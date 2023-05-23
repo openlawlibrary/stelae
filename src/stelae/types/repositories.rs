@@ -7,11 +7,12 @@ pub struct Repositories {
     pub scopes: Option<Vec<String>>,
     /// Data repositories sorted by routes top down (most strict to least strict)
     #[serde(deserialize_with = "deserialize_repositories")]
-    pub repositories: Vec<(String, Repository)>,
+    pub repositories: Vec<Repository>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Repository {
+    pub name: String,
     pub custom: Custom,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -28,7 +29,7 @@ pub struct Custom {
 }
 
 /// Deserialize a map of repositories into a vector of sorted repositories
-fn deserialize_repositories<'de, D>(deserializer: D) -> Result<Vec<(String, Repository)>, D::Error>
+fn deserialize_repositories<'de, D>(deserializer: D) -> Result<Vec<Repository>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -43,11 +44,11 @@ where
         let custom: Custom = serde_json::from_value(custom_value.clone()).map_err(|e| {
             serde::de::Error::custom(format!("Failed to deserialize 'custom': {e}"))
         })?;
-        result.push((name, Repository { custom }));
+        result.push(Repository { name, custom });
     }
     // Sort the repositories by the length of their routes, longest first
     // This is needed because Actix routes are matched in the order they are added
-    result.sort_by(|&(_, ref repo1), &(_, ref repo2)| {
+    result.sort_by(|repo1, repo2| {
         let routes1 = repo1.custom.routes.as_ref().map_or(0, |r| {
             r.iter().map(std::string::String::len).max().unwrap_or(0)
         });
