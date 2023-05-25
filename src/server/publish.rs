@@ -108,12 +108,16 @@ async fn serve(
     dbg!(&data);
     dbg!(&shared);
     dbg!(&req.path().to_owned());
-    let mut path = req.path().to_owned();
+    // let mut path = req.path().to_owned();
     // dbg!(&path);
-    // let mut namespace: String = req.match_info().get("namespace").unwrap().parse().unwrap();
-    // dbg!(&namespace);
-    let mut prefix: String = req.match_info().get("prefix").unwrap().parse().unwrap();
+    let mut prefix: String = req.match_info().get("prefix").unwrap_or_default().parse().unwrap();
     dbg!(&prefix);
+    let mut tail: String = req.match_info().get("tail").unwrap().parse().unwrap();
+    dbg!(&tail);
+    // let (prefix, tail): (String, String) = req.match_info().load().unwrap();
+    // dbg!(&prefix);
+    // dbg!(&tail);
+    let mut path = format!("{}/{}", prefix, tail);
     path = clean_path(&path);
     dbg!(&path);
     let blob = data.repo.get_bytes_at_path("HEAD", &path);
@@ -165,7 +169,6 @@ pub async fn serve_archive(
             std::process::exit(1);
         });
     let state = AppState { archive };
-    // TODO: intiialize fallback repository
     let root = state.archive.get_root().unwrap();
     let shared_state = init_shared_app_state(root);
     // let shared_state = SharedState { fallback: None };
@@ -190,16 +193,13 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
     // initialize root stele routes and scopes
     let root = state.archive.get_root().unwrap();
     let mut root_scope: Scope = web::scope("");
-    // if let &Some(ref repositories) = &root.repositories {
 
-    // }
-    // TODO: fallback repository
-
+    // TODO: this has to get moved to a function
     for stele in state.archive.stelae.values() {
         if let &Some(ref repositories) = &stele.repositories {
             // Root Stele
             if stele.get_qualified_name() == root.get_qualified_name() {
-                for &ref repository in &repositories.repositories {
+                for repository in &repositories.repositories {
                     let custom = &repository.custom;
                     let repo_state = {
                         let name = &repository.name;
@@ -219,11 +219,11 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
                     };
                     for route in custom.routes.iter().flat_map(|r| r.iter()) {
                         //ignore routes in child stele that start with underscore
-                        if route.starts_with("~ _") {
+                        if route.starts_with('_') {
                             // TODO: append route to root stele scope
                             continue;
                         }
-                        let actix_route = format!("/{{prefix:{}}}", &route);
+                        let actix_route = format!("/{{tail:{}}}", &route);
                         root_scope = root_scope.service(
                             web::resource(actix_route.as_str())
                                 .route(web::get().to(serve))
@@ -233,7 +233,7 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
                     if let &Some(ref underscore_scope) = &custom.scope {
                         let actix_underscore_scope = web::scope(underscore_scope.as_str()).service(
                             web::scope("").service(
-                                web::resource("/{prefix:.*}")
+                                web::resource("/{tail:.*}")
                                     .route(web::get().to(serve))
                                     .app_data(web::Data::new(repo_state.clone())),
                             ),
@@ -250,17 +250,12 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
                 // let url_namespace = format!("{{namespace:({})+}}", &scope.as_str());
                 // dbg!(&url_namespace);
                 // let mut actix_scope = web::scope("/{namespace:us/ca/cities/san-mateo}");
-                let mut actix_scope = web::scope(scope.as_str());
+                let scope_str = format!("/{{prefix:{}}}", &scope.as_str());
+                let mut actix_scope = web::scope(scope_str.as_str());
                 // dbg!(&scope);
-                for &ref repository in &repositories.repositories {
+                for repository in &repositories.repositories {
                     let custom = &repository.custom;
                     let repo_state = {
-                        // let mut repo_path = stele
-                        //     .path
-                        //     .clone()
-                        //     .parent()
-                        //     .unwrap()
-                        //     .to_string_lossy();
                         let name = &repository.name;
                         let mut repo_path = state.archive.path.to_string_lossy().into_owned();
                         repo_path = format!("{repo_path}/{name}");
@@ -278,21 +273,22 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
                     };
                     for route in custom.routes.iter().flat_map(|r| r.iter()) {
                         //ignore routes in child stele that start with underscore
-                        if route.starts_with("~ _") {
+                        if route.starts_with('_') {
                             // TODO: append route to root stele scope
                             continue;
                         }
-                        let actix_route = format!("/{{prefix:{}}}", &route);
+                        let actix_route = format!("/{{tail:{}}}", &route);
                         actix_scope = actix_scope.service(
                             web::resource(actix_route.as_str())
                                 .route(web::get().to(serve))
                                 .app_data(web::Data::new(repo_state.clone())),
                         );
                     }
+                    // TODO: This is not necessary in child Stele
                     if let &Some(ref underscore_scope) = &custom.scope {
                         let actix_underscore_scope = web::scope(underscore_scope.as_str()).service(
                             web::scope(scope.as_str()).service(
-                                web::resource("/{prefix:.*}")
+                                web::resource("/{tail:.*}")
                                     .route(web::get().to(serve))
                                     .app_data(web::Data::new(repo_state.clone())),
                             ),
