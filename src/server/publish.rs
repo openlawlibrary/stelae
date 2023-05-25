@@ -123,9 +123,16 @@ async fn serve(
         req.path().to_owned(),
         data.repo.path.to_string_lossy()
     );
-    match blob {
-        Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
-        Err(error) => HttpResponse::BadRequest().into(),
+    if let Ok(content) = blob {
+        HttpResponse::Ok().insert_header(contenttype).body(content)
+    } else if let Some(ref fallback) = shared.fallback {
+        let blob = fallback.repo.get_bytes_at_path("HEAD", &path);
+        blob.map_or_else(
+            |_| HttpResponse::BadRequest().into(),
+            |content| HttpResponse::Ok().insert_header(contenttype).body(content),
+        )
+    } else {
+        HttpResponse::BadRequest().into()
     }
 }
 
@@ -267,7 +274,6 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
                                     .expect("Unable to open Git repository"),
                             },
                             serve: custom.serve.clone(),
-                            // fallback: None,
                         }
                     };
                     for route in custom.routes.iter().flat_map(|r| r.iter()) {
