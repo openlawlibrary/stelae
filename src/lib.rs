@@ -80,7 +80,8 @@
 
     // I think marking `#[non_exhaustive]` is more for structs/enums that are imported into other crates
     clippy::exhaustive_structs,
-    clippy::exhaustive_enums
+    clippy::exhaustive_enums,
+    clippy::question_mark_used,
 )]
 
 pub mod server;
