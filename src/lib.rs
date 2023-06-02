@@ -82,6 +82,7 @@
     clippy::exhaustive_structs,
     clippy::exhaustive_enums,
     clippy::question_mark_used,
+    clippy::semicolon_outside_block,
 )]
 
 pub mod server;
