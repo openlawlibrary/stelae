@@ -2,7 +2,6 @@
 	repositoryformatversion = 0
 	filemode = false
 	bare = true
+	logallrefupdates = true
 	symlinks = false
 	ignorecase = true
-[remote "origin"]
-	url = C:\\Users\\dreisen\\programming\\rust\\test

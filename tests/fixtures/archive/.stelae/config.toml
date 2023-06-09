@@ -1,0 +1,6 @@
+shallow = false
+
+[root]
+name = "law"
+org = "test"
+hash = "sha256"
