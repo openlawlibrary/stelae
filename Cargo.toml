@@ -8,11 +8,13 @@ license = "AGPL-3.0"
 keywords = ["authentication", "laws", "preservation"]
 categories = ["authentication", "web-programming::http-server"]
 repository = "https://github.com/openlawlibrary/stelae"
-rust-version = "1.66"
+rust-version = "1.69"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 actix-web = "4"
+actix-service = "2.0"
+actix-http = "3.2"
 mime = "0.3.9"
 mime_guess = "2.0.1"
 anyhow = "1.0"
