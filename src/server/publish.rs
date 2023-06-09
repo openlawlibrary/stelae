@@ -6,14 +6,22 @@ use crate::utils::archive::get_name_parts;
 use crate::utils::git::Repo;
 use crate::utils::http::get_contenttype;
 use crate::{server::tracing::StelaeRootSpanBuilder, stelae::stele::Stele};
+use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::{
-    get, guard, web, App, HttpRequest, HttpResponse, HttpServer, Resource, Responder, Route, Scope,
+    get, guard, web, App, Error, HttpRequest, HttpResponse, HttpServer, Resource, Responder, Route,
+    Scope,
 };
 use git2::Repository;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::{collections::HashMap, fmt, path::Path, path::PathBuf};
 use tracing_actix_web::TracingLogger;
+
+use actix_http::body::MessageBody;
+use actix_service::{
+    apply, apply_fn_factory, boxed, IntoServiceFactory, ServiceFactory, ServiceFactoryExt,
+    Transform,
+};
 
 #[allow(clippy::expect_used)]
 /// Remove leading and trailing `/`s from the `path` string.
@@ -26,9 +34,9 @@ fn clean_path(path: &str) -> String {
 
 /// Global, read-only state
 #[derive(Debug, Clone)]
-struct AppState {
+pub struct AppState {
     /// Fully initialized Stelae archive
-    archive: Archive,
+    pub archive: Archive,
 }
 
 /// Git repository to serve
@@ -40,7 +48,7 @@ struct RepoState {
 }
 
 /// Shared, read-only app state
-struct SharedState {
+pub struct SharedState {
     /// Repository to fall back to if the current one is not found
     fallback: Option<RepoState>,
 }
@@ -110,7 +118,12 @@ async fn serve(
     dbg!(&req.path().to_owned());
     // let mut path = req.path().to_owned();
     // dbg!(&path);
-    let mut prefix: String = req.match_info().get("prefix").unwrap_or_default().parse().unwrap();
+    let mut prefix: String = req
+        .match_info()
+        .get("prefix")
+        .unwrap_or_default()
+        .parse()
+        .unwrap();
     dbg!(&prefix);
     let mut tail: String = req.match_info().get("tail").unwrap().parse().unwrap();
     dbg!(&tail);
@@ -174,17 +187,32 @@ pub async fn serve_archive(
     // let shared_state = SharedState { fallback: None };
     dbg!(&shared_state);
 
-    HttpServer::new(move || {
-        App::new().service(
-            web::scope("")
-                .app_data(web::Data::new(shared_state.clone()))
-                .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
-                .configure(|cfg| init_routes(cfg, state.clone())),
-        )
-    })
-    .bind((bind, port))?
-    .run()
-    .await
+    HttpServer::new(move || init_app(shared_state.clone(), state.clone()))
+        .bind((bind, port))?
+        .run()
+        .await
+}
+
+/// Initialize the application
+#[must_use]
+pub fn init_app(
+    shared_state: SharedState,
+    state: AppState,
+) -> App<
+    impl ServiceFactory<
+        ServiceRequest,
+        Response = ServiceResponse<impl MessageBody>,
+        Config = (),
+        InitError = (),
+        Error = Error,
+    >,
+> {
+    App::new().service(
+        web::scope("")
+            .app_data(web::Data::new(shared_state))
+            .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
+            .configure(|cfg| init_routes(cfg, state)),
+    )
 }
 
 /// Routes
@@ -352,7 +380,12 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
 /// Initialize the shared application state
 /// Currently shared application state consists of:
 ///     - fallback: used as a data repository to resolve data when no other url matches the request
-fn init_shared_app_state(root: &Stele) -> SharedState {
+/// # Returns
+/// Returns a `SharedState` object
+/// # Panics
+/// Will panic if `get_name_parts` or `Repo::new` fails
+#[must_use]
+pub fn init_shared_app_state(root: &Stele) -> SharedState {
     let fallback = root.get_fallback_repo().map(|repo| {
         let (org, name) = get_name_parts(&repo.name).unwrap();
         RepoState {
