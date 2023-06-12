@@ -22,13 +22,6 @@ pub fn find_archive_path(path: &Path) -> anyhow::Result<PathBuf> {
 }
 
 /// Get the qualified name as parts of a Stele from the {org}/{name} format.
-/// # Examples
-/// ```
-/// use stelae::utils::archive::get_name_parts;
-/// let (org, name) = get_name_parts("law/stele");
-/// assert_eq!(org, "law");
-/// assert_eq!(name, "stele");
-/// ```
 /// # Errors
 /// Will error if the qualified name is not in the {org}/{name} format.
 pub fn get_name_parts(qualified_name: &str) -> anyhow::Result<(String, String)> {
@@ -36,4 +29,28 @@ pub fn get_name_parts(qualified_name: &str) -> anyhow::Result<(String, String)> 
     let org = name_parts.next().context("No organization specified");
     let name = name_parts.next().context("No name specified");
     Ok((org?.to_owned(), name?.to_owned()))
+}
+
+#[cfg(test)]
+mod test {
+    use crate::utils::archive::get_name_parts;
+
+    #[test]
+    fn get_name_parts_when_qualified_name_correct_expect_name_parts() {
+        let cut = get_name_parts;
+        let actual = cut("stele/test").unwrap();
+        let expected = ("stele".to_owned(), "test".to_owned());
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn get_name_parts_when_qualified_name_incorrect_expect_error() {
+        let cut = get_name_parts;
+        let actual = cut("test").unwrap_err();
+        let expected = "No name specified";
+        assert!(
+            actual.to_string().contains(expected),
+            "\"{actual}\" doesn't contain {expected}"
+        );
+    }
 }
