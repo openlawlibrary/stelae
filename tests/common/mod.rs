@@ -1,10 +1,34 @@
+use actix_http::Request;
+use actix_service::Service;
+use actix_web::{
+    dev::ServiceResponse,
+    test::{self},
+    Error,
+};
 use std::fs::create_dir_all;
 use std::path::PathBuf;
 use std::sync::Once;
 
 static INIT: Once = Once::new();
 
-pub fn initialize() {
+use actix_http::body::MessageBody;
+
+use stelae::server::publish::{init_app, init_shared_app_state, AppState};
+use stelae::stelae::archive::Archive;
+
+pub async fn initialize_app(
+) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = Error> {
+    initialize_git();
+    let archive = Archive::parse(get_test_archive_path(), &get_test_archive_path(), false).unwrap();
+    let state = AppState { archive };
+    let root = state.archive.get_root().unwrap();
+    let shared_state = init_shared_app_state(root);
+    let app = init_app(shared_state.clone(), state.clone());
+    test::init_service(app).await
+}
+
+/// Used to initialize the test environment for git micro-server.
+pub fn initialize_git() {
     INIT.call_once(|| {
         let repo_path = get_test_archive_path().join(PathBuf::from("test/law-html"));
         let heads_path = repo_path.join(PathBuf::from("refs/heads"));

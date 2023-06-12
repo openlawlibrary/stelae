@@ -2,7 +2,7 @@ use stelae::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 
 use crate::common;
 
-const COMMIT: &str = "ed782e08d119a580baa3067e2ea5df06f3d1cd05";
+const COMMIT: &str = "4ba432f61eec15194db527548be4cbc0105635b9";
 
 fn blob_to_string(blob: Vec<u8>) -> String {
     core::str::from_utf8(blob.as_slice()).unwrap().into()
@@ -10,7 +10,7 @@ fn blob_to_string(blob: Vec<u8>) -> String {
 
 #[test]
 fn test_get_bytes_at_path_when_empty_path_expect_index_html() {
-    common::initialize();
+    common::initialize_git();
     let test_archive_path = common::get_test_archive_path();
     let repo = Repo::new(&test_archive_path, "test", "law-html").unwrap();
     let actual = repo.get_bytes_at_path(COMMIT, "").unwrap();
@@ -23,7 +23,7 @@ fn test_get_bytes_at_path_when_empty_path_expect_index_html() {
 
 #[test]
 fn test_get_bytes_at_path_when_full_path_expect_data() {
-    common::initialize();
+    common::initialize_git();
     let test_archive_path = common::get_test_archive_path();
     let repo = Repo::new(&test_archive_path, "test", "law-html").unwrap();
     let actual = repo.get_bytes_at_path(COMMIT, "a/b/c.html").unwrap();
@@ -36,7 +36,7 @@ fn test_get_bytes_at_path_when_full_path_expect_data() {
 
 #[test]
 fn test_get_bytes_at_path_when_omit_html_expect_data() {
-    common::initialize();
+    common::initialize_git();
     let test_archive_path = common::get_test_archive_path();
     let repo = Repo::new(&test_archive_path, "test", "law-html").unwrap();
     let actual = repo.get_bytes_at_path(COMMIT, "a/b/c").unwrap();
@@ -49,7 +49,7 @@ fn test_get_bytes_at_path_when_omit_html_expect_data() {
 
 #[test]
 fn test_get_bytes_at_path_when_omit_index_expect_data() {
-    common::initialize();
+    common::initialize_git();
     let test_archive_path = common::get_test_archive_path();
     let repo = Repo::new(&test_archive_path, "test", "law-html").unwrap();
     let actual = repo.get_bytes_at_path(COMMIT, "a/b/d").unwrap();
@@ -62,7 +62,7 @@ fn test_get_bytes_at_path_when_omit_index_expect_data() {
 
 #[test]
 fn test_get_bytes_at_path_when_invalid_repo_namespace_expect_error() {
-    common::initialize();
+    common::initialize_git();
     let test_archive_path = common::get_test_archive_path();
     let actual = Repo::new(&test_archive_path, "xxx", "law-html").unwrap_err();
     let expected = "failed to resolve path";
@@ -74,7 +74,7 @@ fn test_get_bytes_at_path_when_invalid_repo_namespace_expect_error() {
 
 #[test]
 fn test_get_bytes_at_path_when_invalid_repo_name_expect_error() {
-    common::initialize();
+    common::initialize_git();
     let test_archive_path = common::get_test_archive_path();
     let actual = Repo::new(&test_archive_path, "test", "xxx").unwrap_err();
     let expected = "failed to resolve path";
@@ -86,7 +86,7 @@ fn test_get_bytes_at_path_when_invalid_repo_name_expect_error() {
 
 #[test]
 fn test_get_bytes_at_path_when_invalid_path_expect_error() {
-    common::initialize();
+    common::initialize_git();
     let test_archive_path = common::get_test_archive_path();
     let repo = Repo::new(&test_archive_path, "test", "law-html").unwrap();
     let actual = repo.get_bytes_at_path(COMMIT, "a/b/x").unwrap_err();
