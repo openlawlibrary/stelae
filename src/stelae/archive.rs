@@ -51,11 +51,12 @@ impl Archive {
             tracing::info!("Serving individual Stele at path: {:?}", individual_path);
             root = Stele::new(self.path.clone(), None, None, Some(individual_path), true)?;
         } else {
-            tracing::info!("Serving an archive at path: {:?}", self.path);
             let conf = self.get_config()?;
 
             let org = conf.root.org;
             let name = conf.root.name;
+
+            tracing::info!("Serving {}/{} at path: {:?}", &org, &name, self.path);
 
             root = Stele::new(
                 self.path.clone(),

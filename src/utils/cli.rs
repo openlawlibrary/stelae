@@ -39,6 +39,7 @@ enum Subcommands {
         #[arg(short, long, default_value_t = 8080)]
         port: u16,
         #[arg(short, long, default_value_t = false)]
+        /// Serve an individual stele instead of the Stele specified in config.toml.
         individual: bool,
     },
 }
