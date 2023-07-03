@@ -10,10 +10,12 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 ### Added
 
 ### Changed
-
+- Update license, release under AGPL ([25])
 ### Fixed
 
 ### Removed
+
+[25]: https://github.com/openlawlibrary/stelae/pull/22
 
 ## [0.1.1]
 
