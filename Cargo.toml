@@ -1,6 +1,6 @@
 [package]
 name = "stelae"
-description = "A collection of tools in rust and python for preserving, authenticating, and accessing laws in perpetuity."
+description = "A collection of tools in Rust and Python for preserving, authenticating, and accessing laws in perpetuity."
 version = "0.1.0"
 edition = "2021"
 readme = "README.md"
