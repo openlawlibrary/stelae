@@ -4,6 +4,7 @@
     // Unused asyncs are the norm in Actix route definition files
     clippy::unused_async,
     clippy::unreachable,
+    clippy::let_with_type_underscore
 )]
 
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
