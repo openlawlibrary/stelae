@@ -10,6 +10,15 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 ### Added
 
 ### Changed
+
+### Fixed
+
+### Removed
+
+## [0.2.0]
+### Added
+
+### Changed
 - Update license, release under AGPL ([25])
 ### Fixed
 
@@ -40,7 +49,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/openlawlibrary/stelae/tree/v0.2.0
 [0.1.1]: https://github.com/openlawlibrary/stelae/tree/v0.1.1
 [0.1.0]: https://github.com/openlawlibrary/stelae/tree/v0.1.0
 
