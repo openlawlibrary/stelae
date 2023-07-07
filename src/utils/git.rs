@@ -41,6 +41,7 @@ impl Repo {
     /// in library, or if there is something wrong with the git repository.
     pub fn new(lib_path: &Path, namespace: &str, name: &str) -> anyhow::Result<Self> {
         let lib_path_str = lib_path.to_string_lossy();
+        tracing::debug!(namespace, name, "Creating new Repo at {lib_path_str}");
         let repo_path = format!("{lib_path_str}/{namespace}/{name}");
         Ok(Self {
             lib_path: lib_path_str.into(),
@@ -74,7 +75,7 @@ impl Repo {
                 return blob;
             }
         }
-        tracing::debug!(base_revision, "Couldn't find requeted Git object");
+        tracing::debug!(base_revision, "Couldn't find requested Git object");
         anyhow::bail!(GIT_REQUEST_NOT_FOUND)
     }
 
