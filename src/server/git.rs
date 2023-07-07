@@ -2,7 +2,8 @@
 
 #![allow(
     // Unused asyncs are the norm in Actix route definition files
-    clippy::unused_async
+    clippy::unused_async,
+    clippy::unreachable,
 )]
 
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
@@ -51,6 +52,7 @@ async fn misc(path: web::Path<String>) -> actix_web::Result<&'static str, Stelae
 /// repo at the `commitish` commit at the `remainder` path.
 /// Return 404 if any are not found or there are any errors.
 #[get("/{namespace}/{name}/{commitish}{remainder:/+([^{}]*?)?/*}")]
+#[tracing::instrument(name = "Retrieving a Git blob", skip(path, data))]
 async fn get_blob(
     path: web::Path<(String, String, String, String)>,
     data: web::Data<AppState>,
@@ -83,7 +85,9 @@ fn find_blob(
 
 /// A centralised place to match potentially unsafe internal errors to safe user-facing error responses
 #[allow(clippy::wildcard_enum_match_arm)]
+#[tracing::instrument(name = "Error with Git blob request", skip(error, namespace, name))]
 fn blob_error_response(error: &anyhow::Error, namespace: &str, name: &str) -> HttpResponse {
+    tracing::error!("{error}",);
     if let Some(git_error) = error.downcast_ref::<git2::Error>() {
         return match git_error.code() {
             // TODO: check this is the right error

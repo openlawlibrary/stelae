@@ -69,7 +69,6 @@ impl RootSpanBuilder for StelaeRootSpanBuilder {
                 }
             }
         });
-
         // Captures the standard `RootSpan` fields
         DefaultRootSpanBuilder::on_request_end(span, outcome);
     }
