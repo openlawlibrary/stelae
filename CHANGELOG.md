@@ -10,12 +10,32 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 ### Added
 
 ### Changed
+
+### Fixed
+
+### Removed
+
+## [0.2.1]
+### Added
+- Add basic instruments to git serve ([26])
+### Changed
+
+### Fixed
+- Fix safe directory issues by upgrading git2 to latest version ([26])
+### Removed
+
+[26]: https://github.com/openlawlibrary/stelae/pull/26
+
+## [0.2.0]
+### Added
+
+### Changed
 - Update license, release under AGPL ([25])
 ### Fixed
 
 ### Removed
 
-[25]: https://github.com/openlawlibrary/stelae/pull/22
+[25]: https://github.com/openlawlibrary/stelae/pull/25
 
 ## [0.1.1]
 
@@ -40,7 +60,9 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/openlawlibrary/stelae/tree/v0.2.1
+[0.2.0]: https://github.com/openlawlibrary/stelae/tree/v0.2.0
 [0.1.1]: https://github.com/openlawlibrary/stelae/tree/v0.1.1
 [0.1.0]: https://github.com/openlawlibrary/stelae/tree/v0.1.0
 
