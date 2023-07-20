@@ -333,48 +333,6 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
     }
     // Register root stele scope last
     cfg.service(root_scope);
-    // {
-    //     let mut smc_hashmap = HashMap::new();
-    //     smc_hashmap.insert("cityofsanmateo".to_owned(), "some value for SMC".to_owned());
-    //     let mut dc_hashmap = HashMap::new();
-    //     dc_hashmap.insert("dc".to_owned(), "some value for DC".to_owned());
-
-    //     cfg.service(
-    //         web::scope("/us/ca/cities/san-mateo")
-    //             .service(web::resource("/{prefix:_reader/.*}")
-    //             // .route("/{prefix:_reader/.*}", web::get().to(test))
-    //             // .app_data(web::Data::new(smc_hashmap))
-    //             .route(web::get().to(test)))
-    //             // .route("/{pdfs:.*/.*pdf}", web::get().to(test))
-    //             // .app_data(web::Data::new(dc_hashmap))
-    //             .service(web::resource("/{pdfs:.*/.*pdf}").route(web::get().to(test))), // .service(index)
-    //                                                                                              // .service(test),
-    //     ).app_data(web::Data::new(smc_hashmap.clone()));
-
-    //     let mut scope = web::scope("");
-
-    //     scope = scope.service(web::resource("/{prefix:_reader/.*}").route(web::get().to(test)));
-    //     scope = scope.service(web::resource("/{pdfs:.*/.*pdf}").route(web::get().to(test)));
-    //     // scope = scope.app_data(web::Data::new(smc_hashmap.clone()));
-    //     scope = scope.app_data(web::Data::new(dc_hashmap.clone()));
-    //     cfg.service(scope);
-
-    //     cfg.service(web::scope("/fedlaws")
-    //         .service(web::resource("/{prefix:_reader/.*}")
-    //         .route(web::get().to(test)))
-    //         // .app_data(web::Data::new(smc_hashmap.clone()))
-    //         .service(web::resource("/{pdfs:.*/.*pdf}").route(web::get().to(test))
-    //         .app_data(web::Data::new(smc_hashmap)))
-    //     );
-    // }
-    // {
-    //     let mut dc_hashmap = HashMap::new();
-    //     dc_hashmap.insert("dc".to_owned(), "some value for DC".to_owned());
-
-    //     cfg.service(
-    //         web::scope("/us/dc").app_data(web::Data::new(dc_hashmap)), // .service(test),
-    //     );
-    // }
 }
 
 /// Initialize the shared application state
