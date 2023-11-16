@@ -71,6 +71,8 @@ pub fn run() -> std::io::Result<()> {
 
     match cli.subcommands {
         Subcommands::Git { port } => serve_git(&cli.archive_path, archive_path, port),
-        Subcommands::Serve { port, individual } => serve_archive(&cli.archive_path, archive_path, port, individual),
+        Subcommands::Serve { port, individual } => {
+            serve_archive(&cli.archive_path, archive_path, port, individual)
+        }
     }
 }

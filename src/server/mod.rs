@@ -4,5 +4,5 @@
 
 pub mod errors;
 pub mod git;
-pub mod tracing;
 pub mod publish;
+pub mod tracing;
