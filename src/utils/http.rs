@@ -8,12 +8,17 @@ use std::path::Path;
 /// for the content at `path`. If there is no extension, we assume it is
 /// html. If the extension cannot be converted to a str, then we return
 /// HTML.
+/// Some browsers will not render `application/rdf+xml`, but instead will
+/// download it. So we instead return `text/plain` for `.rdf` files.
 #[must_use]
 pub fn get_contenttype(path: &str) -> ContentType {
     let extension = Path::new(&path)
         .extension()
         .map_or("html", |ext| ext.to_str().map_or("", |ext_str| ext_str));
     let mime = file_extension_to_mime(extension).first_or(mime::TEXT_HTML);
+    if (mime.type_(), mime.subtype().as_str()) == ((mime::APPLICATION, "rdf")) {
+        return ContentType(mime::TEXT_PLAIN);
+    }
     ContentType(mime)
 }
 
@@ -50,6 +55,14 @@ mod test {
         let cut = get_contenttype;
         let actual = cut("a/b.xml").to_string();
         let expected = String::from("text/xml");
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_get_contenttype_when_rdf_ext_expect_rdf() {
+        let cut = get_contenttype;
+        let actual = cut("a/b.rdf").to_string();
+        let expected = String::from("text/plain");
         assert_eq!(expected, actual);
     }
 
