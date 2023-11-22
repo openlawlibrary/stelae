@@ -4,3 +4,4 @@
 mod api;
 mod basic;
 mod common;
+mod archive_testtools;

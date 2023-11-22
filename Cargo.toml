@@ -33,6 +33,7 @@ serde_derive = "1.0.152"
 
 [dev-dependencies]
 criterion = "0.3"
+tempfile = "3"
 
 [[bench]]
 name = "git_benchmark"

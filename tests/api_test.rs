@@ -3,3 +3,4 @@
 
 mod api;
 mod common;
+mod archive_testtools;
