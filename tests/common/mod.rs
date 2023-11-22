@@ -16,10 +16,17 @@ use actix_http::body::MessageBody;
 use stelae::server::publish::{init_app, init_shared_app_state, AppState};
 use stelae::stelae::archive::Archive;
 
+pub const BASIC_MODULE_NAME: &str = "basic";
+
 pub async fn initialize_app(
 ) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = Error> {
     initialize_git();
-    let archive = Archive::parse(get_test_archive_path(), &get_test_archive_path(), false).unwrap();
+    let archive = Archive::parse(
+        get_test_archive_path(BASIC_MODULE_NAME),
+        &get_test_archive_path(BASIC_MODULE_NAME),
+        false,
+    )
+    .unwrap();
     let state = AppState { archive };
     let root = state.archive.get_root().unwrap();
     let shared_state = init_shared_app_state(root);
@@ -30,7 +37,8 @@ pub async fn initialize_app(
 /// Used to initialize the test environment for git micro-server.
 pub fn initialize_git() {
     INIT.call_once(|| {
-        let repo_path = get_test_archive_path().join(PathBuf::from("test/law-html"));
+        let repo_path =
+            get_test_archive_path(BASIC_MODULE_NAME).join(PathBuf::from("test/law-html"));
         let heads_path = repo_path.join(PathBuf::from("refs/heads"));
         create_dir_all(heads_path).unwrap();
         let tags_path = repo_path.join(PathBuf::from("refs/tags"));
@@ -38,8 +46,9 @@ pub fn initialize_git() {
     });
 }
 
-pub fn get_test_archive_path() -> PathBuf {
+pub fn get_test_archive_path(mod_name: &str) -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.push("tests/fixtures/archive");
+    path.push("tests/fixtures/");
+    path.push(mod_name.to_owned() + "/archive");
     path
 }
