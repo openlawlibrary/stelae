@@ -149,7 +149,6 @@ pub fn init(
     root_name: String,
     root_org: String,
     root_hash: Option<String>,
-    root_url: Option<String>,
     shallow: bool,
 ) -> anyhow::Result<Box<Archive>> {
     raise_error_if_in_existing_archive(&path)?;
@@ -164,12 +163,11 @@ pub fn init(
         },
         shallow,
     };
-    let conf_str = toml::to_string_pretty(&conf)?;
+    let conf_str = toml_edit::ser::to_string_pretty(&conf)?;
     write(config_path, conf_str)?;
     let archive = Archive {
         path,
         stelae: HashMap::new(),
     };
-    if root_url.is_some() {}
     Ok(Box::new(archive))
 }

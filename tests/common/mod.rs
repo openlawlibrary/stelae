@@ -6,6 +6,7 @@ use actix_web::{
     test::{self},
     Error,
 };
+use anyhow::Result;
 use std::fs::create_dir_all;
 use std::path::PathBuf;
 use std::sync::Once;
@@ -16,7 +17,7 @@ static INIT: Once = Once::new();
 use actix_http::body::MessageBody;
 
 use stelae::server::publish::{init_app, init_shared_app_state, AppState};
-use stelae::stelae::archive::Archive;
+use stelae::stelae::archive::{self, Archive};
 
 pub const BASIC_MODULE_NAME: &str = "basic";
 
@@ -36,13 +37,19 @@ pub async fn initialize_app(
     test::init_service(app).await
 }
 
-pub fn initialize_archive() {
+pub fn initialize_archive(script_name: &str) -> Result<tempfile::TempDir> {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("tests/fixtures/");
 
     let td = Builder::new().tempdir_in(path).unwrap();
-
-    dbg!(&td);
+    archive::init(
+        td.path().to_owned(),
+        "law".into(),
+        "test".into(),
+        None,
+        false,
+    );
+    Ok(td)
 }
 
 /// Used to initialize the test environment for git micro-server.
