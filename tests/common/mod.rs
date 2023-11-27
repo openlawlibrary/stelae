@@ -8,7 +8,7 @@ use actix_web::{
 };
 use anyhow::Result;
 use std::fs::create_dir_all;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Once;
 use tempfile::{Builder, TempDir};
 
@@ -20,6 +20,12 @@ use stelae::server::publish::{init_app, init_shared_app_state, AppState};
 use stelae::stelae::archive::{self, Archive};
 
 pub const BASIC_MODULE_NAME: &str = "basic";
+
+pub enum ArchiveType {
+    Basic,
+    Multijurisdiction,
+    Multihost,
+}
 
 pub async fn initialize_app(
 ) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = Error> {
@@ -37,11 +43,32 @@ pub async fn initialize_app(
     test::init_service(app).await
 }
 
-pub fn initialize_archive(script_name: &str) -> Result<tempfile::TempDir> {
+pub fn initialize_archive(archive_type: ArchiveType) -> Result<tempfile::TempDir> {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("tests/fixtures/");
 
     let td = Builder::new().tempdir_in(path).unwrap();
+
+    match archive_type {
+        ArchiveType::Basic => initialize_archive_basic(&td).unwrap(),
+        ArchiveType::Multijurisdiction => initialize_archive_multijurisdiction(&td).unwrap(),
+        ArchiveType::Multihost => initialize_archive_multihost(&td).unwrap(),
+    }
+
+    //todo:
+
+    //let law-html = execute_script('make-law-html', td.path(), script_name);
+    //let law-rdf = execute_script('make-law-rdf', td.path(), script_name);
+    //let law-xml = execute_script('make-law-xml', td.path(), script_name);
+
+    Ok(td)
+}
+
+fn initialize_archive_basic(td: &TempDir) -> Result<()> {
+    let mut path = td.path().to_owned();
+    path.push("test");
+    create_dir_all(&path).unwrap();
+
     archive::init(
         td.path().to_owned(),
         "law".into(),
@@ -49,7 +76,23 @@ pub fn initialize_archive(script_name: &str) -> Result<tempfile::TempDir> {
         None,
         false,
     );
-    Ok(td)
+    let law_repo = make_repository("test-script.sh", &path).unwrap();
+    Ok(())
+}
+
+fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
+    unimplemented!()
+}
+
+fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
+    unimplemented!()
+}
+
+pub fn make_repository(script_name: &str, path: &Path) -> Result<()> {
+    archive_testtools::execute_script(script_name, path.canonicalize().unwrap()).unwrap();
+    // TODO: return repository
+    panic!("Something happened!");
+    Ok(())
 }
 
 /// Used to initialize the test environment for git micro-server.
