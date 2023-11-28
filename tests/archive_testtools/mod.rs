@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
 use lazy_static::lazy_static;
 use std::path::{Path, PathBuf};
+use stelae::utils::paths::fix_unc_path;
 
 lazy_static! {
     static ref SCRIPT_PATH: PathBuf = {
@@ -11,21 +12,16 @@ lazy_static! {
 }
 
 pub fn execute_script(script_name: &str, mut script_result_directory: PathBuf) -> Result<()> {
-    let script_absolute_path = SCRIPT_PATH.join(script_name).canonicalize()?;
+    let script_absolute_path = fix_unc_path(&SCRIPT_PATH.join(script_name).canonicalize()?);
     let env_path = std::env::current_dir()?.join(script_name);
-    dbg!(&env_path);
-    dbg!(&script_absolute_path);
-    dbg!(&script_result_directory);
     let mut cmd = std::process::Command::new(&script_absolute_path);
     let output = match configure_command(&mut cmd, &script_result_directory).output() {
         Ok(out) => out,
         Err(err)
             if err.kind() == std::io::ErrorKind::PermissionDenied || err.raw_os_error() == Some(193) /* windows */ =>
         {
-            dbg!("Running script with bash");
             cmd = std::process::Command::new("bash");
-            let output = configure_command(cmd.arg(script_absolute_path), &script_result_directory).output().unwrap();
-            dbg!(&output);
+            let output = configure_command(cmd.arg(&script_absolute_path), &script_result_directory).output().unwrap();
             output
         }
         Err(err) => return Err(err.into()),
@@ -54,5 +50,4 @@ fn configure_command<'a>(
         .env("GIT_COMMITTER_DATE", "2000-01-02 00:00:00 +0000")
         .env("GIT_COMMITTER_EMAIL", "committer@openlawlib.org")
         .env("GIT_COMMITTER_NAME", "committer")
-    
 }
