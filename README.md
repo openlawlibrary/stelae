@@ -38,4 +38,4 @@ See [tracing-subscriber docs](https://docs.rs/tracing-subscriber/latest/tracing_
 
 ## Q&A
 - Why do we suggest NuShell?
-  - NuShell is almost as fast on windows as cmd, but is compattible with bash. If you do not use NuShell on windows, you will need to make sure Git Bash is installed. If you have performance issues, consider switching to Nu.
+  - NuShell is almost as fast on Windows as cmd, but is compattible with bash. If you do not use NuShell on windows, you will need to make sure Git Bash is installed. If you have performance issues, consider switching to Nu.
