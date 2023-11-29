@@ -26,6 +26,10 @@ pub enum ArchiveType {
     Multihost,
 }
 
+pub fn blob_to_string(blob: Vec<u8>) -> String {
+    core::str::from_utf8(blob.as_slice()).unwrap().into()
+}
+
 pub async fn initialize_app(
 ) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = Error> {
     initialize_git();
