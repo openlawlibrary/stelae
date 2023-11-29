@@ -15,6 +15,7 @@ pub struct Repository {
     pub name: String,
     pub custom: Custom,
 }
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Custom {
     #[serde(rename = "type")]

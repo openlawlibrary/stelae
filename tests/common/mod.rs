@@ -90,8 +90,8 @@ fn initialize_archive_basic(td: &TempDir) -> Result<()> {
         None,
         false,
     );
-    let law_repo = make_repository("test-script.sh", &path).unwrap();
-    anyhow::bail!("Something happened!");
+    let law_repo = make_repository("make-law-repo.sh", &path).unwrap();
+    // anyhow::bail!("Something happened!");
     Ok(())
 }
 
