@@ -1,2 +1,1 @@
-mod individual_stele_test;
-mod server_test;
+mod basic_archive_test;

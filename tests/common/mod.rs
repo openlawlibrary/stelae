@@ -31,14 +31,9 @@ pub fn blob_to_string(blob: Vec<u8>) -> String {
 }
 
 pub async fn initialize_app(
+    archive_path: &Path,
 ) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = Error> {
-    initialize_git();
-    let archive = Archive::parse(
-        get_test_archive_path(BASIC_MODULE_NAME),
-        &get_test_archive_path(BASIC_MODULE_NAME),
-        false,
-    )
-    .unwrap();
+    let archive = Archive::parse(archive_path.to_path_buf(), archive_path, false).unwrap();
     let state = AppState { archive };
     let root = state.archive.get_root().unwrap();
     let shared_state = init_shared_app_state(root);
@@ -94,8 +89,8 @@ fn initialize_archive_basic(td: &TempDir) -> Result<()> {
         None,
         false,
     );
-    let law_repo = make_repository("make-law-repo.sh", &path).unwrap();
-    // anyhow::bail!("Something happened!");
+    let law = make_repository("make-law-repo.sh", &path).unwrap();
+    let law_html = make_repository("make-law-html-repo.sh", &path).unwrap();
     Ok(())
 }
 
@@ -110,7 +105,6 @@ fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
 pub fn make_repository(script_name: &str, path: &Path) -> Result<()> {
     archive_testtools::execute_script(script_name, path.canonicalize()?)?;
     // TODO: return repository
-    // panic!("Something happened!");
     Ok(())
 }
 
