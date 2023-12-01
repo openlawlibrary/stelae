@@ -1,4 +1,4 @@
-use super::archive_testtools;
+use crate::archive_testtools::{self, ArchiveType, DataRepository, GitRepository, Jurisdiction};
 use actix_http::Request;
 use actix_service::Service;
 use actix_web::{
@@ -7,10 +7,13 @@ use actix_web::{
     Error,
 };
 use anyhow::Result;
-use std::path::{Path, PathBuf};
+use git2::{Commit, Repository};
 use std::sync::Once;
+use std::{
+    fs::create_dir_all,
+    path::{Path, PathBuf},
+};
 use tempfile::{Builder, TempDir};
-
 static INIT: Once = Once::new();
 
 use actix_http::body::MessageBody;
@@ -19,12 +22,6 @@ use stelae::server::publish::{init_app, init_shared_app_state, AppState};
 use stelae::stelae::archive::{self, Archive};
 
 pub const BASIC_MODULE_NAME: &str = "basic";
-
-pub enum ArchiveType {
-    Basic,
-    Multijurisdiction,
-    Multihost,
-}
 
 pub fn blob_to_string(blob: Vec<u8>) -> String {
     core::str::from_utf8(blob.as_slice()).unwrap().into()
@@ -61,36 +58,40 @@ pub fn initialize_archive(archive_type: ArchiveType) -> Result<tempfile::TempDir
             Err(err)
         }
     }
-
-    //todo:
-
-    //let law-html = execute_script('make-law-html', td.path(), script_name);
-    //let law-rdf = execute_script('make-law-rdf', td.path(), script_name);
-    //let law-xml = execute_script('make-law-xml', td.path(), script_name);
 }
 
 fn initialize_archive_inner(archive_type: ArchiveType, td: &TempDir) -> Result<()> {
     match archive_type {
-        ArchiveType::Basic => initialize_archive_basic(td),
-        ArchiveType::Multijurisdiction => initialize_archive_multijurisdiction(td),
-        ArchiveType::Multihost => initialize_archive_multihost(td),
+        ArchiveType::Basic(Jurisdiction::Single) => initialize_archive_basic(td),
+        ArchiveType::Basic(Jurisdiction::Multi) => initialize_archive_multijurisdiction(td),
+        ArchiveType::Multihost(_) => initialize_archive_multihost(td),
     }
 }
 
 fn initialize_archive_basic(td: &TempDir) -> Result<()> {
-    let mut path = td.path().to_owned();
-    path.push("test");
-    std::fs::create_dir_all(&path).unwrap();
+    let org_name = "test_org";
 
     archive::init(
         td.path().to_owned(),
         "law".into(),
-        "test".into(),
+        org_name.into(),
         None,
         false,
     );
-    let law = make_repository("make-law-repo.sh", &path).unwrap();
-    let law_html = make_repository("make-law-html-repo.sh", &path).unwrap();
+    let stele = initialize_stele(
+        td.path().to_path_buf(),
+        org_name,
+        vec![
+            // DataRepository::Html("law-html".into()),
+            // DataRepository::Rdf("law-rdf".into()),
+            // DataRepository::Xml("law-xml".into()),
+            // DataRepository::Pdf("law-docs".into()),
+        ],
+    )
+    .unwrap();
+    // let law = make_repository("make-law-repo.sh", &path).unwrap();
+    // let law_html = make_repository("make-law-html-repo.sh", &path).unwrap();
+    anyhow::bail!("Something went wrong!");
     Ok(())
 }
 
@@ -102,6 +103,63 @@ fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
     unimplemented!()
 }
 
+pub fn initialize_stele(
+    path: PathBuf,
+    org_name: &str,
+    data_repositories: Vec<DataRepository>,
+) -> Result<()> {
+    init_data_repositories(&path, org_name, data_repositories)?;
+    init_auth_repository(&path, org_name, data_repositories)?;
+    Ok(())
+}
+
+pub fn init_auth_repository(
+    path: &Path,
+    org_name: &str,
+    data_repositories: Vec<DataRepository>,
+) -> Result<GitRepository> {
+    let mut path = path.to_path_buf();
+    path.push(format!("{org_name}/law"));
+    std::fs::create_dir_all(&path).unwrap();
+
+    let repo = GitRepository::init(&path).unwrap();
+    add_repositories_json(&repo, &path)?;
+    Ok(repo)
+}
+
+pub fn init_data_repositories(
+    path: &Path,
+    org_name: &str,
+    data_repositories: Vec<DataRepository>,
+) -> Result<()> {
+    Ok(())
+}
+
+fn add_repositories_json(repo: &GitRepository, path: &Path) -> Result<()> {
+    let mut path = path.to_path_buf();
+    path.push("targets");
+    let content = r#"{
+        "law": {
+            "custom": {
+                "type": "data",
+                "allow-unauthenticated-commits": true,
+                "serve": "law",
+                "routes": [
+                    "law/{path:.*}"
+                ],
+                "serve-prefix": "law",
+                "is-fallback": true
+            }
+        }
+    }"#;
+
+    repo.write_file(&path, "repositories.json", content)
+        .unwrap();
+    repo.commit("targets/repositories.json", "Add repositories.json")
+        .unwrap();
+
+    Ok(())
+}
 pub fn make_repository(script_name: &str, path: &Path) -> Result<()> {
     archive_testtools::execute_script(script_name, path.canonicalize()?)?;
     // TODO: return repository

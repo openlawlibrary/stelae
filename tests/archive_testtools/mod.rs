@@ -1,7 +1,84 @@
 use anyhow::{bail, Result};
+use git2::{Commit, Error, Oid, Repository};
 use lazy_static::lazy_static;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use stelae::utils::paths::fix_unc_path;
+
+pub enum Jurisdiction {
+    Single,
+    Multi,
+}
+
+pub enum ArchiveType {
+    Basic(Jurisdiction),
+    Multihost(Jurisdiction),
+}
+
+type Route = String;
+
+pub enum DataRepository {
+    Html(String, Vec<Route>),
+    Rdf(String, Vec<Route>),
+    Xml(String, Vec<Route>),
+    Pdf(String, Vec<Route>),
+    Other(String, Vec<Route>),
+}
+
+pub struct GitRepository {
+    pub repo: Repository,
+}
+
+impl GitRepository {
+    pub fn init(path: &Path) -> Result<Self> {
+        let repo = Repository::init(path)?;
+        Ok(Self { repo })
+    }
+
+    pub fn commit(&self, path_str: &str, commit_msg: &str) -> Result<Oid, Error> {
+        let mut index = self.repo.index().unwrap();
+        index.add_path(&PathBuf::from(path_str)).unwrap();
+        index.write().unwrap();
+        let tree_id = index.write_tree().unwrap();
+        let tree = self.repo.find_tree(tree_id).unwrap();
+        let sig = self.repo.signature().unwrap();
+
+        let binding = self
+            .repo
+            .head()
+            .ok()
+            .and_then(|head| head.target())
+            .and_then(|target_id| self.repo.find_commit(target_id).ok())
+            .map(|parent_commit| vec![parent_commit])
+            .unwrap_or_default();
+        let parent_commits: Vec<&Commit> = binding.iter().collect();
+
+        dbg!(&parent_commits);
+        self.repo
+            .commit(Some("HEAD"), &sig, &sig, commit_msg, &tree, &parent_commits)
+    }
+
+    pub fn write_file(&self, path: &Path, file_name: &str, content: &str) -> Result<()> {
+        std::fs::create_dir_all(&path)?;
+        let path = path.join(file_name);
+        std::fs::write(path, content)?;
+        Ok(())
+    }
+}
+
+impl Into<Repository> for GitRepository {
+    fn into(self) -> Repository {
+        self.repo
+    }
+}
+
+impl Deref for GitRepository {
+    type Target = Repository;
+
+    fn deref(&self) -> &Self::Target {
+        &self.repo
+    }
+}
 
 lazy_static! {
     static ref SCRIPT_PATH: PathBuf = {
