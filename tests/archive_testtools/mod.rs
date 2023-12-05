@@ -1,8 +1,9 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use git2::{Commit, Error, Oid, Repository};
 use lazy_static::lazy_static;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use std::{default, fmt};
 use stelae::utils::paths::fix_unc_path;
 
 pub enum Jurisdiction {
@@ -15,24 +16,53 @@ pub enum ArchiveType {
     Multihost(Jurisdiction),
 }
 
-type Route = String;
+type Name = String;
 
-pub enum DataRepository {
-    Html(String, Vec<Route>),
-    Rdf(String, Vec<Route>),
-    Xml(String, Vec<Route>),
-    Pdf(String, Vec<Route>),
-    Other(String, Vec<Route>),
+pub enum RepositoryType {
+    Data(DataRepositoryType),
+    Auth(Name),
+}
+
+#[derive(Default)]
+pub enum DataRepositoryType {
+    #[default]
+    Html(Name),
+    Rdf(Name),
+    Xml(Name),
+    Pdf(Name),
+    Other(Name),
+}
+
+impl DataRepositoryType {}
+
+impl fmt::Display for DataRepositoryType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                DataRepositoryType::Html(name)
+                | DataRepositoryType::Rdf(name)
+                | DataRepositoryType::Xml(name)
+                | DataRepositoryType::Pdf(name)
+                | DataRepositoryType::Other(name) => name,
+            }
+        )
+    }
 }
 
 pub struct GitRepository {
     pub repo: Repository,
+    pub kind: DataRepositoryType,
 }
 
 impl GitRepository {
     pub fn init(path: &Path) -> Result<Self> {
         let repo = Repository::init(path)?;
-        Ok(Self { repo })
+        Ok(Self {
+            repo,
+            kind: DataRepositoryType::Html("html".into()),
+        })
     }
 
     pub fn commit(&self, path_str: &str, commit_msg: &str) -> Result<Oid, Error> {

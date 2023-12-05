@@ -1,4 +1,6 @@
-use crate::archive_testtools::{self, ArchiveType, DataRepository, GitRepository, Jurisdiction};
+use crate::archive_testtools::{
+    self, ArchiveType, DataRepositoryType, GitRepository, Jurisdiction,
+};
 use actix_http::Request;
 use actix_service::Service;
 use actix_web::{
@@ -18,8 +20,11 @@ static INIT: Once = Once::new();
 
 use actix_http::body::MessageBody;
 
-use stelae::server::publish::{init_app, init_shared_app_state, AppState};
 use stelae::stelae::archive::{self, Archive};
+use stelae::{
+    server::publish::{init_app, init_shared_app_state, AppState},
+    stelae::types::repositories::Repositories,
+};
 
 pub const BASIC_MODULE_NAME: &str = "basic";
 
@@ -81,11 +86,12 @@ fn initialize_archive_basic(td: &TempDir) -> Result<()> {
     let stele = initialize_stele(
         td.path().to_path_buf(),
         org_name,
-        vec![
-            // DataRepository::Html("law-html".into()),
-            // DataRepository::Rdf("law-rdf".into()),
-            // DataRepository::Xml("law-xml".into()),
-            // DataRepository::Pdf("law-docs".into()),
+        &[
+            DataRepositoryType::Html("html".into()),
+            DataRepositoryType::Rdf("rdf".into()),
+            DataRepositoryType::Xml("xml".into()),
+            DataRepositoryType::Xml("xml-codified".into()),
+            DataRepositoryType::Pdf("pdf".into()),
         ],
     )
     .unwrap();
@@ -106,7 +112,7 @@ fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
 pub fn initialize_stele(
     path: PathBuf,
     org_name: &str,
-    data_repositories: Vec<DataRepository>,
+    data_repositories: &[DataRepositoryType],
 ) -> Result<()> {
     init_data_repositories(&path, org_name, data_repositories)?;
     init_auth_repository(&path, org_name, data_repositories)?;
@@ -116,7 +122,7 @@ pub fn initialize_stele(
 pub fn init_auth_repository(
     path: &Path,
     org_name: &str,
-    data_repositories: Vec<DataRepository>,
+    data_repositories: &[DataRepositoryType],
 ) -> Result<GitRepository> {
     let mut path = path.to_path_buf();
     path.push(format!("{org_name}/law"));
@@ -130,8 +136,32 @@ pub fn init_auth_repository(
 pub fn init_data_repositories(
     path: &Path,
     org_name: &str,
-    data_repositories: Vec<DataRepository>,
+    data_repositories: &[DataRepositoryType],
 ) -> Result<()> {
+    let mut data_git_repositories: Vec<GitRepository> = Vec::new();
+    for data_type in data_repositories {
+        let mut path = path.to_path_buf();
+        path.push(format!("{}/law-{}", org_name, data_type.to_string()));
+        std::fs::create_dir_all(&path).unwrap();
+        let repo = GitRepository::init(&path).unwrap();
+        match data_type {
+            DataRepositoryType::Html(name) => {
+                add_html(&repo, &path, name)?;
+            }
+            DataRepositoryType::Rdf(name) => {
+                init_rdf_repository(&repo, &path, name)?;
+            }
+            DataRepositoryType::Xml(name) => {
+                init_xml_repository(&repo, &path, name)?;
+            }
+            DataRepositoryType::Pdf(name) => {
+                init_pdf_repository(&repo, &path, name)?;
+            }
+            DataRepositoryType::Other(name) => {
+                init_other_repository(&repo, &path, name)?;
+            }
+        }
+    }
     Ok(())
 }
 
