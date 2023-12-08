@@ -52,6 +52,7 @@ impl fmt::Display for DataRepositoryType {
 pub struct GitRepository {
     pub repo: Repository,
     pub kind: DataRepositoryType,
+    pub path: PathBuf,
 }
 
 impl GitRepository {
@@ -60,12 +61,19 @@ impl GitRepository {
         Ok(Self {
             repo,
             kind: DataRepositoryType::Html("html".into()),
+            path: path.to_path_buf(),
         })
     }
 
-    pub fn commit(&self, path_str: &str, commit_msg: &str) -> Result<Oid, Error> {
+    pub fn commit(&self, path_str: Option<&str>, commit_msg: &str) -> Result<Oid, Error> {
         let mut index = self.repo.index().unwrap();
-        index.add_path(&PathBuf::from(path_str)).unwrap();
+        if let Some(path_str) = path_str {
+            index.add_path(&PathBuf::from(path_str)).unwrap();
+        } else {
+            index
+                .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
+                .unwrap();
+        }
         index.write().unwrap();
         let tree_id = index.write_tree().unwrap();
         let tree = self.repo.find_tree(tree_id).unwrap();
@@ -86,7 +94,7 @@ impl GitRepository {
             .commit(Some("HEAD"), &sig, &sig, commit_msg, &tree, &parent_commits)
     }
 
-    pub fn write_file(&self, path: &Path, file_name: &str, content: &str) -> Result<()> {
+    pub fn add_file(&self, path: &Path, file_name: &str, content: &str) -> Result<()> {
         std::fs::create_dir_all(&path)?;
         let path = path.join(file_name);
         std::fs::write(path, content)?;
