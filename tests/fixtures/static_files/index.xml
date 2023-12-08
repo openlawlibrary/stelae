@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8'?>
+<library xmlns="https://open.law/schemas/library" xmlns:codified="https://open.law/schemas/codified" xmlns:codify="https://open.law/schemas/codify" xmlns:xi="http://www.w3.org/2001/XInclude">
+  <heading>Law Library</heading>
+  <meta>
+    <description/>
+    <contact>
+      <email>help@contact.org</email>
+    </contact>
+    <history-start>2023-12-22</history-start>
+  </meta>
+  <collection name="resolutions">
+    <heading>Resolutions</heading>
+    <xi:include href=".relative-path/2024/index.xml"/>
+    <xi:include href=".relative-path/2023/index.xml"/>
+  </collection>
+</library>

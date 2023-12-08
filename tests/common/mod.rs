@@ -54,11 +54,11 @@ pub fn initialize_archive(archive_type: ArchiveType) -> Result<tempfile::TempDir
         Err(err) => {
             dbg!(&err);
             let error_output_directory = path.clone().join(PathBuf::from("error_output_directory"));
-            std::fs::remove_dir_all(&error_output_directory);
+            std::fs::remove_dir_all(&error_output_directory).unwrap();
             std::fs::rename(td.path(), &error_output_directory)
                 .expect("Failed to move temp directory");
             eprintln!(
-                "{}", format!("Failed to remove '{error_output_directory:?}', please try to do that by hand. Original error: {err}")
+                "{}", format!("Failed to remove '{error_output_directory:?}', please try to remove directory by hand. Original error: {err}")
             );
             Err(err)
         }
@@ -82,7 +82,8 @@ fn initialize_archive_basic(td: &TempDir) -> Result<()> {
         org_name.into(),
         None,
         false,
-    );
+    )
+    .unwrap();
     let stele = initialize_stele(
         td.path().to_path_buf(),
         org_name,
@@ -91,13 +92,13 @@ fn initialize_archive_basic(td: &TempDir) -> Result<()> {
             DataRepositoryType::Rdf("rdf".into()),
             DataRepositoryType::Xml("xml".into()),
             DataRepositoryType::Xml("xml-codified".into()),
-            DataRepositoryType::Pdf("pdf".into()),
+            // DataRepositoryType::Pdf("pdf".into()),
         ],
     )
     .unwrap();
     // let law = make_repository("make-law-repo.sh", &path).unwrap();
     // let law_html = make_repository("make-law-html-repo.sh", &path).unwrap();
-    anyhow::bail!("Something went wrong!");
+    // anyhow::bail!("Something went wrong!");
     Ok(())
 }
 
@@ -129,7 +130,25 @@ pub fn init_auth_repository(
     std::fs::create_dir_all(&path).unwrap();
 
     let repo = GitRepository::init(&path).unwrap();
-    add_repositories_json(&repo, &path)?;
+
+    path.push("targets");
+
+    let content = r#"{
+        "repositories": {
+          "test_org/law-html": {
+            "custom": {
+              "type": "html",
+              "serve": "historical",
+              "location_regex": "/",
+              "routes": [".*"]
+            }
+          }
+        }
+      }"#;
+
+    repo.add_file(&path, "repositories.json", content).unwrap();
+    repo.commit(Some("targets/repositories.json"), "Add repositories.json")
+        .unwrap();
     Ok(repo)
 }
 
@@ -137,63 +156,65 @@ pub fn init_data_repositories(
     path: &Path,
     org_name: &str,
     data_repositories: &[DataRepositoryType],
-) -> Result<()> {
+) -> Result<Vec<GitRepository>> {
     let mut data_git_repositories: Vec<GitRepository> = Vec::new();
     for data_type in data_repositories {
         let mut path = path.to_path_buf();
         path.push(format!("{}/law-{}", org_name, data_type.to_string()));
+        dbg!(&path);
         std::fs::create_dir_all(&path).unwrap();
         let repo = GitRepository::init(&path).unwrap();
-        match data_type {
-            DataRepositoryType::Html(name) => {
-                add_html(&repo, &path, name)?;
-            }
-            DataRepositoryType::Rdf(name) => {
-                init_rdf_repository(&repo, &path, name)?;
-            }
-            DataRepositoryType::Xml(name) => {
-                init_xml_repository(&repo, &path, name)?;
-            }
-            DataRepositoryType::Pdf(name) => {
-                init_pdf_repository(&repo, &path, name)?;
-            }
-            DataRepositoryType::Other(name) => {
-                init_other_repository(&repo, &path, name)?;
-            }
-        }
+        init_data_repository(&repo, data_type, None)?;
+        data_git_repositories.push(repo);
     }
-    Ok(())
+    Ok(data_git_repositories)
 }
 
-fn add_repositories_json(repo: &GitRepository, path: &Path) -> Result<()> {
-    let mut path = path.to_path_buf();
-    path.push("targets");
-    let content = r#"{
-        "law": {
-            "custom": {
-                "type": "data",
-                "allow-unauthenticated-commits": true,
-                "serve": "law",
-                "routes": [
-                    "law/{path:.*}"
-                ],
-                "serve-prefix": "law",
-                "is-fallback": true
-            }
+fn init_data_repository(
+    repo: &GitRepository,
+    data_type: &DataRepositoryType,
+    filename: Option<&str>,
+) -> Result<()> {
+    let filename = if let Some(f) = filename {
+        f
+    } else {
+        match data_type {
+            DataRepositoryType::Html(_) => "index.html",
+            DataRepositoryType::Rdf(_) => "index.rdf",
+            DataRepositoryType::Xml(_) => "index.xml",
+            DataRepositoryType::Pdf(_) => "example.pdf",
+            DataRepositoryType::Other(_) => "example.other",
         }
-    }"#;
+    };
 
-    repo.write_file(&path, "repositories.json", content)
-        .unwrap();
-    repo.commit("targets/repositories.json", "Add repositories.json")
-        .unwrap();
+    let file_content = static_file_content(filename);
 
+    for subdirectory in ["./", "./a/", "./a/b/", "./a/b/c", "./a/d/"] {
+        repo.add_file(
+            &repo.path.join(subdirectory),
+            filename,
+            file_content.as_str(),
+        )?;
+    }
+    repo.commit(None, "Add initial data")?;
+
+    let filename = {
+        let ext = Path::new(filename)
+            .extension()
+            .map_or("html", |ext| ext.to_str().map_or("", |ext_str| ext_str));
+
+        format!("c.{}", ext)
+    };
+    repo.add_file(&repo.path.join("./a/b/"), &filename, file_content.as_str())?;
+    repo.commit(None, "Update repository")?;
     Ok(())
 }
-pub fn make_repository(script_name: &str, path: &Path) -> Result<()> {
-    archive_testtools::execute_script(script_name, path.canonicalize()?)?;
-    // TODO: return repository
-    Ok(())
+
+fn static_file_content(filename: &str) -> String {
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.push("tests/fixtures/static_files");
+    path.push(filename);
+    std::fs::read_to_string(path).unwrap()
 }
 
 /// Used to initialize the test environment for git micro-server.
