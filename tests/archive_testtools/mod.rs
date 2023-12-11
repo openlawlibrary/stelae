@@ -1,6 +1,5 @@
 use anyhow::Result;
 use git2::{Commit, Error, Oid, Repository};
-use lazy_static::lazy_static;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::{default, fmt};
@@ -114,12 +113,4 @@ impl Deref for GitRepository {
     fn deref(&self) -> &Self::Target {
         &self.repo
     }
-}
-
-lazy_static! {
-    static ref SCRIPT_PATH: PathBuf = {
-        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        path.push("tests/fixtures/scripts");
-        path
-    };
 }
