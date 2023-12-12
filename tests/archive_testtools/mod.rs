@@ -5,52 +5,149 @@ use std::path::{Path, PathBuf};
 use std::{default, fmt};
 use stelae::utils::paths::fix_unc_path;
 
-pub enum Jurisdiction {
-    Single,
-    Multi,
-}
-
 pub enum ArchiveType {
     Basic(Jurisdiction),
     Multihost(Jurisdiction),
 }
 
-type Name = String;
-
-pub enum RepositoryType {
-    Data(DataRepositoryType),
-    Auth(Name),
+pub enum Jurisdiction {
+    Single,
+    Multi,
 }
 
-pub enum DataRepositoryType {
-    Html(Name),
-    Rdf(Name),
-    Xml(Name),
-    Pdf(Name),
-    Other(Name),
+pub enum TestDataRepositoryType {
+    Html,
+    Rdf,
+    Xml,
+    Pdf,
+    Other,
 }
 
-impl DataRepositoryType {}
+/// Information about a data repository.
+///
+/// This is used to initialize a data repository in a test archive.
+pub struct TestDataRepositoryContext<'repo> {
+    /// The name of the data repository.
+    pub name: &'repo str,
+    /// The subdirectories of the data repository.
+    pub subdirectories: Vec<&'repo str>,
+    /// The kind of data repository.
+    pub kind: TestDataRepositoryType,
+    /// The prefix to use when serving the data repository.
+    ///
+    /// If `None`, the data repository will be served at the root.
+    /// If `Some("prefix")`, the data repository will be served from `/prefix/<data>`.
+    pub serve_prefix: Option<&'repo str>,
+    /// The route glob patterns to use when serving the data repository.
+    pub route_glob_patterns: Option<Vec<&'repo str>>,
+    /// Whether the data repository is a fallback.
+    pub is_fallback: bool,
+}
 
-impl fmt::Display for DataRepositoryType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                DataRepositoryType::Html(name)
-                | DataRepositoryType::Rdf(name)
-                | DataRepositoryType::Xml(name)
-                | DataRepositoryType::Pdf(name)
-                | DataRepositoryType::Other(name) => name,
+impl TestDataRepositoryContext<'_> {
+    pub fn new<'repo>(
+        name: &'repo str,
+        subdirectories: Option<Vec<&'repo str>>,
+        kind: TestDataRepositoryType,
+        serve_prefix: Option<&'repo str>,
+        route_glob_patterns: Option<Vec<&'repo str>>,
+        is_fallback: Option<bool>,
+    ) -> Result<Self> {
+        if let None = serve_prefix {
+            if let None = route_glob_patterns {
+                return Err(anyhow::anyhow!(
+                    "A data repository must have either a serve prefix or route glob patterns."
+                ));
             }
-        )
+        }
+        let subdirectories = if let None = subdirectories {
+            let default_subdirectories = vec!["./", "./a/", "./a/b/", "./a/b/c", "./a/d/"];
+            default_subdirectories
+        } else {
+            subdirectories.unwrap()
+        };
+        let is_fallback = if let None = is_fallback {
+            false
+        } else {
+            is_fallback.unwrap()
+        };
+        Ok(Self {
+            name,
+            subdirectories,
+            kind,
+            serve_prefix,
+            route_glob_patterns,
+            is_fallback,
+        })
     }
+}
+
+pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContext<'static>>> {
+    Ok(vec![
+        TestDataRepositoryContext::new(
+            "law-html",
+            None,
+            TestDataRepositoryType::Html,
+            None,
+            Some(vec![".*"]),
+            None,
+        )?,
+        TestDataRepositoryContext::new(
+            "law-rdf",
+            None,
+            TestDataRepositoryType::Rdf,
+            Some("_rdf"),
+            None,
+            None,
+        )?,
+        TestDataRepositoryContext::new(
+            "law-xml",
+            None,
+            TestDataRepositoryType::Xml,
+            Some("_xml"),
+            None,
+            None,
+        )?,
+        TestDataRepositoryContext::new(
+            "law-xml-codified",
+            None,
+            TestDataRepositoryType::Xml,
+            Some("_xml_codified"),
+            None,
+            None,
+        )?,
+        TestDataRepositoryContext::new(
+            "law-pdf",
+            None,
+            TestDataRepositoryType::Pdf,
+            None,
+            Some(vec![".*\\.pdf"]),
+            None,
+        )?,
+        TestDataRepositoryContext::new(
+            "law-other",
+            Some(vec![
+                "./",
+                "./a/",
+                "./a/b/",
+                "./a/b/c",
+                "./a/d/",
+                "./_prefix/",
+                "./_prefix/a/",
+                "./_prefix/a/b/",
+                "./a/_doc/e/",
+                "./a/e/_doc/f/",
+            ]),
+            TestDataRepositoryType::Other,
+            None,
+            Some(vec![".*_doc/.*", "_prefix/.*"]),
+            Some(true),
+        )?,
+    ])
 }
 
 pub struct GitRepository {
     pub repo: Repository,
-    pub kind: DataRepositoryType,
     pub path: PathBuf,
 }
 
@@ -59,7 +156,6 @@ impl GitRepository {
         let repo = Repository::init(path)?;
         Ok(Self {
             repo,
-            kind: DataRepositoryType::Html("html".into()),
             path: path.to_path_buf(),
         })
     }

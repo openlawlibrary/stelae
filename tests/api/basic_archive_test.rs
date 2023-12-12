@@ -2,38 +2,6 @@ use crate::archive_testtools::{ArchiveType, Jurisdiction};
 use crate::common;
 use actix_web::test;
 
-// TODO: Implement TestContext
-
-// let context = TestContext {
-//     stele: vec![TestSteleEntry {
-//         name: "law".into(),
-//         org_name: "test_org".into(),
-//         scopes: None,
-//         data_repositories: vec![
-//             TestDataRepositoryEntry {
-//                 kind: DataRepositoryType::Html("html".into()),
-//                 routes: vec![
-//                     "index.html".into(),
-//                     "a/b/c.html".into(),
-//                     "a/b/index.html".into(),
-//                     "a/b/c/index.html".into(),
-//                     "a/b/d/index.html".into(),
-//                 ],
-//                 route_glob_patterns: Some(vec![".*".into()]),
-//                 is_fallback: false,
-//                 serve_prefix: None,
-//             },
-//             TestDataRepositoryEntry {
-//                 kind: DataRepositoryType::Xml("xml".into()),
-//                 routes: vec!["a/b/c.xml".into()],
-//                 route_glob_patterns: None,
-//                 is_fallback: false,
-//                 serve_prefix: "_uncodified_xml".into(),
-//             },
-//         ],
-//     }],
-// };
-
 #[actix_web::test]
 async fn test_resolve_law_html_request_with_full_path_expect_success() {
     let archive_path =

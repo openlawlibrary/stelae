@@ -1,5 +1,6 @@
 use crate::archive_testtools::{
-    self, ArchiveType, DataRepositoryType, GitRepository, Jurisdiction,
+    self, get_basic_test_data_repositories, ArchiveType, GitRepository, Jurisdiction,
+    TestDataRepositoryContext, TestDataRepositoryType,
 };
 use actix_http::Request;
 use actix_service::Service;
@@ -31,6 +32,13 @@ pub const BASIC_MODULE_NAME: &str = "basic";
 pub fn blob_to_string(blob: Vec<u8>) -> String {
     core::str::from_utf8(blob.as_slice()).unwrap().into()
 }
+
+// TODO: consider adding abort! test macro,
+// which aborts the current test.
+// then we can manually inspect the state of the test environment
+
+// to manually inspect state of test environment at present,
+// we use anyhow::bail!() which aborts the entire test suite, which is not ideal.
 
 pub async fn initialize_app(
     archive_path: &Path,
@@ -87,17 +95,9 @@ fn initialize_archive_basic(td: &TempDir) -> Result<()> {
     let stele = initialize_stele(
         td.path().to_path_buf(),
         org_name,
-        &[
-            DataRepositoryType::Html("html".into()),
-            DataRepositoryType::Rdf("rdf".into()),
-            DataRepositoryType::Xml("xml".into()),
-            DataRepositoryType::Xml("xml-codified".into()),
-            // DataRepositoryType::Pdf("pdf".into()),
-        ],
+        get_basic_test_data_repositories().unwrap().as_slice(),
     )
     .unwrap();
-    // let law = make_repository("make-law-repo.sh", &path).unwrap();
-    // let law_html = make_repository("make-law-html-repo.sh", &path).unwrap();
     // anyhow::bail!("Something went wrong!");
     Ok(())
 }
@@ -113,7 +113,7 @@ fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
 pub fn initialize_stele(
     path: PathBuf,
     org_name: &str,
-    data_repositories: &[DataRepositoryType],
+    data_repositories: &[TestDataRepositoryContext],
 ) -> Result<()> {
     init_data_repositories(&path, org_name, data_repositories)?;
     init_auth_repository(&path, org_name, data_repositories)?;
@@ -123,7 +123,7 @@ pub fn initialize_stele(
 pub fn init_auth_repository(
     path: &Path,
     org_name: &str,
-    data_repositories: &[DataRepositoryType],
+    data_repositories: &[TestDataRepositoryContext],
 ) -> Result<GitRepository> {
     let mut path = path.to_path_buf();
     path.push(format!("{org_name}/law"));
@@ -155,16 +155,16 @@ pub fn init_auth_repository(
 pub fn init_data_repositories(
     path: &Path,
     org_name: &str,
-    data_repositories: &[DataRepositoryType],
+    data_repositories: &[TestDataRepositoryContext],
 ) -> Result<Vec<GitRepository>> {
     let mut data_git_repositories: Vec<GitRepository> = Vec::new();
-    for data_type in data_repositories {
+    for data_repo in data_repositories {
         let mut path = path.to_path_buf();
-        path.push(format!("{}/law-{}", org_name, data_type.to_string()));
+        path.push(data_repo.name);
         dbg!(&path);
         std::fs::create_dir_all(&path).unwrap();
         let repo = GitRepository::init(&path).unwrap();
-        init_data_repository(&repo, data_type, None)?;
+        init_data_repository(&repo, data_repo, None)?;
         data_git_repositories.push(repo);
     }
     Ok(data_git_repositories)
@@ -172,18 +172,19 @@ pub fn init_data_repositories(
 
 fn init_data_repository(
     repo: &GitRepository,
-    data_type: &DataRepositoryType,
+    data_repo_context: &TestDataRepositoryContext,
     filename: Option<&str>,
 ) -> Result<()> {
+    // TODO.
     let filename = if let Some(f) = filename {
         f
     } else {
         match data_type {
-            DataRepositoryType::Html(_) => "index.html",
-            DataRepositoryType::Rdf(_) => "index.rdf",
-            DataRepositoryType::Xml(_) => "index.xml",
-            DataRepositoryType::Pdf(_) => "example.pdf",
-            DataRepositoryType::Other(_) => "example.other",
+            TestDataRepositoryType::Html => "index.html",
+            TestDataRepositoryType::Rdf => "index.rdf",
+            TestDataRepositoryType::Xml => "index.xml",
+            TestDataRepositoryType::Pdf => "example.pdf",
+            TestDataRepositoryType::Other => "example.other",
         }
     };
 
