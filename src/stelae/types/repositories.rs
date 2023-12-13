@@ -1,7 +1,7 @@
 use serde::{Deserialize, Deserializer};
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct Repositories {
     /// Scopes of the repositories
     pub scopes: Option<Vec<String>>,
@@ -10,13 +10,13 @@ pub struct Repositories {
     pub repositories: Vec<Repository>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct Repository {
     pub name: String,
     pub custom: Custom,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct Custom {
     #[serde(rename = "type")]
     pub repository_type: Option<String>,
