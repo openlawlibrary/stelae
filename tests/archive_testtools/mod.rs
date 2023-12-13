@@ -180,6 +180,29 @@ pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContex
     ])
 }
 
+impl From<TestDataRepositoryContext<'_>> for Repository {
+    fn from(context: TestDataRepositoryContext) -> Self {
+        let mut custom = Custom::default();
+        custom.repository_type = Some(match context.kind {
+            TestDataRepositoryType::Html => "html".to_string(),
+            TestDataRepositoryType::Rdf => "rdf".to_string(),
+            TestDataRepositoryType::Xml => "xml".to_string(),
+            TestDataRepositoryType::Pdf => "pdf".to_string(),
+            TestDataRepositoryType::Other(_) => "other".to_string(),
+        });
+        custom.serve = "latest".to_string();
+        custom.scope = context.serve_prefix.map(|s| s.to_string());
+        custom.routes = context
+            .route_glob_patterns
+            .map(|r| r.iter().map(|s| s.to_string()).collect());
+        custom.is_fallback = Some(context.is_fallback);
+        Self {
+            name: context.name.to_string(),
+            custom,
+        }
+    }
+}
+
 pub struct GitRepository {
     pub repo: git2::Repository,
     pub path: PathBuf,
