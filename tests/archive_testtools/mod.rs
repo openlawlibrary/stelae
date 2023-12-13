@@ -1,8 +1,9 @@
 use anyhow::Result;
-use git2::{Commit, Error, Oid, Repository};
+use git2::{Commit, Error, Oid};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::{default, fmt};
+use stelae::stelae::types::repositories::{Custom, Repositories, Repository};
 use stelae::utils::paths::fix_unc_path;
 
 pub enum ArchiveType {
@@ -20,17 +21,17 @@ pub enum TestDataRepositoryType {
     Rdf,
     Xml,
     Pdf,
-    Other,
+    Other(String),
 }
 
 /// Information about a data repository.
 ///
-/// This is used to initialize a data repository in a test archive.
+/// This struct is used to initialize a data repository in the test suite.
 pub struct TestDataRepositoryContext<'repo> {
     /// The name of the data repository.
     pub name: &'repo str,
-    /// The subdirectories of the data repository.
-    pub subdirectories: Vec<&'repo str>,
+    /// The paths of the data repository.
+    pub paths: Vec<&'repo str>,
     /// The kind of data repository.
     pub kind: TestDataRepositoryType,
     /// The prefix to use when serving the data repository.
@@ -44,10 +45,10 @@ pub struct TestDataRepositoryContext<'repo> {
     pub is_fallback: bool,
 }
 
-impl TestDataRepositoryContext<'_> {
-    pub fn new<'repo>(
+impl<'repo> TestDataRepositoryContext<'repo> {
+    pub fn new(
         name: &'repo str,
-        subdirectories: Option<Vec<&'repo str>>,
+        paths: Vec<&'repo str>,
         kind: TestDataRepositoryType,
         serve_prefix: Option<&'repo str>,
         route_glob_patterns: Option<Vec<&'repo str>>,
@@ -60,12 +61,6 @@ impl TestDataRepositoryContext<'_> {
                 ));
             }
         }
-        let subdirectories = if let None = subdirectories {
-            let default_subdirectories = vec!["./", "./a/", "./a/b/", "./a/b/c", "./a/d/"];
-            default_subdirectories
-        } else {
-            subdirectories.unwrap()
-        };
         let is_fallback = if let None = is_fallback {
             false
         } else {
@@ -73,7 +68,7 @@ impl TestDataRepositoryContext<'_> {
         };
         Ok(Self {
             name,
-            subdirectories,
+            paths,
             kind,
             serve_prefix,
             route_glob_patterns,
@@ -86,7 +81,13 @@ pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContex
     Ok(vec![
         TestDataRepositoryContext::new(
             "law-html",
-            None,
+            vec![
+                "./index.html",
+                "./a/index.html",
+                "./a/b/index.html",
+                "./a/b/c.html",
+                "./a/d/index.html",
+            ],
             TestDataRepositoryType::Html,
             None,
             Some(vec![".*"]),
@@ -94,7 +95,12 @@ pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContex
         )?,
         TestDataRepositoryContext::new(
             "law-rdf",
-            None,
+            vec![
+                "./index.rdf",
+                "./a/index.rdf",
+                "./a/b/index.rdf",
+                "./a/d/index.rdf",
+            ],
             TestDataRepositoryType::Rdf,
             Some("_rdf"),
             None,
@@ -102,7 +108,12 @@ pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContex
         )?,
         TestDataRepositoryContext::new(
             "law-xml",
-            None,
+            vec![
+                "./index.xml",
+                "./a/index.xml",
+                "./a/b/index.xml",
+                "./a/d/index.xml",
+            ],
             TestDataRepositoryType::Xml,
             Some("_xml"),
             None,
@@ -110,7 +121,12 @@ pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContex
         )?,
         TestDataRepositoryContext::new(
             "law-xml-codified",
-            None,
+            vec![
+                "./index.xml",
+                "./e/index.xml",
+                "./e/f/index.xml",
+                "./e/g/index.xml",
+            ],
             TestDataRepositoryType::Xml,
             Some("_xml_codified"),
             None,
@@ -118,7 +134,7 @@ pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContex
         )?,
         TestDataRepositoryContext::new(
             "law-pdf",
-            None,
+            vec!["./example.pdf", "./a/example.pdf", "./a/b/example.pdf"],
             TestDataRepositoryType::Pdf,
             None,
             Some(vec![".*\\.pdf"]),
@@ -126,19 +142,19 @@ pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContex
         )?,
         TestDataRepositoryContext::new(
             "law-other",
-            Some(vec![
-                "./",
-                "./a/",
-                "./a/b/",
-                "./a/b/c",
-                "./a/d/",
-                "./_prefix/",
-                "./_prefix/a/",
-                "./_prefix/a/b/",
-                "./a/_doc/e/",
-                "./a/e/_doc/f/",
-            ]),
-            TestDataRepositoryType::Other,
+            vec![
+                "./index.html",
+                "./example.json",
+                "./a/index.html",
+                "./a/b/index.html",
+                "./a/b/c.html",
+                "./a/d/index.html",
+                "./_prefix/index.html",
+                "./_prefix/a/index.html",
+                "./a/_doc/e/index.html",
+                "./a/e/_doc/f/index.html",
+            ],
+            TestDataRepositoryType::Other("example.json".to_string()),
             None,
             Some(vec![".*_doc/.*", "_prefix/.*"]),
             Some(true),
@@ -147,13 +163,13 @@ pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContex
 }
 
 pub struct GitRepository {
-    pub repo: Repository,
+    pub repo: git2::Repository,
     pub path: PathBuf,
 }
 
 impl GitRepository {
     pub fn init(path: &Path) -> Result<Self> {
-        let repo = Repository::init(path)?;
+        let repo = git2::Repository::init(path)?;
         Ok(Self {
             repo,
             path: path.to_path_buf(),
@@ -197,14 +213,14 @@ impl GitRepository {
     }
 }
 
-impl Into<Repository> for GitRepository {
-    fn into(self) -> Repository {
+impl Into<git2::Repository> for GitRepository {
+    fn into(self) -> git2::Repository {
         self.repo
     }
 }
 
 impl Deref for GitRepository {
-    type Target = Repository;
+    type Target = git2::Repository;
 
     fn deref(&self) -> &Self::Target {
         &self.repo
