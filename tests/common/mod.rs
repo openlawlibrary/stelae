@@ -115,7 +115,8 @@ pub fn initialize_stele(
     org_name: &str,
     data_repositories: &[TestDataRepositoryContext],
 ) -> Result<()> {
-    init_data_repositories(&path, org_name, data_repositories)?;
+    let path = path.join(org_name);
+    init_data_repositories(&path, data_repositories)?;
     init_auth_repository(&path, org_name, data_repositories)?;
     Ok(())
 }
@@ -126,7 +127,7 @@ pub fn init_auth_repository(
     data_repositories: &[TestDataRepositoryContext],
 ) -> Result<GitRepository> {
     let mut path = path.to_path_buf();
-    path.push(format!("{org_name}/law"));
+    path.push("law");
     std::fs::create_dir_all(&path).unwrap();
 
     let repo = GitRepository::init(&path).unwrap();
@@ -154,68 +155,56 @@ pub fn init_auth_repository(
 
 pub fn init_data_repositories(
     path: &Path,
-    org_name: &str,
     data_repositories: &[TestDataRepositoryContext],
 ) -> Result<Vec<GitRepository>> {
     let mut data_git_repositories: Vec<GitRepository> = Vec::new();
     for data_repo in data_repositories {
         let mut path = path.to_path_buf();
         path.push(data_repo.name);
-        dbg!(&path);
         std::fs::create_dir_all(&path).unwrap();
-        let repo = GitRepository::init(&path).unwrap();
-        init_data_repository(&repo, data_repo, None)?;
-        data_git_repositories.push(repo);
+        let git_repo = GitRepository::init(&path).unwrap();
+        init_data_repository(&git_repo, data_repo)?;
+        data_git_repositories.push(git_repo);
     }
     Ok(data_git_repositories)
 }
 
 fn init_data_repository(
-    repo: &GitRepository,
-    data_repo_context: &TestDataRepositoryContext,
-    filename: Option<&str>,
+    git_repo: &GitRepository,
+    data_repo: &TestDataRepositoryContext,
 ) -> Result<()> {
-    // TODO.
-    let filename = if let Some(f) = filename {
-        f
-    } else {
-        match data_type {
-            TestDataRepositoryType::Html => "index.html",
-            TestDataRepositoryType::Rdf => "index.rdf",
-            TestDataRepositoryType::Xml => "index.xml",
-            TestDataRepositoryType::Pdf => "example.pdf",
-            TestDataRepositoryType::Other => "example.other",
-        }
-    };
-
-    let file_content = static_file_content(filename);
-
-    for subdirectory in ["./", "./a/", "./a/b/", "./a/b/c", "./a/d/"] {
-        repo.add_file(
-            &repo.path.join(subdirectory),
-            filename,
-            file_content.as_str(),
-        )?;
+    for path in data_repo.paths.iter() {
+        add_fixture_file_to_git_repo(git_repo, path)?;
     }
-    repo.commit(None, "Add initial data")?;
-
-    let filename = {
-        let ext = Path::new(filename)
-            .extension()
-            .map_or("html", |ext| ext.to_str().map_or("", |ext_str| ext_str));
-
-        format!("c.{}", ext)
-    };
-    repo.add_file(&repo.path.join("./a/b/"), &filename, file_content.as_str())?;
-    repo.commit(None, "Update repository")?;
+    git_repo.commit(None, "Add initial data").unwrap();
     Ok(())
 }
 
-fn static_file_content(filename: &str) -> String {
+fn add_fixture_file_to_git_repo(git_repo: &GitRepository, path: &str) -> Result<()> {
+    let path_buf = PathBuf::from(path);
+    let filename = path_buf.file_name().unwrap().to_str().unwrap();
+    let static_file_path = get_static_file_path(filename);
+    copy_file(&static_file_path, &git_repo.path.join(path)).unwrap();
+    Ok(())
+}
+
+/// Returns a static file path for the given filename.
+/// If the file does not exist, returns the default static file path.
+fn get_static_file_path(filename: &str) -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("tests/fixtures/static_files");
-    path.push(filename);
-    std::fs::read_to_string(path).unwrap()
+    let static_file_path = PathBuf::from(&path).join(filename);
+
+    if static_file_path.exists() {
+        return static_file_path;
+    }
+
+    let ext = Path::new(filename)
+        .extension()
+        .map_or("html", |ext| ext.to_str().map_or("", |ext_str| ext_str));
+    let filename = get_default_static_filename(ext);
+
+    PathBuf::from(path).join(filename)
 }
 
 /// Used to initialize the test environment for git micro-server.

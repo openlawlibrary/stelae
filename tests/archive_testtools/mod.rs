@@ -77,6 +77,24 @@ impl<'repo> TestDataRepositoryContext<'repo> {
     }
 }
 
+pub fn get_default_static_filename(file_extension: &str) -> &str {
+    match file_extension {
+        "html" => "index.html",
+        "rdf" => "index.rdf",
+        "xml" => "index.xml",
+        "pdf" => "example.pdf",
+        "json" => "example.json",
+        "js" => "example.js",
+        _ => "index.html",
+    }
+}
+
+pub fn copy_file(from: &Path, to: &Path) -> Result<()> {
+    std::fs::create_dir_all(&to.parent().unwrap()).unwrap();
+    std::fs::copy(from, to).unwrap();
+    Ok(())
+}
+
 pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContext<'static>>> {
     Ok(vec![
         TestDataRepositoryContext::new(
