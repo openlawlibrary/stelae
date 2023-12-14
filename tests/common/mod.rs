@@ -1,6 +1,6 @@
 use crate::archive_testtools::{
-    self, get_basic_test_data_repositories, ArchiveType, GitRepository, Jurisdiction,
-    TestDataRepositoryContext, TestDataRepositoryType,
+    copy_file, get_basic_test_data_repositories, get_default_static_filename, ArchiveType,
+    GitRepository, Jurisdiction, Repositories, Repository, TestDataRepositoryContext,
 };
 use actix_http::Request;
 use actix_service::Service;
@@ -10,22 +10,15 @@ use actix_web::{
     Error,
 };
 use anyhow::Result;
-use git2::{Commit, Repository};
+use std::path::{Path, PathBuf};
 use std::sync::Once;
-use std::{
-    fs::create_dir_all,
-    path::{Path, PathBuf},
-};
 use tempfile::{Builder, TempDir};
 static INIT: Once = Once::new();
 
 use actix_http::body::MessageBody;
 
+use stelae::server::publish::{init_app, init_shared_app_state, AppState};
 use stelae::stelae::archive::{self, Archive};
-use stelae::{
-    server::publish::{init_app, init_shared_app_state, AppState},
-    stelae::types::repositories::Repositories,
-};
 
 pub const BASIC_MODULE_NAME: &str = "basic";
 
@@ -38,11 +31,12 @@ pub fn blob_to_string(blob: Vec<u8>) -> String {
 // then we can manually inspect the state of the test environment
 
 // to manually inspect state of test environment at present,
-// we use anyhow::bail!() which aborts the entire test suite, which is not ideal.
+// we use anyhow::bail!() which aborts the entire test suite.
 
 pub async fn initialize_app(
     archive_path: &Path,
 ) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = Error> {
+    // dbg!(&archive_path);
     let archive = Archive::parse(archive_path.to_path_buf(), archive_path, false).unwrap();
     let state = AppState { archive };
     let root = state.archive.get_root().unwrap();
@@ -134,20 +128,21 @@ pub fn init_auth_repository(
 
     path.push("targets");
 
-    let content = r#"{
-        "repositories": {
-          "test_org/law-html": {
-            "custom": {
-              "type": "html",
-              "serve": "historical",
-              "location_regex": "/",
-              "routes": [".*"]
-            }
-          }
-        }
-      }"#;
+    let repositories: Repositories =
+        data_repositories
+            .iter()
+            .fold(Repositories::default(), |mut repositories, data_repo| {
+                let mut repository = Repository::from(data_repo);
+                repository.name = format!("{}/{}", org_name, repository.name);
+                repositories
+                    .repositories
+                    .entry(repository.name.clone())
+                    .or_insert(repository);
+                repositories
+            });
+    let content = serde_json::to_string_pretty(&repositories).unwrap();
 
-    repo.add_file(&path, "repositories.json", content).unwrap();
+    repo.add_file(&path, "repositories.json", &content).unwrap();
     repo.commit(Some("targets/repositories.json"), "Add repositories.json")
         .unwrap();
     Ok(repo)

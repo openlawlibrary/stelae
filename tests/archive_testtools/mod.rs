@@ -2,9 +2,7 @@ use anyhow::Result;
 use git2::{Commit, Error, Oid};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use std::{default, fmt};
-use stelae::stelae::types::repositories::{Custom, Repositories, Repository};
-use stelae::utils::paths::fix_unc_path;
+pub use stelae::stelae::types::repositories::{Custom, Repositories, Repository};
 
 pub enum ArchiveType {
     Basic(Jurisdiction),
@@ -103,8 +101,9 @@ pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContex
                 "./index.html",
                 "./a/index.html",
                 "./a/b/index.html",
-                "./a/b/c.html",
                 "./a/d/index.html",
+                "./a/b/c.html",
+                "./a/b/c/index.html",
             ],
             TestDataRepositoryType::Html,
             None,
@@ -118,6 +117,8 @@ pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContex
                 "./a/index.rdf",
                 "./a/b/index.rdf",
                 "./a/d/index.rdf",
+                "./a/b/c.rdf",
+                "./a/b/c/index.rdf",
             ],
             TestDataRepositoryType::Rdf,
             Some("_rdf"),
@@ -130,6 +131,8 @@ pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContex
                 "./index.xml",
                 "./a/index.xml",
                 "./a/b/index.xml",
+                "./a/b/c.xml",
+                "./a/b/c/index.xml",
                 "./a/d/index.xml",
             ],
             TestDataRepositoryType::Xml,
@@ -180,8 +183,8 @@ pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContex
     ])
 }
 
-impl From<TestDataRepositoryContext<'_>> for Repository {
-    fn from(context: TestDataRepositoryContext) -> Self {
+impl From<&TestDataRepositoryContext<'_>> for Repository {
+    fn from(context: &TestDataRepositoryContext) -> Self {
         let mut custom = Custom::default();
         custom.repository_type = Some(match context.kind {
             TestDataRepositoryType::Html => "html".to_string(),
@@ -194,6 +197,7 @@ impl From<TestDataRepositoryContext<'_>> for Repository {
         custom.scope = context.serve_prefix.map(|s| s.to_string());
         custom.routes = context
             .route_glob_patterns
+            .as_ref()
             .map(|r| r.iter().map(|s| s.to_string()).collect());
         custom.is_fallback = Some(context.is_fallback);
         Self {
@@ -241,7 +245,6 @@ impl GitRepository {
             .unwrap_or_default();
         let parent_commits: Vec<&Commit> = binding.iter().collect();
 
-        dbg!(&parent_commits);
         self.repo
             .commit(Some("HEAD"), &sig, &sig, commit_msg, &tree, &parent_commits)
     }
