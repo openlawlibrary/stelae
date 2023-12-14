@@ -108,7 +108,7 @@ impl Stele {
     #[must_use]
     pub fn get_fallback_repo(&self) -> Option<Repository> {
         if let &Some(ref repositories) = &self.repositories {
-            for repository in &repositories.repositories {
+            for (name, repository) in &repositories.repositories {
                 let custom = &repository.custom;
                 if let Some(ref is_fallback) = custom.is_fallback {
                     if *is_fallback {

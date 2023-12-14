@@ -226,8 +226,9 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
     for stele in state.archive.stelae.values() {
         if let &Some(ref repositories) = &stele.repositories {
             // Root Stele
+            let sorted_repositories = repositories.get_sorted_repositories();
             if stele.get_qualified_name() == root.get_qualified_name() {
-                for repository in &repositories.repositories {
+                for repository in &sorted_repositories {
                     let custom = &repository.custom;
                     let repo_state = {
                         let name = &repository.name;
@@ -281,7 +282,7 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
                 let scope_str = format!("/{{prefix:{}}}", &scope.as_str());
                 let mut actix_scope = web::scope(scope_str.as_str());
                 // dbg!(&scope);
-                for repository in &repositories.repositories {
+                for repository in &sorted_repositories {
                     let custom = &repository.custom;
                     let repo_state = {
                         let name = &repository.name;
