@@ -144,3 +144,31 @@ async fn test_law_other_data_request_content_expect_other_document_retrieved() {
         );
     }
 }
+
+#[actix_web::test]
+async fn get_law_pdf_request_content_expect_success() {
+    let archive_path =
+        common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
+    let app = common::initialize_app(archive_path.path()).await;
+    for request_uri in &["/example.pdf", "/a/example.pdf", "/a/b/example.pdf"] {
+        let req = test::TestRequest::get().uri(request_uri).to_request();
+        let resp = test::call_service(&app, req).await;
+        let actual = resp.status().is_success();
+        let expected = true;
+        assert_eq!(actual, expected);
+    }
+}
+
+#[actix_web::test]
+async fn get_law_pdf_request_with_incorrect_path_expect_not_found() {
+    let archive_path =
+        common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
+    let app = common::initialize_app(archive_path.path()).await;
+    let req = test::TestRequest::get()
+        .uri("/does-not-exist.pdf")
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    let actual = resp.status().is_client_error();
+    let expected = true;
+    assert_eq!(actual, expected);
+}
