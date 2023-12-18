@@ -1,3 +1,4 @@
+//! A Stele's data repositories.
 use std::{collections::HashMap, fmt};
 
 use serde::{
