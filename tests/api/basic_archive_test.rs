@@ -96,6 +96,7 @@ async fn test_law_rdf_request_content_expect_rdf_document_retrieved() {
         common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
     for request_uri in &[
+        "/_rdf/index.rdf",
         "/_rdf/a/b/c.rdf",
         "/_rdf/a/b/index.rdf",
         "/_rdf/a/d/index.rdf",
