@@ -1,6 +1,7 @@
 use crate::archive_testtools::{
-    copy_file, get_basic_test_data_repositories, get_default_static_filename, ArchiveType,
-    GitRepository, Jurisdiction, Repositories, Repository, TestDataRepositoryContext,
+    copy_file, get_basic_test_data_repositories, get_default_static_filename,
+    get_dependent_data_repositories_with_scopes, ArchiveType, GitRepository, Jurisdiction,
+    Repositories, Repository, TestDataRepositoryContext,
 };
 use actix_http::Request;
 use actix_service::Service;
@@ -86,7 +87,7 @@ fn initialize_archive_basic(td: &TempDir) -> Result<()> {
         false,
     )
     .unwrap();
-    let stele = initialize_stele(
+    initialize_stele(
         td.path().to_path_buf(),
         org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
@@ -97,7 +98,38 @@ fn initialize_archive_basic(td: &TempDir) -> Result<()> {
 }
 
 fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
-    unimplemented!()
+    let root_org_name = "root_test_org";
+
+    archive::init(
+        td.path().to_owned(),
+        "law".into(),
+        root_org_name.into(),
+        None,
+        false,
+    )
+    .unwrap();
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        root_org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+    )
+    .unwrap();
+
+    let dependent_stele_1_org_name = "dependent_stele_1";
+    let dependent_stele_1_scopes = vec!["sub/scope/1", "sub/scope/2"];
+    let dependent_stele_2_org_name = "dependent_stele_2";
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        dependent_stele_1_org_name,
+        get_dependent_data_repositories_with_scopes(dependent_stele_1_scopes)
+            .unwrap()
+            .as_slice(),
+    )
+    .unwrap();
+    anyhow::bail!("Something went wrong!");
+    Ok(())
 }
 
 fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
