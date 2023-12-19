@@ -18,6 +18,22 @@ async fn test_resolve_law_html_request_with_full_path_expect_success() {
 }
 
 #[actix_web::test]
+async fn test_resolve_root_stele_law_html_request_with_full_path_no_trailing_slash_expect_success()
+{
+    let archive_path =
+        common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
+    let app = common::initialize_app(archive_path.path()).await;
+
+    for request_uri in &["/a/b/c.html", "/a/b", "/a/b/c", "/a/d"] {
+        let req = test::TestRequest::get().uri(request_uri).to_request();
+        let resp = test::call_service(&app, req).await;
+        let actual = resp.status().is_success();
+        let expected = true;
+        assert_eq!(actual, expected);
+    }
+}
+
+#[actix_web::test]
 async fn test_resolve_law_html_request_with_empty_path_expect_success() {
     let archive_path =
         common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
