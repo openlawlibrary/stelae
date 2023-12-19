@@ -113,9 +113,9 @@ async fn serve(
     shared: web::Data<SharedState>,
     data: web::Data<RepoState>,
 ) -> impl Responder {
-    dbg!(&data);
-    dbg!(&shared);
-    dbg!(&req.path().to_owned());
+    // dbg!(&data);
+    // dbg!(&shared);
+    // dbg!(&req.path().to_owned());
     // let mut path = req.path().to_owned();
     // dbg!(&path);
     let mut prefix: String = req
@@ -124,15 +124,15 @@ async fn serve(
         .unwrap_or_default()
         .parse()
         .unwrap();
-    dbg!(&prefix);
+    // dbg!(&prefix);
     let mut tail: String = req.match_info().get("tail").unwrap().parse().unwrap();
-    dbg!(&tail);
+    // dbg!(&tail);
     // let (prefix, tail): (String, String) = req.match_info().load().unwrap();
     // dbg!(&prefix);
     // dbg!(&tail);
     let mut path = format!("{}/{}", prefix, tail);
     path = clean_path(&path);
-    dbg!(&path);
+    // dbg!(&path);
     let blob = data.repo.get_bytes_at_path("HEAD", &path);
     let contenttype = get_contenttype(&path);
     format!(
@@ -314,16 +314,16 @@ fn init_routes(cfg: &mut web::ServiceConfig, mut state: AppState) {
                         );
                     }
                     // TODO: This is not necessary in child Stele
-                    if let &Some(ref underscore_scope) = &custom.scope {
-                        let actix_underscore_scope = web::scope(underscore_scope.as_str()).service(
-                            web::scope(scope.as_str()).service(
-                                web::resource("/{tail:.*}")
-                                    .route(web::get().to(serve))
-                                    .app_data(web::Data::new(repo_state.clone())),
-                            ),
-                        );
-                        scopes.push(actix_underscore_scope);
-                    }
+                    // if let &Some(ref underscore_scope) = &custom.scope {
+                    //     let actix_underscore_scope = web::scope(underscore_scope.as_str()).service(
+                    //         web::scope(scope.as_str()).service(
+                    //             web::resource("/{tail:.*}")
+                    //                 .route(web::get().to(serve))
+                    //                 .app_data(web::Data::new(repo_state.clone())),
+                    //         ),
+                    //     );
+                    //     scopes.push(actix_underscore_scope);
+                    // }
                 }
                 scopes.push(actix_scope);
             }
