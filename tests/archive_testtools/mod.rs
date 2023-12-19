@@ -212,7 +212,7 @@ pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContex
 }
 
 pub fn get_dependent_data_repositories_with_scopes(
-    scopes: Vec<&'static str>,
+    scopes: &Vec<Cow<'static, str>>,
 ) -> Result<Vec<TestDataRepositoryContext<'static>>> {
     let mut result = Vec::new();
     for kind in [
@@ -229,37 +229,50 @@ pub fn get_dependent_data_repositories_with_scopes(
         let mut serve_prefix = None;
         let mut route_glob_patterns = None;
         let mut is_fallback = false;
+        let mut default_paths;
 
         match kind {
             TestDataRepositoryType::Html => {
                 name = "law-html";
                 route_glob_patterns = Some(vec![".*"]);
-                paths = TestDataRepositoryContext::default_html_paths();
+                default_paths = TestDataRepositoryContext::default_html_paths();
+
+                default_paths.extend(vec![
+                    "./does-not-resolve.html".into(),
+                    "./a/does-not-resolve.html".into(),
+                    "./a/b/does-not-resolve.html".into(),
+                ]);
             }
             TestDataRepositoryType::Rdf => {
                 name = "law-rdf";
                 serve_prefix = Some("_rdf");
-                paths = TestDataRepositoryContext::default_rdf_paths();
+                default_paths = TestDataRepositoryContext::default_rdf_paths();
             }
             TestDataRepositoryType::Xml => {
                 name = "law-xml";
                 serve_prefix = Some("_xml");
-                paths = TestDataRepositoryContext::default_xml_paths()
+                default_paths = TestDataRepositoryContext::default_xml_paths()
             }
             TestDataRepositoryType::Pdf => {
                 name = "law-pdf";
                 route_glob_patterns = Some(vec![".*\\.pdf"]);
-                paths = TestDataRepositoryContext::default_pdf_paths();
+                default_paths = TestDataRepositoryContext::default_pdf_paths();
             }
             TestDataRepositoryType::Other(_) => {
                 name = "law-other";
                 route_glob_patterns = Some(vec![".*_doc/.*", "_prefix/.*"]);
                 is_fallback = true;
-                paths = TestDataRepositoryContext::default_other_paths();
+                default_paths = TestDataRepositoryContext::default_other_paths();
+
+                default_paths.extend(vec![
+                    "./does-not-resolve.json".into(),
+                    "./a/does-not-resolve.json".into(),
+                    "./a/b/does-not-resolve.json".into(),
+                ]);
             }
         }
-        for scope in &scopes {
-            let additional_paths: Vec<String> = paths
+        for scope in scopes {
+            let additional_paths: Vec<String> = default_paths
                 .iter()
                 .map(|path| format!("{}/{}", scope, path))
                 .collect();
@@ -349,6 +362,14 @@ impl GitRepository {
         let path = path.join(file_name);
         std::fs::write(path, content)?;
         Ok(())
+    }
+
+    pub fn open(path: &Path) -> Result<Self> {
+        let repo = git2::Repository::open(path)?;
+        Ok(Self {
+            repo,
+            path: path.to_path_buf(),
+        })
     }
 }
 

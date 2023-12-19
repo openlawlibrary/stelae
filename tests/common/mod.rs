@@ -11,15 +11,24 @@ use actix_web::{
     Error,
 };
 use anyhow::Result;
-use std::path::{Path, PathBuf};
 use std::sync::Once;
+use std::{
+    borrow::Cow,
+    path::{Path, PathBuf},
+};
 use tempfile::{Builder, TempDir};
 static INIT: Once = Once::new();
 
 use actix_http::body::MessageBody;
 
-use stelae::server::publish::{init_app, init_shared_app_state, AppState};
-use stelae::stelae::archive::{self, Archive};
+use stelae::stelae::{
+    archive::{self, Archive},
+    types::dependencies::Dependency,
+};
+use stelae::{
+    server::publish::{init_app, init_shared_app_state, AppState},
+    stelae::types::dependencies::Dependencies,
+};
 
 pub const BASIC_MODULE_NAME: &str = "basic";
 
@@ -37,7 +46,6 @@ pub fn blob_to_string(blob: Vec<u8>) -> String {
 pub async fn initialize_app(
     archive_path: &Path,
 ) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = Error> {
-    // dbg!(&archive_path);
     let archive = Archive::parse(archive_path.to_path_buf(), archive_path, false).unwrap();
     let state = AppState { archive };
     let root = state.archive.get_root().unwrap();
@@ -91,6 +99,7 @@ fn initialize_archive_basic(td: &TempDir) -> Result<()> {
         td.path().to_path_buf(),
         org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
     )
     .unwrap();
     // anyhow::bail!("Something went wrong!");
@@ -113,22 +122,82 @@ fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
         td.path().to_path_buf(),
         root_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
     )
     .unwrap();
 
     let dependent_stele_1_org_name = "dependent_stele_1";
-    let dependent_stele_1_scopes = vec!["sub/scope/1", "sub/scope/2"];
-    let dependent_stele_2_org_name = "dependent_stele_2";
+    let dependent_stele_1_scopes: Vec<Cow<'_, str>> =
+        vec!["sub/scope/1".into(), "sub/scope/2".into()];
 
     initialize_stele(
         td.path().to_path_buf(),
         dependent_stele_1_org_name,
-        get_dependent_data_repositories_with_scopes(dependent_stele_1_scopes)
+        get_dependent_data_repositories_with_scopes(&dependent_stele_1_scopes)
             .unwrap()
             .as_slice(),
+        Some(&dependent_stele_1_scopes),
     )
     .unwrap();
-    anyhow::bail!("Something went wrong!");
+
+    let dependent_stele_2_org_name = "dependent_stele_2";
+    let dependent_stele_2_scopes: Vec<Cow<'_, str>> =
+        vec!["sub/scope/3".into(), "sub/scope/4".into()];
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        dependent_stele_2_org_name,
+        get_dependent_data_repositories_with_scopes(&dependent_stele_2_scopes)
+            .unwrap()
+            .as_slice(),
+        Some(&dependent_stele_2_scopes),
+    )
+    .unwrap();
+
+    let root_repo = get_repository(td.path(), &format!("{root_org_name}/law"));
+
+    let dependencies = Dependencies {
+        dependencies: vec![
+            (
+                format!(
+                    "{dependent_stele_1_org_name}/law",
+                    dependent_stele_1_org_name = dependent_stele_1_org_name
+                ),
+                Dependency {
+                    out_of_band_authentication: "sha256".into(),
+                    branch: "main".into(),
+                },
+            ),
+            (
+                format!(
+                    "{dependent_stele_2_org_name}/law",
+                    dependent_stele_2_org_name = dependent_stele_2_org_name
+                ),
+                Dependency {
+                    out_of_band_authentication: "sha256".into(),
+                    branch: "main".into(),
+                },
+            ),
+        ]
+        .into_iter()
+        .collect(),
+    };
+    let content = serde_json::to_string_pretty(&dependencies).unwrap();
+
+    root_repo
+        .add_file(
+            &td.path()
+                .to_path_buf()
+                .join(format!("{root_org_name}/law/targets")),
+            "dependencies.json",
+            &content,
+        )
+        .unwrap();
+    root_repo
+        .commit(Some("targets/dependencies.json"), "Add dependencies.json")
+        .unwrap();
+
+    // anyhow::bail!("Something went wrong!");
     Ok(())
 }
 
@@ -140,10 +209,11 @@ pub fn initialize_stele(
     path: PathBuf,
     org_name: &str,
     data_repositories: &[TestDataRepositoryContext],
+    scopes: Option<&Vec<Cow<'_, str>>>,
 ) -> Result<()> {
     let path = path.join(org_name);
     init_data_repositories(&path, data_repositories)?;
-    init_auth_repository(&path, org_name, data_repositories)?;
+    init_auth_repository(&path, org_name, data_repositories, scopes)?;
     Ok(())
 }
 
@@ -151,6 +221,7 @@ pub fn init_auth_repository(
     path: &Path,
     org_name: &str,
     data_repositories: &[TestDataRepositoryContext],
+    scopes: Option<&Vec<Cow<'_, str>>>,
 ) -> Result<GitRepository> {
     let mut path = path.to_path_buf();
     path.push("law");
@@ -170,6 +241,11 @@ pub fn init_auth_repository(
                     .repositories
                     .entry(repository.name.clone())
                     .or_insert(repository);
+                repositories.scopes = scopes.map(|vec| {
+                    vec.into_iter()
+                        .map(|cow| cow.clone().into_owned())
+                        .collect()
+                });
                 repositories
             });
     let content = serde_json::to_string_pretty(&repositories).unwrap();
@@ -251,4 +327,10 @@ pub fn get_test_archive_path(mod_name: &str) -> PathBuf {
     path.push("tests/fixtures/");
     path.push(mod_name.to_owned() + "/archive");
     path
+}
+
+pub fn get_repository(path: &Path, name: &str) -> GitRepository {
+    let mut path = path.to_path_buf();
+    path.push(name);
+    GitRepository::open(&path).unwrap()
 }
