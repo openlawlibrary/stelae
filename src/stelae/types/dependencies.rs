@@ -6,7 +6,6 @@ use std::collections::HashMap;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Dependencies {
     /// An inner map of Stele keys to their dependencies.
-    // TODO: flatten this
     pub dependencies: HashMap<String, Dependency>,
 }
 
@@ -15,7 +14,7 @@ pub struct Dependencies {
 pub struct Dependency {
     /// The out-of-band authenticated hash of the Stele.
     #[serde(rename = "out-of-band-authentication")]
-    out_of_band_authentication: String,
+    pub out_of_band_authentication: String,
     /// The default branch for a Stele.
-    branch: String,
+    pub branch: String,
 }
