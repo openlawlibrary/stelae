@@ -48,9 +48,7 @@ pub async fn initialize_app(
 ) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = Error> {
     let archive = Archive::parse(archive_path.to_path_buf(), archive_path, false).unwrap();
     let state = AppState { archive };
-    let root = state.archive.get_root().unwrap();
-    let shared_state = init_shared_app_state(root);
-    let app = init_app(shared_state.clone(), state.clone());
+    let app = init_app(state.clone());
     test::init_service(app).await
 }
 
