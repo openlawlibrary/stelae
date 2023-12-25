@@ -139,6 +139,15 @@ pub struct Config {
     root: stele::Config,
     /// Whether this is a shallow archive (all repos depth=1)
     shallow: bool,
+    /// Custom HTTP headers used to interact with the Stele
+    pub headers: Option<Headers>,
+}
+
+/// Optional Header configuration for an Archive
+#[derive(Default, Deserialize, Serialize)]
+pub struct Headers {
+    /// Specify a custom header guard to use when requesting a Stele's current documents.
+    pub current_documents_guard: Option<String>,
 }
 
 /// Create a new Stelae Archive at path, and return the new archive.
@@ -162,6 +171,7 @@ pub fn init(
             hash: root_hash,
         },
         shallow,
+        headers: None,
     };
     let conf_str = toml_edit::ser::to_string_pretty(&conf)?;
     write(config_path, conf_str)?;
