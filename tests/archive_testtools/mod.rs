@@ -7,7 +7,7 @@ pub use stelae::stelae::types::repositories::{Custom, Repositories, Repository};
 
 pub enum ArchiveType {
     Basic(Jurisdiction),
-    Multihost(Jurisdiction),
+    Multihost,
 }
 
 pub enum Jurisdiction {

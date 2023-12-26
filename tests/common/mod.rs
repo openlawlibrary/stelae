@@ -78,7 +78,7 @@ fn initialize_archive_inner(archive_type: ArchiveType, td: &TempDir) -> Result<(
     match archive_type {
         ArchiveType::Basic(Jurisdiction::Single) => initialize_archive_basic(td),
         ArchiveType::Basic(Jurisdiction::Multi) => initialize_archive_multijurisdiction(td),
-        ArchiveType::Multihost(_) => initialize_archive_multihost(td),
+        ArchiveType::Multihost => initialize_archive_multihost(td),
     }
 }
 
@@ -165,7 +165,55 @@ fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
 }
 
 fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
-    unimplemented!()
+    let root_org_name = "root_stele";
+
+    archive::init(
+        td.path().to_owned(),
+        "law".into(),
+        root_org_name.into(),
+        None,
+        false,
+        Some(Headers {
+            current_documents_guard: Some("X-Current-Documents-Guard".into()),
+        }),
+    )
+    .unwrap();
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        root_org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
+    )
+    .unwrap();
+
+    let stele_1_org_name = "stele_1";
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        stele_1_org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
+    )
+    .unwrap();
+
+    let stele_2_org_name = "stele_2";
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        stele_2_org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
+    )
+    .unwrap();
+
+    add_dependencies(
+        td.path(),
+        root_org_name,
+        vec![stele_1_org_name, stele_2_org_name],
+    )?;
+
+    Ok(())
 }
 
 pub fn initialize_stele(
