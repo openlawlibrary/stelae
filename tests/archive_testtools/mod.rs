@@ -323,6 +323,9 @@ pub struct GitRepository {
 impl GitRepository {
     pub fn init(path: &Path) -> Result<Self> {
         let repo = git2::Repository::init(path)?;
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "name").unwrap();
+        config.set_str("user.email", "email").unwrap();
         Ok(Self {
             repo,
             path: path.to_path_buf(),
