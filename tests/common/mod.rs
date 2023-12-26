@@ -11,18 +11,18 @@ use actix_web::{
     Error,
 };
 use anyhow::Result;
-use std::sync::Once;
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},
 };
+use std::{collections::HashMap, sync::Once};
 use tempfile::{Builder, TempDir};
 static INIT: Once = Once::new();
 
 use actix_http::body::MessageBody;
 
 use stelae::stelae::{
-    archive::{self, Archive},
+    archive::{self, Archive, Headers},
     types::dependencies::Dependency,
 };
 use stelae::{
@@ -91,6 +91,7 @@ fn initialize_archive_basic(td: &TempDir) -> Result<()> {
         org_name.into(),
         None,
         false,
+        None,
     )
     .unwrap();
     initialize_stele(
@@ -113,6 +114,7 @@ fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
         root_org_name.into(),
         None,
         false,
+        None,
     )
     .unwrap();
 
@@ -152,48 +154,11 @@ fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
     )
     .unwrap();
 
-    let root_repo = get_repository(td.path(), &format!("{root_org_name}/law"));
-
-    let dependencies = Dependencies {
-        dependencies: vec![
-            (
-                format!(
-                    "{dependent_stele_1_org_name}/law",
-                    dependent_stele_1_org_name = dependent_stele_1_org_name
-                ),
-                Dependency {
-                    out_of_band_authentication: "sha256".into(),
-                    branch: "main".into(),
-                },
-            ),
-            (
-                format!(
-                    "{dependent_stele_2_org_name}/law",
-                    dependent_stele_2_org_name = dependent_stele_2_org_name
-                ),
-                Dependency {
-                    out_of_band_authentication: "sha256".into(),
-                    branch: "main".into(),
-                },
-            ),
-        ]
-        .into_iter()
-        .collect(),
-    };
-    let content = serde_json::to_string_pretty(&dependencies).unwrap();
-
-    root_repo
-        .add_file(
-            &td.path()
-                .to_path_buf()
-                .join(format!("{root_org_name}/law/targets")),
-            "dependencies.json",
-            &content,
-        )
-        .unwrap();
-    root_repo
-        .commit(Some("targets/dependencies.json"), "Add dependencies.json")
-        .unwrap();
+    add_dependencies(
+        td.path(),
+        root_org_name,
+        vec![dependent_stele_1_org_name, dependent_stele_2_org_name],
+    )?;
 
     // anyhow::bail!("Something went wrong!");
     Ok(())
@@ -331,4 +296,48 @@ pub fn get_repository(path: &Path, name: &str) -> GitRepository {
     let mut path = path.to_path_buf();
     path.push(name);
     GitRepository::open(&path).unwrap()
+}
+
+pub fn add_dependencies(
+    path: &Path,
+    root_org_name: &str,
+    dependent_stele_org_names: Vec<&str>,
+) -> Result<()> {
+    let root_repo = get_repository(path, &format!("{root_org_name}/law"));
+
+    let dependencies = Dependencies {
+        dependencies: {
+            let mut dependencies = HashMap::new();
+            for dependent_stele_org_name in dependent_stele_org_names {
+                dependencies.insert(
+                    format!(
+                        "{dependent_stele_org_name}/law",
+                        dependent_stele_org_name = dependent_stele_org_name
+                    ),
+                    Dependency {
+                        out_of_band_authentication: "sha256".into(),
+                        branch: "main".into(),
+                    },
+                );
+            }
+            dependencies
+        }
+        .into_iter()
+        .collect(),
+    };
+    let content = serde_json::to_string_pretty(&dependencies).unwrap();
+
+    root_repo
+        .add_file(
+            &path
+                .to_path_buf()
+                .join(format!("{root_org_name}/law/targets")),
+            "dependencies.json",
+            &content,
+        )
+        .unwrap();
+    root_repo
+        .commit(Some("targets/dependencies.json"), "Add dependencies.json")
+        .unwrap();
+    Ok(())
 }

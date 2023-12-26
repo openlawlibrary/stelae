@@ -159,6 +159,7 @@ pub fn init(
     root_org: String,
     root_hash: Option<String>,
     shallow: bool,
+    headers: Option<Headers>,
 ) -> anyhow::Result<Box<Archive>> {
     raise_error_if_in_existing_archive(&path)?;
     let stelae_dir = path.join(PathBuf::from("./.stelae"));
@@ -171,7 +172,7 @@ pub fn init(
             hash: root_hash,
         },
         shallow,
-        headers: None,
+        headers,
     };
     let conf_str = toml_edit::ser::to_string_pretty(&conf)?;
     write(config_path, conf_str)?;
