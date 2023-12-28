@@ -273,7 +273,7 @@ fn init_routes_single_stele(cfg: &mut web::ServiceConfig, stele: &Stele) {
                     repo: Repo {
                         archive_path: stele.archive_path.to_string_lossy().to_string(),
                         path: PathBuf::from(repo_path.clone()),
-                        org: stele.org.to_string(),
+                        org: stele.auth_repo.org.to_string(),
                         name: name.to_string(),
                         repo: Repository::open(repo_path).expect("Unable to open Git repository"),
                     },
@@ -332,7 +332,7 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
                             repo: Repo {
                                 archive_path: state.archive.path.to_string_lossy().to_string(),
                                 path: PathBuf::from(repo_path.clone()),
-                                org: stele.org.to_string(),
+                                org: stele.auth_repo.org.to_string(),
                                 name: name.to_string(),
                                 repo: Repository::open(repo_path)
                                     .expect("Unable to open Git repository"),
@@ -386,7 +386,7 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
                             repo: Repo {
                                 archive_path: state.archive.path.to_string_lossy().to_string(),
                                 path: PathBuf::from(repo_path.clone()),
-                                org: stele.org.to_string(),
+                                org: stele.auth_repo.org.to_string(),
                                 name: name.to_string(),
                                 repo: Repository::open(repo_path)
                                     .expect("Unable to open Git repository"),

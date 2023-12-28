@@ -104,6 +104,10 @@ impl Archive {
             for (qualified_name, _) in dependencies.dependencies {
                 let parent_dir = self.path.clone();
                 let (org, name) = get_name_parts(&qualified_name)?;
+                if std::fs::metadata(parent_dir.join(&org).join(&name)).is_err() {
+                    // Stele does not exist on the filesystem, continue to traverse other Steles
+                    continue;
+                }
                 let child = Stele::new(
                     self.path.clone(),
                     Some(name),
@@ -112,7 +116,7 @@ impl Archive {
                     false,
                 )?;
                 self.stelae
-                    .entry(format!("{}/{}", child.org, child.name))
+                    .entry(format!("{}/{}", child.auth_repo.org, child.auth_repo.name))
                     .or_insert_with(|| child.clone());
                 self.traverse_children(&child)?;
             }
