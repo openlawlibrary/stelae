@@ -49,7 +49,7 @@ impl Archive {
         let root: Stele;
         if let Some(individual_path) = path {
             tracing::info!("Serving individual Stele at path: {:?}", individual_path);
-            root = Stele::new(self.path.clone(), None, None, Some(individual_path), true)?;
+            root = Stele::new(&self.path, None, None, Some(individual_path), true)?;
         } else {
             let conf = self.get_config()?;
 
@@ -59,7 +59,7 @@ impl Archive {
             tracing::info!("Serving {}/{} at path: {:?}", &org, &name, self.path);
 
             root = Stele::new(
-                self.path.clone(),
+                &self.path,
                 Some(name),
                 Some(org.clone()),
                 Some(self.path.clone().join(org)),
@@ -109,7 +109,7 @@ impl Archive {
                     continue;
                 }
                 let child = Stele::new(
-                    self.path.clone(),
+                    &self.path,
                     Some(name),
                     Some(org.clone()),
                     Some(parent_dir.join(org)),
@@ -140,9 +140,9 @@ fn raise_error_if_in_existing_archive(path: &Path) -> anyhow::Result<bool> {
 #[derive(Deserialize, Serialize)]
 pub struct Config {
     /// The root Stele for this archive
-    root: stele::Config,
+    pub root: stele::Config,
     /// Whether this is a shallow archive (all repos depth=1)
-    shallow: bool,
+    pub shallow: bool,
     /// Custom HTTP headers used to interact with the Stele
     pub headers: Option<Headers>,
 }

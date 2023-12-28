@@ -16,7 +16,7 @@ pub fn get_contenttype(path: &str) -> ContentType {
         .extension()
         .map_or("html", |ext| ext.to_str().map_or("", |ext_str| ext_str));
     let mime = file_extension_to_mime(extension).first_or(mime::TEXT_HTML);
-    if (mime.type_(), mime.subtype().as_str()) == ((mime::APPLICATION, "rdf")) {
+    if (mime.type_(), mime.subtype().as_str()) == (mime::APPLICATION, "rdf") {
         return ContentType(mime::TEXT_PLAIN);
     }
     ContentType(mime)

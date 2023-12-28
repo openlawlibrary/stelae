@@ -36,6 +36,7 @@ impl fmt::Debug for Repo {
     }
 }
 
+#[allow(clippy::missing_trait_methods, clippy::unwrap_used)]
 impl Clone for Repo {
     fn clone(&self) -> Self {
         Self {

@@ -18,6 +18,11 @@ use actix_http::body::MessageBody;
 use actix_service::ServiceFactory;
 use std::sync::OnceLock;
 
+/// Name of the header to guard current documents
+static HEADER_NAME: OnceLock<String> = OnceLock::new();
+/// Values of the header to guard current documents
+static HEADER_VALUES: OnceLock<Vec<String>> = OnceLock::new();
+
 #[allow(clippy::expect_used)]
 /// Remove leading and trailing `/`s from the `path` string.
 fn clean_path(path: &str) -> String {
@@ -175,10 +180,7 @@ pub fn init_app(
 
     match stelae_guard {
         Some(guard) => {
-            static HEADER_NAME: OnceLock<String> = OnceLock::new();
             HEADER_NAME.get_or_init(|| guard);
-
-            static HEADER_VALUES: OnceLock<Vec<String>> = OnceLock::new();
             HEADER_VALUES.get_or_init(|| {
                 state
                     .archive

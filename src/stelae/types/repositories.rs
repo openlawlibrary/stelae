@@ -20,12 +20,12 @@ use serde_json::Value;
 /// {
 /// "scopes": ["us/ca/cities/san-mateo"],
 /// "repositories": {
-///    "test_org_1/data_repo_1": {
+///    "`test_org_1/data_repo_1"`: {
 ///      "custom": {
 ///        "routes": ["example-route-glob-pattern-1"]
 ///      }
 ///    },
-///    "test_org_1/data_repo_2": {
+///    "`test_org_1/data_repo_2"`: {
 ///      "custom": {
 ///       "serve-prefix": "_prefix"
 ///      }
@@ -85,6 +85,7 @@ impl Repositories {
     /// Get the repositories sorted by the length of their routes, longest first.
     ///
     /// This is needed for serving current documents because Actix routes are matched in the order they are added.
+    #[must_use]
     pub fn get_sorted_repositories(&self) -> Vec<&Repository> {
         let mut result = Vec::new();
         for repository in self.repositories.values() {
@@ -103,11 +104,13 @@ impl Repositories {
     }
 }
 
+#[allow(clippy::missing_trait_methods)]
 impl<'de> Deserialize<'de> for Repositories {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
+        /// Visitor for the Repositories struct
         struct RepositoriesVisitor;
 
         impl<'de> Visitor<'de> for RepositoriesVisitor {
@@ -131,7 +134,7 @@ impl<'de> Deserialize<'de> for Repositories {
                         "repositories" => {
                             let repos: HashMap<String, Value> = map.next_value()?;
                             let mut new_repos = HashMap::new();
-                            for (key, value) in repos {
+                            for (map_key, value) in repos {
                                 let custom_value = value.get("custom").ok_or_else(|| {
                                     serde::de::Error::custom("Missing 'custom' field")
                                 })?;
@@ -142,10 +145,10 @@ impl<'de> Deserialize<'de> for Repositories {
                                     ))
                                 })?;
                                 let repo = Repository {
-                                    name: key.clone(),
+                                    name: map_key.clone(),
                                     custom,
                                 };
-                                new_repos.insert(key, repo);
+                                new_repos.insert(map_key, repo);
                             }
                             repositories = new_repos;
                         }
@@ -160,8 +163,8 @@ impl<'de> Deserialize<'de> for Repositories {
                 })
             }
         }
-
-        const FIELDS: &'static [&'static str] = &["scopes", "repositories"];
+        /// Expected fields in the `repositories.json` file.
+        const FIELDS: &[&'static str] = &["scopes", "repositories"];
         deserializer.deserialize_struct("Repositories", FIELDS, RepositoriesVisitor)
     }
 }

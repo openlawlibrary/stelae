@@ -1,7 +1,7 @@
 //! The Stele module contains the Stele object for interacting with
 //! Stelae.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use super::types::repositories::Repository;
 use crate::{
@@ -34,7 +34,7 @@ impl Stele {
     /// Will panic if unable to determine the current root Stele.
     #[allow(clippy::unwrap_used, clippy::shadow_reuse)]
     pub fn new(
-        archive_path: PathBuf,
+        archive_path: &Path,
         name: Option<String>,
         org: Option<String>,
         path: Option<PathBuf>,
@@ -52,13 +52,13 @@ impl Stele {
         });
         let path = path.unwrap_or_else(|| archive_path.join(&org));
         let mut stele = Self {
-            archive_path: archive_path.clone(),
+            archive_path: archive_path.to_path_buf(),
             repositories: None,
             root,
             auth_repo: Repo {
                 archive_path: archive_path.to_string_lossy().to_string(),
                 path: path.join(&name),
-                org: org.clone(),
+                org,
                 name: name.clone(),
                 repo: GitRepository::open(path.join(&name)).unwrap(),
             },
@@ -109,8 +109,8 @@ impl Stele {
     /// Returns the first fallback repository found, or None if no fallback repository is found.
     #[must_use]
     pub fn get_fallback_repo(&self) -> Option<Repository> {
-        if let &Some(ref repositories) = &self.repositories {
-            for (name, repository) in &repositories.repositories {
+        if let Some(repositories) = &self.repositories {
+            for repository in repositories.repositories.values() {
                 let custom = &repository.custom;
                 if let Some(ref is_fallback) = custom.is_fallback {
                     if *is_fallback {
