@@ -2,6 +2,6 @@
 #![allow(clippy::restriction)]
 
 mod api;
+mod archive_testtools;
 mod basic;
 mod common;
-mod archive_testtools;
