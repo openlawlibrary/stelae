@@ -1,4 +1,4 @@
-use crate::{archive_testtools::ArchiveType, common};
+use crate::{archive_testtools::config::ArchiveType, common};
 use actix_web::test;
 
 #[actix_web::test]

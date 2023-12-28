@@ -1,139 +1,21 @@
+pub mod config;
+pub mod utils;
+
 use anyhow::Result;
 use git2::{Commit, Error, Oid};
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-pub use stelae::stelae::types::repositories::{Custom, Repositories, Repository};
+use stelae::stelae::archive::{self, Headers};
+use stelae::stelae::types::dependencies::{Dependencies, Dependency};
+use stelae::stelae::types::repositories::{Repositories, Repository};
+use tempfile::TempDir;
 
-pub enum ArchiveType {
-    Basic(Jurisdiction),
-    Multihost,
-}
-
-pub enum Jurisdiction {
-    Single,
-    Multi,
-}
-
-pub enum TestDataRepositoryType {
-    Html,
-    Rdf,
-    Xml,
-    Pdf,
-    Other(String),
-}
-
-/// Information about a data repository.
-///
-/// This struct is used to initialize a data repository in the test suite.
-pub struct TestDataRepositoryContext<'repo> {
-    /// The name of the data repository.
-    pub name: &'repo str,
-    /// The paths of the data repository.
-    pub paths: Vec<Cow<'static, str>>,
-    /// The kind of data repository.
-    pub kind: TestDataRepositoryType,
-    /// The prefix to use when serving the data repository.
-    ///
-    /// If `None`, the data repository will be served at the root.
-    /// If `Some("prefix")`, the data repository will be served from `/prefix/<data>`.
-    pub serve_prefix: Option<&'repo str>,
-    /// The route glob patterns to use when serving the data repository.
-    pub route_glob_patterns: Option<Vec<&'repo str>>,
-    /// Whether the data repository is a fallback.
-    pub is_fallback: bool,
-}
-
-impl<'repo> TestDataRepositoryContext<'repo> {
-    pub fn new(
-        name: &'repo str,
-        paths: Vec<Cow<'static, str>>,
-        kind: TestDataRepositoryType,
-        serve_prefix: Option<&'repo str>,
-        route_glob_patterns: Option<Vec<&'repo str>>,
-        is_fallback: bool,
-    ) -> Result<Self> {
-        if let None = serve_prefix {
-            if let None = route_glob_patterns {
-                return Err(anyhow::anyhow!(
-                    "A test data repository must have either a serve prefix or route glob patterns."
-                ));
-            }
-        }
-        Ok(Self {
-            name,
-            paths,
-            kind,
-            serve_prefix,
-            route_glob_patterns,
-            is_fallback,
-        })
-    }
-
-    pub fn default_html_paths() -> Vec<Cow<'static, str>> {
-        vec![
-            "./index.html".into(),
-            "./a/index.html".into(),
-            "./a/b/index.html".into(),
-            "./a/d/index.html".into(),
-            "./a/b/c.html".into(),
-            "./a/b/c/index.html".into(),
-        ]
-    }
-
-    pub fn default_rdf_paths() -> Vec<Cow<'static, str>> {
-        vec![
-            "./index.rdf".into(),
-            "./a/index.rdf".into(),
-            "./a/b/index.rdf".into(),
-            "./a/d/index.rdf".into(),
-            "./a/b/c.rdf".into(),
-            "./a/b/c/index.rdf".into(),
-        ]
-    }
-
-    pub fn default_xml_paths() -> Vec<Cow<'static, str>> {
-        vec![
-            "./index.xml".into(),
-            "./a/index.xml".into(),
-            "./a/b/index.xml".into(),
-            "./a/d/index.xml".into(),
-            "./a/b/c.xml".into(),
-            "./a/b/c/index.xml".into(),
-        ]
-    }
-
-    pub fn default_pdf_paths() -> Vec<Cow<'static, str>> {
-        vec![
-            "./example.pdf".into(),
-            "./a/example.pdf".into(),
-            "./a/b/example.pdf".into(),
-        ]
-    }
-
-    pub fn default_json_paths() -> Vec<Cow<'static, str>> {
-        vec![
-            "./example.json".into(),
-            "./a/example.json".into(),
-            "./a/b/example.json".into(),
-        ]
-    }
-
-    pub fn default_other_paths() -> Vec<Cow<'static, str>> {
-        vec![
-            "./index.html".into(),
-            "./example.json".into(),
-            "./a/index.html".into(),
-            "./a/b/index.html".into(),
-            "./a/b/c.html".into(),
-            "./a/d/index.html".into(),
-            "./_prefix/index.html".into(),
-            "./_prefix/a/index.html".into(),
-            "./a/_doc/e/index.html".into(),
-            "./a/e/_doc/f/index.html".into(),
-        ]
-    }
-}
+use self::config::{
+    get_basic_test_data_repositories, get_dependent_data_repositories_with_scopes, ArchiveType,
+    Jurisdiction, TestDataRepositoryContext,
+};
 
 pub fn get_default_static_filename(file_extension: &str) -> &str {
     match file_extension {
@@ -151,168 +33,6 @@ pub fn copy_file(from: &Path, to: &Path) -> Result<()> {
     std::fs::create_dir_all(&to.parent().unwrap()).unwrap();
     std::fs::copy(from, to).unwrap();
     Ok(())
-}
-
-pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContext<'static>>> {
-    Ok(vec![
-        TestDataRepositoryContext::new(
-            "law-html",
-            TestDataRepositoryContext::default_html_paths(),
-            TestDataRepositoryType::Html,
-            None,
-            Some(vec![".*"]),
-            false,
-        )?,
-        TestDataRepositoryContext::new(
-            "law-rdf",
-            TestDataRepositoryContext::default_rdf_paths(),
-            TestDataRepositoryType::Rdf,
-            Some("_rdf"),
-            None,
-            false,
-        )?,
-        TestDataRepositoryContext::new(
-            "law-xml",
-            TestDataRepositoryContext::default_xml_paths(),
-            TestDataRepositoryType::Xml,
-            Some("_xml"),
-            None,
-            false,
-        )?,
-        TestDataRepositoryContext::new(
-            "law-xml-codified",
-            vec![
-                "./index.xml".into(),
-                "./e/index.xml".into(),
-                "./e/f/index.xml".into(),
-                "./e/g/index.xml".into(),
-            ],
-            TestDataRepositoryType::Xml,
-            Some("_xml_codified"),
-            None,
-            false,
-        )?,
-        TestDataRepositoryContext::new(
-            "law-pdf",
-            TestDataRepositoryContext::default_pdf_paths(),
-            TestDataRepositoryType::Pdf,
-            None,
-            Some(vec![".*\\.pdf"]),
-            false,
-        )?,
-        TestDataRepositoryContext::new(
-            "law-other",
-            TestDataRepositoryContext::default_other_paths(),
-            TestDataRepositoryType::Other("example.json".to_string()),
-            None,
-            Some(vec![".*_doc/.*", "_prefix/.*"]),
-            true,
-        )?,
-    ])
-}
-
-pub fn get_dependent_data_repositories_with_scopes(
-    scopes: &Vec<Cow<'static, str>>,
-) -> Result<Vec<TestDataRepositoryContext<'static>>> {
-    let mut result = Vec::new();
-    for kind in [
-        TestDataRepositoryType::Html,
-        TestDataRepositoryType::Rdf,
-        TestDataRepositoryType::Xml,
-        TestDataRepositoryType::Pdf,
-        TestDataRepositoryType::Other("example.json".to_string()),
-    ]
-    .into_iter()
-    {
-        let mut paths = Vec::new();
-        let name;
-        let mut serve_prefix = None;
-        let mut route_glob_patterns = None;
-        let mut is_fallback = false;
-        let mut default_paths;
-
-        match kind {
-            TestDataRepositoryType::Html => {
-                name = "law-html";
-                route_glob_patterns = Some(vec![".*"]);
-                default_paths = TestDataRepositoryContext::default_html_paths();
-
-                default_paths.extend(vec![
-                    "./does-not-resolve.html".into(),
-                    "./a/does-not-resolve.html".into(),
-                    "./a/b/does-not-resolve.html".into(),
-                ]);
-            }
-            TestDataRepositoryType::Rdf => {
-                name = "law-rdf";
-                serve_prefix = Some("_rdf");
-                default_paths = TestDataRepositoryContext::default_rdf_paths();
-            }
-            TestDataRepositoryType::Xml => {
-                name = "law-xml";
-                serve_prefix = Some("_xml");
-                default_paths = TestDataRepositoryContext::default_xml_paths()
-            }
-            TestDataRepositoryType::Pdf => {
-                name = "law-pdf";
-                route_glob_patterns = Some(vec![".*\\.pdf"]);
-                default_paths = TestDataRepositoryContext::default_pdf_paths();
-            }
-            TestDataRepositoryType::Other(_) => {
-                name = "law-other";
-                route_glob_patterns = Some(vec![".*_doc/.*", "_prefix/.*"]);
-                is_fallback = true;
-                default_paths = TestDataRepositoryContext::default_other_paths();
-
-                default_paths.extend(vec![
-                    "./does-not-resolve.json".into(),
-                    "./a/does-not-resolve.json".into(),
-                    "./a/b/does-not-resolve.json".into(),
-                ]);
-            }
-        }
-        for scope in scopes {
-            let additional_paths: Vec<String> = default_paths
-                .iter()
-                .map(|path| format!("{}/{}", scope, path))
-                .collect();
-            paths.extend(additional_paths.into_iter().map(|path| path.into()));
-        }
-
-        result.push(TestDataRepositoryContext::new(
-            name,
-            paths,
-            kind,
-            serve_prefix,
-            route_glob_patterns,
-            is_fallback,
-        )?);
-    }
-    Ok(result)
-}
-
-impl From<&TestDataRepositoryContext<'_>> for Repository {
-    fn from(context: &TestDataRepositoryContext) -> Self {
-        let mut custom = Custom::default();
-        custom.repository_type = Some(match context.kind {
-            TestDataRepositoryType::Html => "html".to_string(),
-            TestDataRepositoryType::Rdf => "rdf".to_string(),
-            TestDataRepositoryType::Xml => "xml".to_string(),
-            TestDataRepositoryType::Pdf => "pdf".to_string(),
-            TestDataRepositoryType::Other(_) => "other".to_string(),
-        });
-        custom.serve = "latest".to_string();
-        custom.scope = context.serve_prefix.map(|s| s.to_string());
-        custom.routes = context
-            .route_glob_patterns
-            .as_ref()
-            .map(|r| r.iter().map(|s| s.to_string()).collect());
-        custom.is_fallback = Some(context.is_fallback);
-        Self {
-            name: context.name.to_string(),
-            custom,
-        }
-    }
 }
 
 pub struct GitRepository {
@@ -388,4 +108,300 @@ impl Deref for GitRepository {
     fn deref(&self) -> &Self::Target {
         &self.repo
     }
+}
+
+pub fn initialize_archive_inner(archive_type: ArchiveType, td: &TempDir) -> Result<()> {
+    match archive_type {
+        ArchiveType::Basic(Jurisdiction::Single) => initialize_archive_basic(td),
+        ArchiveType::Basic(Jurisdiction::Multi) => initialize_archive_multijurisdiction(td),
+        ArchiveType::Multihost => initialize_archive_multihost(td),
+    }
+}
+
+fn initialize_archive_basic(td: &TempDir) -> Result<()> {
+    let org_name = "test_org";
+
+    archive::init(
+        td.path().to_owned(),
+        "law".into(),
+        org_name.into(),
+        None,
+        false,
+        None,
+    )
+    .unwrap();
+    initialize_stele(
+        td.path().to_path_buf(),
+        org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
+    )
+    .unwrap();
+    // anyhow::bail!("Something went wrong!");
+    Ok(())
+}
+
+fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
+    let root_org_name = "root_test_org";
+
+    archive::init(
+        td.path().to_owned(),
+        "law".into(),
+        root_org_name.into(),
+        None,
+        false,
+        None,
+    )
+    .unwrap();
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        root_org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
+    )
+    .unwrap();
+
+    let dependent_stele_1_org_name = "dependent_stele_1";
+    let dependent_stele_1_scopes: Vec<Cow<'_, str>> =
+        vec!["sub/scope/1".into(), "sub/scope/2".into()];
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        dependent_stele_1_org_name,
+        get_dependent_data_repositories_with_scopes(&dependent_stele_1_scopes)
+            .unwrap()
+            .as_slice(),
+        Some(&dependent_stele_1_scopes),
+    )
+    .unwrap();
+
+    let dependent_stele_2_org_name = "dependent_stele_2";
+    let dependent_stele_2_scopes: Vec<Cow<'_, str>> =
+        vec!["sub/scope/3".into(), "sub/scope/4".into()];
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        dependent_stele_2_org_name,
+        get_dependent_data_repositories_with_scopes(&dependent_stele_2_scopes)
+            .unwrap()
+            .as_slice(),
+        Some(&dependent_stele_2_scopes),
+    )
+    .unwrap();
+
+    add_dependencies(
+        td.path(),
+        root_org_name,
+        vec![dependent_stele_1_org_name, dependent_stele_2_org_name],
+    )?;
+
+    // anyhow::bail!("Something went wrong!");
+    Ok(())
+}
+
+fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
+    let root_org_name = "root_stele";
+
+    archive::init(
+        td.path().to_owned(),
+        "law".into(),
+        root_org_name.into(),
+        None,
+        false,
+        Some(Headers {
+            current_documents_guard: Some("X-Current-Documents-Guard".into()),
+        }),
+    )
+    .unwrap();
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        root_org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
+    )
+    .unwrap();
+
+    let stele_1_org_name = "stele_1";
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        stele_1_org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
+    )
+    .unwrap();
+
+    let stele_2_org_name = "stele_2";
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        stele_2_org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
+    )
+    .unwrap();
+
+    add_dependencies(
+        td.path(),
+        root_org_name,
+        vec![stele_1_org_name, stele_2_org_name],
+    )?;
+
+    Ok(())
+}
+
+pub fn initialize_stele(
+    path: PathBuf,
+    org_name: &str,
+    data_repositories: &[TestDataRepositoryContext],
+    scopes: Option<&Vec<Cow<'_, str>>>,
+) -> Result<()> {
+    let path = path.join(org_name);
+    init_data_repositories(&path, data_repositories)?;
+    init_auth_repository(&path, org_name, data_repositories, scopes)?;
+    Ok(())
+}
+
+pub fn init_auth_repository(
+    path: &Path,
+    org_name: &str,
+    data_repositories: &[TestDataRepositoryContext],
+    scopes: Option<&Vec<Cow<'_, str>>>,
+) -> Result<GitRepository> {
+    let mut path = path.to_path_buf();
+    path.push("law");
+    std::fs::create_dir_all(&path).unwrap();
+
+    let repo = GitRepository::init(&path).unwrap();
+
+    path.push("targets");
+
+    let repositories: Repositories =
+        data_repositories
+            .iter()
+            .fold(Repositories::default(), |mut repositories, data_repo| {
+                let mut repository = Repository::from(data_repo);
+                repository.name = format!("{}/{}", org_name, repository.name);
+                repositories
+                    .repositories
+                    .entry(repository.name.clone())
+                    .or_insert(repository);
+                repositories.scopes = scopes.map(|vec| {
+                    vec.into_iter()
+                        .map(|cow| cow.clone().into_owned())
+                        .collect()
+                });
+                repositories
+            });
+    let content = serde_json::to_string_pretty(&repositories).unwrap();
+
+    repo.add_file(&path, "repositories.json", &content).unwrap();
+    repo.commit(Some("targets/repositories.json"), "Add repositories.json")
+        .unwrap();
+    Ok(repo)
+}
+
+pub fn init_data_repositories(
+    path: &Path,
+    data_repositories: &[TestDataRepositoryContext],
+) -> Result<Vec<GitRepository>> {
+    let mut data_git_repositories: Vec<GitRepository> = Vec::new();
+    for data_repo in data_repositories {
+        let mut path = path.to_path_buf();
+        path.push(data_repo.name);
+        std::fs::create_dir_all(&path).unwrap();
+        let git_repo = GitRepository::init(&path).unwrap();
+        init_data_repository(&git_repo, data_repo)?;
+        data_git_repositories.push(git_repo);
+    }
+    Ok(data_git_repositories)
+}
+
+fn init_data_repository(
+    git_repo: &GitRepository,
+    data_repo: &TestDataRepositoryContext,
+) -> Result<()> {
+    for path in data_repo.paths.iter() {
+        add_fixture_file_to_git_repo(git_repo, path)?;
+    }
+    git_repo.commit(None, "Add initial data").unwrap();
+    Ok(())
+}
+
+fn add_fixture_file_to_git_repo(git_repo: &GitRepository, path: &str) -> Result<()> {
+    let path_buf = PathBuf::from(path);
+    let filename = path_buf.file_name().unwrap().to_str().unwrap();
+    let static_file_path = get_static_file_path(filename);
+    copy_file(&static_file_path, &git_repo.path.join(path)).unwrap();
+    Ok(())
+}
+
+/// Returns a static file path for the given filename.
+/// If the file does not exist, returns the default static file path.
+fn get_static_file_path(filename: &str) -> PathBuf {
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.push("tests/fixtures/static_files");
+    let static_file_path = PathBuf::from(&path).join(filename);
+
+    if static_file_path.exists() {
+        return static_file_path;
+    }
+
+    let ext = Path::new(filename)
+        .extension()
+        .map_or("html", |ext| ext.to_str().map_or("", |ext_str| ext_str));
+    let filename = get_default_static_filename(ext);
+
+    PathBuf::from(path).join(filename)
+}
+
+pub fn add_dependencies(
+    path: &Path,
+    root_org_name: &str,
+    dependent_stele_org_names: Vec<&str>,
+) -> Result<()> {
+    let root_repo = get_repository(path, &format!("{root_org_name}/law"));
+
+    let dependencies = Dependencies {
+        dependencies: {
+            let mut dependencies = HashMap::new();
+            for dependent_stele_org_name in dependent_stele_org_names {
+                dependencies.insert(
+                    format!(
+                        "{dependent_stele_org_name}/law",
+                        dependent_stele_org_name = dependent_stele_org_name
+                    ),
+                    Dependency {
+                        out_of_band_authentication: "sha256".into(),
+                        branch: "main".into(),
+                    },
+                );
+            }
+            dependencies
+        }
+        .into_iter()
+        .collect(),
+    };
+    let content = serde_json::to_string_pretty(&dependencies).unwrap();
+
+    root_repo
+        .add_file(
+            &path
+                .to_path_buf()
+                .join(format!("{root_org_name}/law/targets")),
+            "dependencies.json",
+            &content,
+        )
+        .unwrap();
+    root_repo
+        .commit(Some("targets/dependencies.json"), "Add dependencies.json")
+        .unwrap();
+    Ok(())
+}
+pub fn get_repository(path: &Path, name: &str) -> GitRepository {
+    let mut path = path.to_path_buf();
+    path.push(name);
+    GitRepository::open(&path).unwrap()
 }
