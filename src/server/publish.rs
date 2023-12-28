@@ -7,21 +7,15 @@ use crate::utils::git::Repo;
 use crate::utils::http::get_contenttype;
 use crate::{server::tracing::StelaeRootSpanBuilder, stelae::stele::Stele};
 use actix_web::dev::{ServiceRequest, ServiceResponse};
-use actix_web::{
-    get, guard, web, App, Error, HttpRequest, HttpResponse, HttpServer, Resource, Responder, Route,
-    Scope,
-};
+use actix_web::{guard, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder, Scope};
 use git2::Repository;
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::{collections::HashMap, fmt, path::Path, path::PathBuf};
+use std::{fmt, path::PathBuf};
 use tracing_actix_web::TracingLogger;
 
 use actix_http::body::MessageBody;
-use actix_service::{
-    apply, apply_fn_factory, boxed, IntoServiceFactory, ServiceFactory, ServiceFactoryExt,
-    Transform,
-};
+use actix_service::ServiceFactory;
 use std::sync::OnceLock;
 
 #[allow(clippy::expect_used)]
@@ -98,42 +92,21 @@ impl Clone for SharedState {
     }
 }
 
-/// Index path for testing purposes
-// #[get("/t")]
-async fn index() -> &'static str {
-    "Welcome to Publish Server"
-}
-
-async fn default() -> &'static str {
-    "Default"
-}
-
 /// Serve current document
 async fn serve(
     req: HttpRequest,
     shared: web::Data<SharedState>,
     data: web::Data<RepoState>,
 ) -> impl Responder {
-    // dbg!(&data);
-    // dbg!(&shared);
-    // dbg!(&req.path().to_owned());
-    // let mut path = req.path().to_owned();
-    // dbg!(&path);
-    let mut prefix: String = req
+    let prefix: String = req
         .match_info()
         .get("prefix")
         .unwrap_or_default()
         .parse()
         .unwrap();
-    // dbg!(&prefix);
-    let mut tail: String = req.match_info().get("tail").unwrap().parse().unwrap();
-    // dbg!(&tail);
-    // let (prefix, tail): (String, String) = req.match_info().load().unwrap();
-    // dbg!(&prefix);
-    // dbg!(&tail);
+    let tail: String = req.match_info().get("tail").unwrap().parse().unwrap();
     let mut path = format!("{}/{}", prefix, tail);
     path = clean_path(&path);
-    // dbg!(&path);
     let blob = data.repo.get_bytes_at_path("HEAD", &path);
     let contenttype = get_contenttype(&path);
     format!(
@@ -152,17 +125,6 @@ async fn serve(
     } else {
         HttpResponse::BadRequest().into()
     }
-}
-
-/// Index path for testing purposes
-// #[get("/test")]
-async fn test(req: HttpRequest, data: web::Data<HashMap<String, String>>) -> String {
-    format!(
-        "{}, {}",
-        req.path().to_owned(),
-        data.get("cityofsanmateo")
-            .unwrap_or(&("no value").to_owned())
-    )
 }
 
 /// Serve documents in a Stelae archive.
@@ -368,11 +330,6 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
             }
             //Child Stele
             for scope in repositories.scopes.iter().flat_map(|s| s.iter()) {
-                // let escaped_scope = regex::escape(scope);
-                // let url_namespace = format!("{{namespace:^{}/.*}}", &scope.as_str());
-                // let url_namespace = format!("{{namespace:({})+}}", &scope.as_str());
-                // dbg!(&url_namespace);
-                // let mut actix_scope = web::scope("/{namespace:us/ca/cities/san-mateo}");
                 let scope_str = format!("/{{prefix:{}}}", &scope.as_str());
                 let mut actix_scope = web::scope(scope_str.as_str());
                 // dbg!(&scope);
