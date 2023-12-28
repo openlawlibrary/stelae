@@ -4,7 +4,6 @@ use crate::common::{self, BASIC_MODULE_NAME};
 
 const COMMIT: &str = "4ba432f61eec15194db527548be4cbc0105635b9";
 
-
 #[test]
 fn test_get_bytes_at_path_when_empty_path_expect_index_html() {
     common::initialize_git();
