@@ -8,6 +8,7 @@ use crate::{
     stelae::types::{dependencies::Dependencies, repositories::Repositories},
     utils::git::Repo,
 };
+use anyhow::Context;
 use git2::Repository as GitRepository;
 use serde_derive::{Deserialize, Serialize};
 use serde_json;
@@ -32,7 +33,7 @@ impl Stele {
     /// Will error if unable to find or parse repositories file at `targets/repositories.json`
     /// # Panics
     /// Will panic if unable to determine the current root Stele.
-    #[allow(clippy::unwrap_used, clippy::shadow_reuse)]
+    #[allow(clippy::shadow_reuse)]
     pub fn new(
         archive_path: &Path,
         name: Option<String>,
@@ -41,15 +42,17 @@ impl Stele {
         root: bool,
     ) -> anyhow::Result<Self> {
         let name = name.unwrap_or_else(|| "law".to_owned());
-        let org = org.unwrap_or_else(|| {
+        let org = if let Some(org) = org {
+            org
+        } else {
             path.as_ref()
-                .unwrap()
+                .context("path is None")?
                 .file_name()
-                .unwrap()
+                .context("file_name is None")?
                 .to_str()
-                .unwrap()
+                .context("to_str failed")?
                 .to_owned()
-        });
+        };
         let path = path.unwrap_or_else(|| archive_path.join(&org));
         let mut stele = Self {
             archive_path: archive_path.to_path_buf(),
@@ -60,7 +63,7 @@ impl Stele {
                 path: path.join(&name),
                 org,
                 name: name.clone(),
-                repo: GitRepository::open(path.join(&name)).unwrap(),
+                repo: GitRepository::open(path.join(&name))?,
             },
         };
         stele.get_repositories()?;
