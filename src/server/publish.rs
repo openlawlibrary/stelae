@@ -2,13 +2,14 @@
 #![allow(clippy::exit)]
 #![allow(clippy::unused_async)]
 use crate::stelae::archive::Archive;
+use crate::stelae::types::repositories::Repository;
 use crate::utils::archive::get_name_parts;
 use crate::utils::git::Repo;
 use crate::utils::http::get_contenttype;
 use crate::{server::tracing::StelaeRootSpanBuilder, stelae::stele::Stele};
 use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::{guard, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder, Scope};
-use git2::Repository;
+use git2::Repository as GitRepository;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::{fmt, path::PathBuf};
@@ -22,6 +23,9 @@ use std::sync::OnceLock;
 static HEADER_NAME: OnceLock<String> = OnceLock::new();
 /// Values of the header to guard current documents
 static HEADER_VALUES: OnceLock<Vec<String>> = OnceLock::new();
+
+/// Most-recent git commit
+const HEAD_COMMIT: &str = "HEAD";
 
 #[allow(clippy::expect_used)]
 /// Remove leading and trailing `/`s from the `path` string.
@@ -66,19 +70,20 @@ impl fmt::Debug for RepoState {
 
 impl fmt::Debug for SharedState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let &Some(ref fallback) = &self.fallback {
-            write!(
+        let fb = &self.fallback;
+        match *fb {
+            Some(ref fallback) => write!(
                 f,
                 "Repo for {} in the archive at {}",
                 fallback.repo.name,
                 fallback.repo.path.display()
-            )
-        } else {
-            write!(f, "No fallback repo")
+            ),
+            None => write!(f, "No fallback repo"),
         }
     }
 }
 
+#[allow(clippy::missing_trait_methods)]
 impl Clone for RepoState {
     fn clone(&self) -> Self {
         Self {
@@ -89,6 +94,7 @@ impl Clone for RepoState {
     }
 }
 
+#[allow(clippy::missing_trait_methods)]
 impl Clone for SharedState {
     fn clone(&self) -> Self {
         Self {
@@ -97,6 +103,7 @@ impl Clone for SharedState {
     }
 }
 
+#[allow(clippy::future_not_send)]
 /// Serve current document
 async fn serve(
     req: HttpRequest,
