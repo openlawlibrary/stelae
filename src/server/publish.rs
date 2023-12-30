@@ -267,12 +267,6 @@ fn init_routes_single_stele(cfg: &mut web::ServiceConfig, stele: &Stele) -> anyh
                 let custom = &repository.custom;
                 let repo_state = init_repo_state(repository, stele)?;
                 for route in custom.routes.iter().flat_map(|r| r.iter()) {
-                    if route.starts_with('_') {
-                        // Ignore routes in child stele that start with underscore
-                        // TODO: I think this is not necessary
-                        // TODO: append route to root stele scope
-                        continue;
-                    }
                     let actix_route = format!("/{{tail:{}}}", &route);
                     root_scope = root_scope.service(
                         web::resource(actix_route.as_str())
@@ -334,11 +328,6 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: &AppState, root: &Stele) -> 
                     let custom = &repository.custom;
                     let repo_state = init_repo_state(repository, stele)?;
                     for route in custom.routes.iter().flat_map(|r| r.iter()) {
-                        if route.starts_with('_') {
-                            // Ignore routes in child stele that start with underscore
-                            // TODO: append route to root stele scope
-                            continue;
-                        }
                         let actix_route = format!("/{{tail:{}}}", &route);
                         root_scope = root_scope.service(
                             web::resource(actix_route.as_str())
@@ -367,9 +356,8 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: &AppState, root: &Stele) -> 
                     let custom = &repository.custom;
                     let repo_state = init_repo_state(repository, stele)?;
                     for route in custom.routes.iter().flat_map(|r| r.iter()) {
-                        //ignore routes in child stele that start with underscore
                         if route.starts_with('_') {
-                            // TODO: append route to root stele scope
+                            // Ignore routes in child stele that start with underscore
                             continue;
                         }
                         let actix_route = format!("/{{tail:{}}}", &route);
@@ -379,17 +367,6 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: &AppState, root: &Stele) -> 
                                 .app_data(web::Data::new(repo_state.clone())),
                         );
                     }
-                    // TODO: This is not necessary in child Stele
-                    // if let &Some(ref underscore_scope) = &custom.scope {
-                    //     let actix_underscore_scope = web::scope(underscore_scope.as_str()).service(
-                    //         web::scope(scope.as_str()).service(
-                    //             web::resource("/{tail:.*}")
-                    //                 .route(web::get().to(serve))
-                    //                 .app_data(web::Data::new(repo_state.clone())),
-                    //         ),
-                    //     );
-                    //     scopes.push(actix_underscore_scope);
-                    // }
                 }
                 scopes.push(actix_scope);
             }
