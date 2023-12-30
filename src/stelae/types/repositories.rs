@@ -164,7 +164,7 @@ impl<'de> Deserialize<'de> for Repositories {
             }
         }
         /// Expected fields in the `repositories.json` file.
-        const FIELDS: &[&'static str] = &["scopes", "repositories"];
+        const FIELDS: &[&str] = &["scopes", "repositories"];
         deserializer.deserialize_struct("Repositories", FIELDS, RepositoriesVisitor)
     }
 }

@@ -89,7 +89,6 @@ impl Clone for RepoState {
         Self {
             repo: self.repo.clone(),
             serve: self.serve.clone(),
-            // fallback: self.fallback.clone(),
         }
     }
 }
@@ -146,139 +145,183 @@ pub async fn serve_archive(
     tracing::info!("{message} '{raw_archive_path}' on http://{bind}:{port}.",);
 
     let archive = Archive::parse(archive_path, &PathBuf::from(raw_archive_path), individual)
-        .unwrap_or_else(|_| {
+        .unwrap_or_else(|err| {
             tracing::error!("Unable to parse archive at '{raw_archive_path}'.");
+            tracing::error!("Error: {:?}", err);
             std::process::exit(1);
         });
     let state = AppState { archive };
 
-    HttpServer::new(move || init_app(state.clone()))
-        .bind((bind, port))?
-        .run()
-        .await
+    HttpServer::new(move || {
+        init_app(&state).unwrap_or_else(|err| {
+            tracing::error!("Unable to initialize app.");
+            tracing::error!("Error: {:?}", err);
+            std::process::exit(1);
+        })
+    })
+    .bind((bind, port))?
+    .run()
+    .await
 }
 
 /// Initialize the application
-#[must_use]
+///
+/// # Arguments
+/// * `state` - The application state
+/// # Errors
+/// Will error if unable to initialize the application
 pub fn init_app(
-    state: AppState,
-) -> App<
-    impl ServiceFactory<
-        ServiceRequest,
-        Response = ServiceResponse<impl MessageBody>,
-        Config = (),
-        InitError = (),
-        Error = Error,
+    state: &AppState,
+) -> anyhow::Result<
+    App<
+        impl ServiceFactory<
+            ServiceRequest,
+            Response = ServiceResponse<impl MessageBody>,
+            Config = (),
+            InitError = (),
+            Error = Error,
+        >,
     >,
 > {
-    let config = state.archive.get_config().unwrap_or_else(|_| {
-        tracing::error!("Unable to parse config file.");
-        std::process::exit(1);
-    });
+    let config = state.archive.get_config()?;
     let stelae_guard = config
         .headers
         .and_then(|headers| headers.current_documents_guard);
 
-    match stelae_guard {
-        Some(guard) => {
+    stelae_guard.map_or_else(
+        || {
+            tracing::info!("Initializing app");
+            let root = state.archive.get_root()?;
+            let shared_state = init_shared_app_state(root)?;
+            Ok(App::new().service(
+                web::scope("")
+                    .app_data(web::Data::new(shared_state))
+                    .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
+                    .configure(|cfg| {
+                        init_routes(cfg, state, root).unwrap_or_else(|_| {
+                            tracing::error!(
+                                "Failed to initialize routes for root Stele: {}",
+                                root.get_qualified_name()
+                            );
+                            std::process::exit(1);
+                        });
+                    }),
+            ))
+        },
+        |guard| {
+            tracing::info!("Guarding current documents with header: {}", guard);
             HEADER_NAME.get_or_init(|| guard);
             HEADER_VALUES.get_or_init(|| {
                 state
                     .archive
                     .stelae
                     .keys()
-                    .map(|name| name.to_string())
+                    .map(ToString::to_string)
                     .collect()
             });
 
             let mut app = App::new();
-            if let Some(guard_values) = HEADER_VALUES.get() {
-                for value in guard_values {
-                    let stele = state.archive.stelae.get(value);
-                    if let Some(stele) = stele {
-                        let shared_state = init_shared_app_state(stele); // TODO: should each stele should have its own fallback repository?
+            if let (Some(guard_name), Some(guard_values)) = (HEADER_NAME.get(), HEADER_VALUES.get())
+            {
+                for guard_value in guard_values {
+                    let stele = state.archive.stelae.get(guard_value);
+                    if let Some(guarded_stele) = stele {
+                        let shared_state = init_shared_app_state(guarded_stele)?;
                         let mut stelae_scope = web::scope("");
-                        stelae_scope = stelae_scope
-                            .guard(guard::Header(HEADER_NAME.get().unwrap().as_str(), value));
+                        stelae_scope = stelae_scope.guard(guard::Header(guard_name, guard_value));
                         app = app.service(
                             stelae_scope
                                 .app_data(web::Data::new(shared_state))
                                 .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
-                                .configure(|cfg| init_routes_single_stele(cfg, &stele)),
+                                .configure(|cfg| {
+                                    init_routes_single_stele(cfg, guarded_stele).unwrap_or_else(
+                                        |_| {
+                                            tracing::error!(
+                                                "Failed to initialize routes for Stele: {}",
+                                                guarded_stele.get_qualified_name()
+                                            );
+                                            std::process::exit(1);
+                                        },
+                                    );
+                                }),
                         );
                     }
                 }
             }
-            app
-        }
-        None => {
-            let root = state.archive.get_root().unwrap();
-            let shared_state = init_shared_app_state(root);
-            App::new().service(
-                web::scope("")
-                    .app_data(web::Data::new(shared_state))
-                    .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
-                    .configure(|cfg| init_routes(cfg, state)),
-            )
-        }
-    }
+            Ok(app)
+        },
+    )
 }
 
-fn init_routes_single_stele(cfg: &mut web::ServiceConfig, stele: &Stele) {
+/// Init Actix routing for a single Stele
+fn init_routes_single_stele(cfg: &mut web::ServiceConfig, stele: &Stele) -> anyhow::Result<()> {
     let mut root_scope: Scope = web::scope("");
-    if let &Some(ref repositories) = &stele.repositories {
-        let sorted_repositories = repositories.get_sorted_repositories();
-        for repository in &sorted_repositories {
-            let custom = &repository.custom;
-            let repo_state = {
-                let name = &repository.name;
-                let mut repo_path = stele.archive_path.to_string_lossy().into_owned();
-                repo_path = format!("{repo_path}/{name}");
-                RepoState {
-                    repo: Repo {
-                        archive_path: stele.archive_path.to_string_lossy().to_string(),
-                        path: PathBuf::from(repo_path.clone()),
-                        org: stele.auth_repo.org.to_string(),
-                        name: name.to_string(),
-                        repo: Repository::open(repo_path).expect("Unable to open Git repository"),
-                    },
-                    serve: custom.serve.clone(),
-                }
-            };
-            for route in custom.routes.iter().flat_map(|r| r.iter()) {
-                //ignore routes in child stele that start with underscore
-                if route.starts_with('_') {
-                    // TODO: I think this is not necessary
-                    // TODO: append route to root stele scope
-                    continue;
-                }
-                let actix_route = format!("/{{tail:{}}}", &route);
-                root_scope = root_scope.service(
-                    web::resource(actix_route.as_str())
-                        .route(web::get().to(serve))
-                        .app_data(web::Data::new(repo_state.clone())),
-                );
-            }
-            if let &Some(ref underscore_scope) = &custom.scope {
-                let actix_underscore_scope = web::scope(underscore_scope.as_str()).service(
-                    web::scope("").service(
-                        web::resource("/{tail:.*}")
+    stele.repositories.as_ref().map_or_else(
+        || {
+            tracing::debug!("No data repositories found in Stele. Skipping initializing routes.");
+            Ok::<(), anyhow::Error>(())
+        },
+        |repositories| {
+            let sorted_repositories = repositories.get_sorted_repositories();
+            for repository in &sorted_repositories {
+                let custom = &repository.custom;
+                let repo_state = init_repo_state(repository, stele)?;
+                for route in custom.routes.iter().flat_map(|r| r.iter()) {
+                    if route.starts_with('_') {
+                        // Ignore routes in child stele that start with underscore
+                        // TODO: I think this is not necessary
+                        // TODO: append route to root stele scope
+                        continue;
+                    }
+                    let actix_route = format!("/{{tail:{}}}", &route);
+                    root_scope = root_scope.service(
+                        web::resource(actix_route.as_str())
                             .route(web::get().to(serve))
                             .app_data(web::Data::new(repo_state.clone())),
-                    ),
-                );
-                cfg.service(actix_underscore_scope);
+                    );
+                }
+                if let &Some(ref underscore_scope) = &custom.scope {
+                    let actix_underscore_scope = web::scope(underscore_scope.as_str()).service(
+                        web::scope("").service(
+                            web::resource("/{tail:.*}")
+                                .route(web::get().to(serve))
+                                .app_data(web::Data::new(repo_state.clone())),
+                        ),
+                    );
+                    cfg.service(actix_underscore_scope);
+                }
             }
-        }
-        cfg.service(root_scope);
-    }
+            cfg.service(root_scope);
+            Ok(())
+        },
+    )
+}
+
+/// Initialize the data repository used in the Actix route
+/// Each Actix route has its own data repository
+///
+/// # Errors
+/// Will error if unable to initialize the data repository
+fn init_repo_state(repo: &Repository, stele: &Stele) -> anyhow::Result<RepoState> {
+    let name = &repo.name;
+    let custom = &repo.custom;
+    let mut repo_path = stele.archive_path.to_string_lossy().into_owned();
+    repo_path = format!("{repo_path}/{name}");
+    Ok(RepoState {
+        repo: Repo {
+            archive_path: stele.archive_path.to_string_lossy().to_string(),
+            path: PathBuf::from(&repo_path),
+            org: stele.auth_repo.org.clone(),
+            name: name.clone(),
+            repo: GitRepository::open(&repo_path)?,
+        },
+        serve: custom.serve.clone(),
+    })
 }
 
 /// Routes
-fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
+fn init_routes(cfg: &mut web::ServiceConfig, state: &AppState, root: &Stele) -> anyhow::Result<()> {
     let mut scopes: Vec<Scope> = vec![];
-    // initialize root stele routes and scopes
-    let root = state.archive.get_root().unwrap();
     let mut root_scope: Scope = web::scope("");
 
     // TODO: this has to get moved to a function
@@ -289,25 +332,10 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
             if stele.get_qualified_name() == root.get_qualified_name() {
                 for repository in &sorted_repositories {
                     let custom = &repository.custom;
-                    let repo_state = {
-                        let name = &repository.name;
-                        let mut repo_path = state.archive.path.to_string_lossy().into_owned();
-                        repo_path = format!("{repo_path}/{name}");
-                        RepoState {
-                            repo: Repo {
-                                archive_path: state.archive.path.to_string_lossy().to_string(),
-                                path: PathBuf::from(repo_path.clone()),
-                                org: stele.auth_repo.org.to_string(),
-                                name: name.to_string(),
-                                repo: Repository::open(repo_path)
-                                    .expect("Unable to open Git repository"),
-                            },
-                            serve: custom.serve.clone(),
-                        }
-                    };
+                    let repo_state = init_repo_state(repository, stele)?;
                     for route in custom.routes.iter().flat_map(|r| r.iter()) {
-                        //ignore routes in child stele that start with underscore
                         if route.starts_with('_') {
+                            // Ignore routes in child stele that start with underscore
                             // TODO: append route to root stele scope
                             continue;
                         }
@@ -335,25 +363,9 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
             for scope in repositories.scopes.iter().flat_map(|s| s.iter()) {
                 let scope_str = format!("/{{prefix:{}}}", &scope.as_str());
                 let mut actix_scope = web::scope(scope_str.as_str());
-                // dbg!(&scope);
                 for repository in &sorted_repositories {
                     let custom = &repository.custom;
-                    let repo_state = {
-                        let name = &repository.name;
-                        let mut repo_path = state.archive.path.to_string_lossy().into_owned();
-                        repo_path = format!("{repo_path}/{name}");
-                        RepoState {
-                            repo: Repo {
-                                archive_path: state.archive.path.to_string_lossy().to_string(),
-                                path: PathBuf::from(repo_path.clone()),
-                                org: stele.auth_repo.org.to_string(),
-                                name: name.to_string(),
-                                repo: Repository::open(repo_path)
-                                    .expect("Unable to open Git repository"),
-                            },
-                            serve: custom.serve.clone(),
-                        }
-                    };
+                    let repo_state = init_repo_state(repository, stele)?;
                     for route in custom.routes.iter().flat_map(|r| r.iter()) {
                         //ignore routes in child stele that start with underscore
                         if route.starts_with('_') {
@@ -388,6 +400,7 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
     }
     // Register root stele scope last
     cfg.service(root_scope);
+    Ok(())
 }
 
 /// Initialize the shared application state
@@ -395,16 +408,18 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: AppState) {
 ///     - fallback: used as a data repository to resolve data when no other url matches the request
 /// # Returns
 /// Returns a `SharedState` object
-/// # Panics
-/// Will panic if `get_name_parts` or `Repo::new` fails
-#[must_use]
-pub fn init_shared_app_state(stele: &Stele) -> SharedState {
-    let fallback = stele.get_fallback_repo().map(|repo| {
-        let (org, name) = get_name_parts(&repo.name).unwrap();
-        RepoState {
-            repo: Repo::new(&stele.archive_path, &org, &name).unwrap(),
-            serve: repo.custom.serve,
-        }
-    });
-    SharedState { fallback }
+/// # Errors
+/// Will error if unable to open the git repo for the fallback data repository
+pub fn init_shared_app_state(stele: &Stele) -> anyhow::Result<SharedState> {
+    let fallback = stele
+        .get_fallback_repo()
+        .map(|repo| {
+            let (org, name) = get_name_parts(&repo.name)?;
+            Ok::<RepoState, anyhow::Error>(RepoState {
+                repo: Repo::new(&stele.archive_path, &org, &name)?,
+                serve: repo.custom.serve.clone(),
+            })
+        })
+        .transpose()?;
+    Ok(SharedState { fallback })
 }
