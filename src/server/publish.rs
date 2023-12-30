@@ -274,7 +274,7 @@ fn init_routes_single_stele(cfg: &mut web::ServiceConfig, stele: &Stele) -> anyh
                             .app_data(web::Data::new(repo_state.clone())),
                     );
                 }
-                if let &Some(ref underscore_scope) = &custom.scope {
+                if let Some(underscore_scope) = custom.scope.as_ref() {
                     let actix_underscore_scope = web::scope(underscore_scope.as_str()).service(
                         web::scope("").service(
                             web::resource("/{tail:.*}")
@@ -320,7 +320,7 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: &AppState, root: &Stele) -> 
 
     // TODO: this has to get moved to a function
     for stele in state.archive.stelae.values() {
-        if let &Some(ref repositories) = &stele.repositories {
+        if let Some(repositories) = stele.repositories.as_ref() {
             // Root Stele
             let sorted_repositories = repositories.get_sorted_repositories();
             if stele.get_qualified_name() == root.get_qualified_name() {
@@ -335,7 +335,7 @@ fn init_routes(cfg: &mut web::ServiceConfig, state: &AppState, root: &Stele) -> 
                                 .app_data(web::Data::new(repo_state.clone())),
                         );
                     }
-                    if let &Some(ref underscore_scope) = &custom.scope {
+                    if let Some(underscore_scope) = custom.scope.as_ref() {
                         let actix_underscore_scope = web::scope(underscore_scope.as_str()).service(
                             web::scope("").service(
                                 web::resource("/{tail:.*}")
