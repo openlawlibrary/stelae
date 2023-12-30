@@ -110,27 +110,21 @@ async fn serve(
     shared: web::Data<SharedState>,
     data: web::Data<RepoState>,
 ) -> impl Responder {
-    let prefix: String = req
+    let prefix = req
         .match_info()
         .get("prefix")
         .unwrap_or_default()
-        .parse()
-        .unwrap();
-    let tail: String = req.match_info().get("tail").unwrap().parse().unwrap();
-    let mut path = format!("{}/{}", prefix, tail);
+        .to_owned();
+    let tail = req.match_info().get("tail").unwrap_or_default().to_owned();
+    let mut path = format!("{prefix}/{tail}");
     path = clean_path(&path);
-    let blob = data.repo.get_bytes_at_path("HEAD", &path);
+    let blob = data.repo.get_bytes_at_path(HEAD_COMMIT, &path);
     let contenttype = get_contenttype(&path);
-    format!(
-        "{}, {}",
-        req.path().to_owned(),
-        data.repo.path.to_string_lossy()
-    );
     if let Ok(content) = blob {
         HttpResponse::Ok().insert_header(contenttype).body(content)
     } else if let Some(ref fallback) = shared.fallback {
-        let blob = fallback.repo.get_bytes_at_path("HEAD", &path);
-        blob.map_or_else(
+        let fallback_blob = fallback.repo.get_bytes_at_path(HEAD_COMMIT, &path);
+        fallback_blob.map_or_else(
             |_| HttpResponse::BadRequest().into(),
             |content| HttpResponse::Ok().insert_header(contenttype).body(content),
         )
