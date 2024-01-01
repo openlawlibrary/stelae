@@ -102,8 +102,8 @@ impl Clone for SharedState {
     }
 }
 
-#[allow(clippy::future_not_send)]
 /// Serve current document
+#[allow(clippy::future_not_send)]
 async fn serve(
     req: HttpRequest,
     shared: web::Data<SharedState>,
@@ -117,18 +117,35 @@ async fn serve(
     let tail = req.match_info().get("tail").unwrap_or_default().to_owned();
     let mut path = format!("{prefix}/{tail}");
     path = clean_path(&path);
-    let blob = data.repo.get_bytes_at_path(HEAD_COMMIT, &path);
     let contenttype = get_contenttype(&path);
-    if let Ok(content) = blob {
-        HttpResponse::Ok().insert_header(contenttype).body(content)
-    } else if let Some(ref fallback) = shared.fallback {
-        let fallback_blob = fallback.repo.get_bytes_at_path(HEAD_COMMIT, &path);
-        fallback_blob.map_or_else(
-            |_| HttpResponse::BadRequest().into(),
-            |content| HttpResponse::Ok().insert_header(contenttype).body(content),
-        )
-    } else {
-        HttpResponse::BadRequest().into()
+    let blob = find_current_blob(&data.repo, &shared, &path);
+    match blob {
+        Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
+        Err(error) => {
+            tracing::error!("{error}",);
+            HttpResponse::BadRequest().into()
+        }
+    }
+}
+
+/// Find the latest blob for the given path from the given repo
+/// Latest blob is found by looking at the HEAD commit
+#[allow(clippy::panic_in_result_fn, clippy::unreachable)]
+#[tracing::instrument(name = "Finding document", skip(repo, shared))]
+fn find_current_blob(repo: &Repo, shared: &SharedState, path: &str) -> anyhow::Result<Vec<u8>> {
+    let blob = repo.get_bytes_at_path(HEAD_COMMIT, path);
+    match blob {
+        Ok(content) => Ok(content),
+        Err(error) => {
+            if let Some(ref fallback) = shared.fallback {
+                let fallback_blob = fallback.repo.get_bytes_at_path(HEAD_COMMIT, path);
+                return fallback_blob.map_or_else(
+                    |err| anyhow::bail!("No fallback blob found - {}", err.to_string()),
+                    Ok,
+                );
+            }
+            anyhow::bail!("No fallback repo - {}", error.to_string())
+        }
     }
 }
 
