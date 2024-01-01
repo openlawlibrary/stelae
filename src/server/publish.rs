@@ -181,7 +181,7 @@ pub async fn serve_archive(
     .await
 }
 
-/// Initialize the application
+/// Initialize the application and all possible routing at start-up time.
 ///
 /// # Arguments
 /// * `state` - The application state
