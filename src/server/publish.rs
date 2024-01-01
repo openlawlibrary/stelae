@@ -294,8 +294,9 @@ fn init_repo_state(repo: &Repository, stele: &Stele) -> anyhow::Result<RepoState
 }
 
 /// Registers all routes for the given Archive
-/// Each current document routes consists of two dynamic segments: {prefix}/{tail}.
-/// {prefix}
+/// Each current document routes consists of two dynamic segments: `{prefix}/{tail}`.
+/// prefix: the first part of the request uri, used to determine which dependent Stele to serve.
+/// tail: the remaining glob pattern path of the request uri.
 /// # Arguments
 /// * `cfg` - The Actix `ServiceConfig`
 /// * `state` - The application state
