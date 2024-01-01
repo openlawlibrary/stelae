@@ -215,7 +215,7 @@ pub fn init_app(
                     .app_data(web::Data::new(shared_state))
                     .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
                     .configure(|cfg| {
-                        init_routes(cfg, state, root).unwrap_or_else(|_| {
+                        register_routes(cfg, state).unwrap_or_else(|_| {
                             tracing::error!(
                                 "Failed to initialize routes for root Stele: {}",
                                 root.get_qualified_name()
@@ -226,7 +226,10 @@ pub fn init_app(
             ))
         },
         |guard| {
-            tracing::info!("Guarding current documents with header: {}", guard);
+            tracing::info!(
+                "Initializing guarded current documents with header: {}",
+                guard
+            );
             HEADER_NAME.get_or_init(|| guard);
             HEADER_VALUES.get_or_init(|| {
                 state
@@ -251,59 +254,19 @@ pub fn init_app(
                                 .app_data(web::Data::new(shared_state))
                                 .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
                                 .configure(|cfg| {
-                                    init_routes_single_stele(cfg, guarded_stele).unwrap_or_else(
-                                        |_| {
-                                            tracing::error!(
-                                                "Failed to initialize routes for Stele: {}",
-                                                guarded_stele.get_qualified_name()
-                                            );
-                                            std::process::exit(1);
-                                        },
-                                    );
+                                    register_root_routes(cfg, guarded_stele).unwrap_or_else(|_| {
+                                        tracing::error!(
+                                            "Failed to initialize routes for Stele: {}",
+                                            guarded_stele.get_qualified_name()
+                                        );
+                                        std::process::exit(1);
+                                    });
                                 }),
                         );
                     }
                 }
             }
             Ok(app)
-        },
-    )
-}
-
-/// Init Actix routing for a single Stele
-fn init_routes_single_stele(cfg: &mut web::ServiceConfig, stele: &Stele) -> anyhow::Result<()> {
-    let mut root_scope: Scope = web::scope("");
-    stele.repositories.as_ref().map_or_else(
-        || {
-            tracing::debug!("No data repositories found in Stele. Skipping initializing routes.");
-            Ok::<(), anyhow::Error>(())
-        },
-        |repositories| {
-            let sorted_repositories = repositories.get_sorted_repositories();
-            for repository in &sorted_repositories {
-                let custom = &repository.custom;
-                let repo_state = init_repo_state(repository, stele)?;
-                for route in custom.routes.iter().flat_map(|r| r.iter()) {
-                    let actix_route = format!("/{{tail:{}}}", &route);
-                    root_scope = root_scope.service(
-                        web::resource(actix_route.as_str())
-                            .route(web::get().to(serve))
-                            .app_data(web::Data::new(repo_state.clone())),
-                    );
-                }
-                if let Some(underscore_scope) = custom.scope.as_ref() {
-                    let actix_underscore_scope = web::scope(underscore_scope.as_str()).service(
-                        web::scope("").service(
-                            web::resource("/{tail:.*}")
-                                .route(web::get().to(serve))
-                                .app_data(web::Data::new(repo_state.clone())),
-                        ),
-                    );
-                    cfg.service(actix_underscore_scope);
-                }
-            }
-            cfg.service(root_scope);
-            Ok(())
         },
     )
 }
@@ -330,70 +293,25 @@ fn init_repo_state(repo: &Repository, stele: &Stele) -> anyhow::Result<RepoState
     })
 }
 
-/// Routes
-fn init_routes(cfg: &mut web::ServiceConfig, state: &AppState, root: &Stele) -> anyhow::Result<()> {
-    let mut scopes: Vec<Scope> = vec![];
-    let mut root_scope: Scope = web::scope("");
-
-    // TODO: this has to get moved to a function
+/// Registers all routes for the given Archive
+/// Each current document routes consists of two dynamic segments: {prefix}/{tail}.
+/// {prefix}
+/// # Arguments
+/// * `cfg` - The Actix `ServiceConfig`
+/// * `state` - The application state
+/// # Errors
+/// Will error if unable to register routes (e.g. if git repository cannot be opened)
+fn register_routes(cfg: &mut web::ServiceConfig, state: &AppState) -> anyhow::Result<()> {
     for stele in state.archive.stelae.values() {
         if let Some(repositories) = stele.repositories.as_ref() {
-            // Root Stele
-            let sorted_repositories = repositories.get_sorted_repositories();
-            if stele.get_qualified_name() == root.get_qualified_name() {
-                for repository in &sorted_repositories {
-                    let custom = &repository.custom;
-                    let repo_state = init_repo_state(repository, stele)?;
-                    for route in custom.routes.iter().flat_map(|r| r.iter()) {
-                        let actix_route = format!("/{{tail:{}}}", &route);
-                        root_scope = root_scope.service(
-                            web::resource(actix_route.as_str())
-                                .route(web::get().to(serve))
-                                .app_data(web::Data::new(repo_state.clone())),
-                        );
-                    }
-                    if let Some(underscore_scope) = custom.scope.as_ref() {
-                        let actix_underscore_scope = web::scope(underscore_scope.as_str()).service(
-                            web::scope("").service(
-                                web::resource("/{tail:.*}")
-                                    .route(web::get().to(serve))
-                                    .app_data(web::Data::new(repo_state.clone())),
-                            ),
-                        );
-                        scopes.push(actix_underscore_scope);
-                    }
-                }
+            if stele.is_root() {
                 continue;
             }
-            //Child Stele
-            for scope in repositories.scopes.iter().flat_map(|s| s.iter()) {
-                let scope_str = format!("/{{prefix:{}}}", &scope.as_str());
-                let mut actix_scope = web::scope(scope_str.as_str());
-                for repository in &sorted_repositories {
-                    let custom = &repository.custom;
-                    let repo_state = init_repo_state(repository, stele)?;
-                    for route in custom.routes.iter().flat_map(|r| r.iter()) {
-                        if route.starts_with('_') {
-                            // Ignore routes in child stele that start with underscore
-                            continue;
-                        }
-                        let actix_route = format!("/{{tail:{}}}", &route);
-                        actix_scope = actix_scope.service(
-                            web::resource(actix_route.as_str())
-                                .route(web::get().to(serve))
-                                .app_data(web::Data::new(repo_state.clone())),
-                        );
-                    }
-                }
-                scopes.push(actix_scope);
-            }
+            register_dependent_routes(cfg, stele, repositories)?;
         }
     }
-    for scope in scopes {
-        cfg.service(scope);
-    }
-    // Register root stele scope last
-    cfg.service(root_scope);
+    let root = state.archive.get_root()?;
+    register_root_routes(cfg, root)?;
     Ok(())
 }
 
