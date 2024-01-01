@@ -2,7 +2,7 @@
 #![allow(clippy::exit)]
 #![allow(clippy::unused_async)]
 use crate::stelae::archive::Archive;
-use crate::stelae::types::repositories::Repository;
+use crate::stelae::types::repositories::{Repositories, Repository};
 use crate::utils::archive::get_name_parts;
 use crate::utils::git::Repo;
 use crate::utils::http::get_contenttype;
@@ -122,7 +122,7 @@ async fn serve(
     match blob {
         Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
         Err(error) => {
-            tracing::error!("{error}",);
+            tracing::debug!("{path}: {error}",);
             HttpResponse::BadRequest().into()
         }
     }
