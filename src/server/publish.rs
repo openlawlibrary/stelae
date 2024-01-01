@@ -417,3 +417,80 @@ pub fn init_shared_app_state(stele: &Stele) -> anyhow::Result<SharedState> {
         .transpose()?;
     Ok(SharedState { fallback })
 }
+
+/// Register routes for the root Stele
+/// Root Stele is the Stele specified in config.toml
+/// # Arguments
+/// * `cfg` - The Actix `ServiceConfig`
+/// * `stele` - The root Stele
+/// # Errors
+/// Will error if unable to register routes (e.g. if git repository cannot be opened)
+fn register_root_routes(cfg: &mut web::ServiceConfig, stele: &Stele) -> anyhow::Result<()> {
+    let mut root_scope: Scope = web::scope("");
+    if let Some(repositories) = stele.repositories.as_ref() {
+        let sorted_repositories = repositories.get_sorted_repositories();
+        for repository in sorted_repositories {
+            let custom = &repository.custom;
+            let repo_state = init_repo_state(repository, stele)?;
+            for route in custom.routes.iter().flat_map(|r| r.iter()) {
+                let actix_route = format!("/{{tail:{}}}", &route);
+                root_scope = root_scope.service(
+                    web::resource(actix_route.as_str())
+                        .route(web::get().to(serve))
+                        .app_data(web::Data::new(repo_state.clone())),
+                );
+            }
+            if let Some(underscore_scope) = custom.scope.as_ref() {
+                let actix_underscore_scope = web::scope(underscore_scope.as_str()).service(
+                    web::scope("").service(
+                        web::resource("/{tail:.*}")
+                            .route(web::get().to(serve))
+                            .app_data(web::Data::new(repo_state.clone())),
+                    ),
+                );
+                cfg.service(actix_underscore_scope);
+            }
+        }
+        cfg.service(root_scope);
+    }
+    Ok(())
+}
+
+/// Register routes for dependent Stele
+/// Dependent Stele are all Steles' specified in the root Stele's `dependencies.json` config file.
+/// # Arguments
+/// * `cfg` - The Actix `ServiceConfig`
+/// * `stele` - The root Stele
+/// * `repositories` - Data repositories of the dependent Stele
+/// # Errors
+/// Will error if unable to register routes (e.g. if git repository cannot be opened)
+fn register_dependent_routes(
+    cfg: &mut web::ServiceConfig,
+    stele: &Stele,
+    repositories: &Repositories,
+) -> anyhow::Result<()> {
+    let sorted_repositories = repositories.get_sorted_repositories();
+    for scope in repositories.scopes.iter().flat_map(|s| s.iter()) {
+        let scope_str = format!("/{{prefix:{}}}", &scope.as_str());
+        let mut actix_scope = web::scope(scope_str.as_str());
+        for repository in &sorted_repositories {
+            let custom = &repository.custom;
+            let repo_state = init_repo_state(repository, stele)?;
+            for route in custom.routes.iter().flat_map(|r| r.iter()) {
+                if route.starts_with('_') {
+                    // Ignore routes in dependent Stele that start with underscore
+                    // These routes are handled by the root Stele.
+                    continue;
+                }
+                let actix_route = format!("/{{tail:{}}}", &route);
+                actix_scope = actix_scope.service(
+                    web::resource(actix_route.as_str())
+                        .route(web::get().to(serve))
+                        .app_data(web::Data::new(repo_state.clone())),
+                );
+            }
+        }
+        cfg.service(actix_scope);
+    }
+    Ok(())
+}
