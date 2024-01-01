@@ -19,7 +19,7 @@ jobs:
         uses: hustcer/setup-nu@v3
         env:
           GITHUB_TOKEN: ${{ secrets.STELAE_GITHUB_TOKEN }}
-      
+
       - name: Install Just
         uses: extractions/setup-just@v1
         env:
@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.70 # Pin based on current `rust-version` in Cargo.toml. IMPORTANT: Upgrade version when `rust-version` changes.
         with:
           components: rustfmt, clippy
 
