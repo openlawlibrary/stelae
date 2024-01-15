@@ -9,6 +9,7 @@ pub mod init;
 pub struct Database;
 
 /// Database connection.
+#[derive(Debug, Clone)]
 pub enum DatabaseConnection {
     /// SQLite connection.
     Sqlite(sqlx::SqlitePool),
