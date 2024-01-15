@@ -5,7 +5,7 @@ use serde::{
     de::{self, MapAccess, Visitor},
     Deserialize, Deserializer,
 };
-use serde_derive::{Deserialize, Serialize};
+use serde_derive::Serialize;
 use serde_json::Value;
 
 /// Repositories object
