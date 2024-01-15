@@ -1,6 +1,7 @@
 //! Serve documents in a Stelae archive.
 #![allow(clippy::exit)]
 #![allow(clippy::unused_async)]
+use crate::db;
 use crate::stelae::archive::Archive;
 use crate::stelae::types::repositories::{Repositories, Repository};
 use crate::utils::archive::get_name_parts;
@@ -37,10 +38,30 @@ fn clean_path(path: &str) -> String {
 }
 
 /// Global, read-only state
+pub trait GlobalState {
+    /// Fully initialized Stelae archive
+    fn archive(&self) -> &Archive;
+    /// Database connection
+    fn db(&self) -> &db::DatabaseConnection;
+}
+
+/// Application state
 #[derive(Debug, Clone)]
 pub struct AppState {
     /// Fully initialized Stelae archive
     pub archive: Archive,
+    /// Database connection
+    pub db: db::DatabaseConnection,
+}
+
+impl GlobalState for AppState {
+    fn archive(&self) -> &Archive {
+        &self.archive
+    }
+
+    fn db(&self) -> &db::DatabaseConnection {
+        &self.db
+    }
 }
 
 /// Git repository to serve
@@ -161,13 +182,24 @@ pub async fn serve_archive(
     let message = "Running Publish Server on a Stelae archive at";
     tracing::info!("{message} '{raw_archive_path}' on http://{bind}:{port}.",);
 
+    let db = match db::init::connect(&archive_path).await {
+        Ok(db) => db,
+        Err(err) => {
+            tracing::error!(
+                "error: could not connect to database. Confirm that DATABASE_URL env var is set correctly."
+            );
+            tracing::error!("Error: {:?}", err);
+            std::process::exit(1);
+        }
+    };
+
     let archive = Archive::parse(archive_path, &PathBuf::from(raw_archive_path), individual)
         .unwrap_or_else(|err| {
             tracing::error!("Unable to parse archive at '{raw_archive_path}'.");
             tracing::error!("Error: {:?}", err);
             std::process::exit(1);
         });
-    let state = AppState { archive };
+    let state = AppState { archive, db };
 
     HttpServer::new(move || {
         init_app(&state).unwrap_or_else(|err| {
@@ -187,8 +219,8 @@ pub async fn serve_archive(
 /// * `state` - The application state
 /// # Errors
 /// Will error if unable to initialize the application
-pub fn init_app(
-    state: &AppState,
+pub fn init_app<T: GlobalState>(
+    state: &T,
 ) -> anyhow::Result<
     App<
         impl ServiceFactory<
@@ -200,7 +232,7 @@ pub fn init_app(
         >,
     >,
 > {
-    let config = state.archive.get_config()?;
+    let config = state.archive().get_config()?;
     let stelae_guard = config
         .headers
         .and_then(|headers| headers.current_documents_guard);
@@ -208,7 +240,7 @@ pub fn init_app(
     stelae_guard.map_or_else(
         || {
             tracing::info!("Initializing app");
-            let root = state.archive.get_root()?;
+            let root = state.archive().get_root()?;
             let shared_state = init_shared_app_state(root)?;
             Ok(App::new().service(
                 web::scope("")
@@ -233,7 +265,7 @@ pub fn init_app(
             HEADER_NAME.get_or_init(|| guard);
             HEADER_VALUES.get_or_init(|| {
                 state
-                    .archive
+                    .archive()
                     .stelae
                     .keys()
                     .map(ToString::to_string)
@@ -244,7 +276,7 @@ pub fn init_app(
             if let (Some(guard_name), Some(guard_values)) = (HEADER_NAME.get(), HEADER_VALUES.get())
             {
                 for guard_value in guard_values {
-                    let stele = state.archive.stelae.get(guard_value);
+                    let stele = state.archive().stelae.get(guard_value);
                     if let Some(guarded_stele) = stele {
                         let shared_state = init_shared_app_state(guarded_stele)?;
                         let mut stelae_scope = web::scope("");
@@ -302,8 +334,8 @@ fn init_repo_state(repo: &Repository, stele: &Stele) -> anyhow::Result<RepoState
 /// * `state` - The application state
 /// # Errors
 /// Will error if unable to register routes (e.g. if git repository cannot be opened)
-fn register_routes(cfg: &mut web::ServiceConfig, state: &AppState) -> anyhow::Result<()> {
-    for stele in state.archive.stelae.values() {
+fn register_routes<T: GlobalState>(cfg: &mut web::ServiceConfig, state: &T) -> anyhow::Result<()> {
+    for stele in state.archive().stelae.values() {
         if let Some(repositories) = stele.repositories.as_ref() {
             if stele.is_root() {
                 continue;
@@ -311,7 +343,7 @@ fn register_routes(cfg: &mut web::ServiceConfig, state: &AppState) -> anyhow::Re
             register_dependent_routes(cfg, stele, repositories)?;
         }
     }
-    let root = state.archive.get_root()?;
+    let root = state.archive().get_root()?;
     register_root_routes(cfg, root)?;
     Ok(())
 }
