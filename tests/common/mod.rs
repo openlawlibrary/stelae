@@ -9,12 +9,13 @@ use actix_web::{
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::sync::Once;
+use stelae::{db, server::publish::GlobalState};
 use tempfile::Builder;
 static INIT: Once = Once::new();
 
 use actix_http::body::MessageBody;
 
-use stelae::server::publish::{init_app, AppState};
+use stelae::server::publish::init_app;
 use stelae::stelae::archive::Archive;
 
 pub const BASIC_MODULE_NAME: &str = "basic";
@@ -30,11 +31,24 @@ pub fn blob_to_string(blob: Vec<u8>) -> String {
 // to manually inspect state of test environment at present,
 // we use anyhow::bail!() which aborts the entire test suite.
 
+pub struct TestAppState {
+    archive: Archive,
+}
+
+impl GlobalState for TestAppState {
+    fn archive(&self) -> &Archive {
+        &self.archive
+    }
+    fn db(&self) -> &db::DatabaseConnection {
+        unimplemented!()
+    }
+}
+
 pub async fn initialize_app(
     archive_path: &Path,
 ) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = Error> {
     let archive = Archive::parse(archive_path.to_path_buf(), archive_path, false).unwrap();
-    let state = AppState { archive };
+    let state = TestAppState { archive };
     let app = init_app(&state).unwrap();
     test::init_service(app).await
 }
