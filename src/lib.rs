@@ -85,7 +85,7 @@
     clippy::semicolon_outside_block,
 )]
 
+pub mod db;
 pub mod server;
 pub mod stelae;
 pub mod utils;
-pub mod db;

@@ -1,4 +1,6 @@
 //! Database related module.
+#![allow(clippy::unreachable)]
+use tracing::instrument;
 
 /// Database initialization.
 pub mod init;
@@ -19,6 +21,7 @@ impl Database {
     ///
     /// # Errors
     /// Errors if connection to database fails.
+    #[instrument(level = "trace")]
     pub async fn connect(db_url: &str) -> anyhow::Result<DatabaseConnection> {
         let connection = match db_url {
             url if url.starts_with("sqlite://") => {
