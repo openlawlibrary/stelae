@@ -253,7 +253,7 @@ pub fn get_dependent_data_repositories_with_scopes(
         for scope in scopes {
             let additional_paths: Vec<String> = default_paths
                 .iter()
-                .map(|path| format!("{}/{}", scope, path))
+                .map(|path| format!("{scope}/{path}"))
                 .collect();
             paths.extend(additional_paths.into_iter().map(|path| path.into()));
         }

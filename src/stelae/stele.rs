@@ -103,7 +103,11 @@ impl Stele {
     /// Get Stele's qualified name.
     #[must_use]
     pub fn get_qualified_name(&self) -> String {
-        format!("{}/{}", self.auth_repo.org, self.auth_repo.name)
+        format!(
+            "{org}/{name}",
+            org = self.auth_repo.org,
+            name = self.auth_repo.name
+        )
     }
 
     /// Get Stele's fallback repo.

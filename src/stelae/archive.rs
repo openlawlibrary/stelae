@@ -116,7 +116,11 @@ impl Archive {
                     false,
                 )?;
                 self.stelae
-                    .entry(format!("{}/{}", child.auth_repo.org, child.auth_repo.name))
+                    .entry(format!(
+                        "{org}/{name}",
+                        org = child.auth_repo.org,
+                        name = child.auth_repo.name
+                    ))
                     .or_insert_with(|| child.clone());
                 self.traverse_children(&child)?;
             }
