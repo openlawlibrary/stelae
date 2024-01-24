@@ -25,8 +25,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.STELAE_GITHUB_TOKEN }}
 
-      - name: Run tests
-        run: just test
+      - uses: taiki-e/install-action@v1
+        with:
+          tool: nextest
+      - name: Run tests (nextest)
+        run: just nextest
 
   lints:
     name: Lints

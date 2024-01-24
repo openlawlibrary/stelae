@@ -14,6 +14,8 @@ format:
 # Run all tests
 test:
   cargo test
+nextest:
+  cargo nextest run --all --no-fail-fast
 
 # Run clippy maximum strictness. Passes through any flags to clippy.
 clippy *FLAGS:
@@ -23,7 +25,7 @@ clippy *FLAGS:
     -D warnings \
 
 # Continuous integration - test, lint, benchmark
-ci: lint test bench
+ci: lint nextest bench
 
 # Run all benchmarks
 bench:
