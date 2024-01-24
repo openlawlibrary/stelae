@@ -41,7 +41,7 @@ impl Stele {
         path: Option<PathBuf>,
         root: bool,
     ) -> anyhow::Result<Self> {
-        let name = name.unwrap_or_else(|| "law".to_owned());
+        let name = name.unwrap_or_else(|| "law".into());
         let org = if let Some(org) = org {
             org
         } else {
@@ -51,7 +51,7 @@ impl Stele {
                 .context("file_name is None")?
                 .to_str()
                 .context("to_str failed")?
-                .to_owned()
+                .into()
         };
         let path = path.unwrap_or_else(|| archive_path.join(&org));
         let mut stele = Self {

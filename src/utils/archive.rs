@@ -28,7 +28,7 @@ pub fn get_name_parts(qualified_name: &str) -> anyhow::Result<(String, String)> 
     let mut name_parts = qualified_name.split('/');
     let org = name_parts.next().context("No organization specified");
     let name = name_parts.next().context("No name specified");
-    Ok((org?.to_owned(), name?.to_owned()))
+    Ok((org?.into(), name?.into()))
 }
 
 #[cfg(test)]
