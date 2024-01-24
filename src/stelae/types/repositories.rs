@@ -124,6 +124,15 @@ impl<'de> Deserialize<'de> for Repositories {
             where
                 V: MapAccess<'de>,
             {
+                RepositoriesVisitor::deserialize_repositories(&mut map)
+            }
+        }
+
+        impl RepositoriesVisitor {
+            fn deserialize_repositories<'de, V>(map: &mut V) -> Result<Repositories, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
                 let mut scopes = None;
                 let mut repositories = HashMap::new();
                 while let Some(key) = map.next_key()? {
@@ -132,25 +141,7 @@ impl<'de> Deserialize<'de> for Repositories {
                             scopes = map.next_value()?;
                         }
                         "repositories" => {
-                            let repos: HashMap<String, Value> = map.next_value()?;
-                            let mut new_repos = HashMap::new();
-                            for (map_key, value) in repos {
-                                let custom_value = value.get("custom").ok_or_else(|| {
-                                    serde::de::Error::custom("Missing 'custom' field")
-                                })?;
-                                let custom: Custom = serde_json::from_value(custom_value.clone())
-                                    .map_err(|e| {
-                                    serde::de::Error::custom(format!(
-                                        "Failed to deserialize 'custom': {e}"
-                                    ))
-                                })?;
-                                let repo = Repository {
-                                    name: map_key.clone(),
-                                    custom,
-                                };
-                                new_repos.insert(map_key, repo);
-                            }
-                            repositories = new_repos;
+                            repositories = Self::deserialize_repositories_values(map)?;
                         }
                         _ => {
                             return Err(de::Error::unknown_field(key, &["scopes", "repositories"]))
@@ -161,6 +152,31 @@ impl<'de> Deserialize<'de> for Repositories {
                     scopes,
                     repositories,
                 })
+            }
+
+            fn deserialize_repositories_values<'de, V>(
+                map: &mut V,
+            ) -> Result<HashMap<String, Repository>, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let repositories_json: HashMap<String, Value> = map.next_value()?;
+                let mut repositories = HashMap::new();
+                for (map_key, value) in repositories_json {
+                    let custom_value = value
+                        .get("custom")
+                        .ok_or_else(|| serde::de::Error::custom("Missing 'custom' field"))?;
+                    let custom: Custom =
+                        serde_json::from_value(custom_value.clone()).map_err(|e| {
+                            serde::de::Error::custom(format!("Failed to deserialize 'custom': {e}"))
+                        })?;
+                    let repo = Repository {
+                        name: map_key.clone(),
+                        custom,
+                    };
+                    repositories.insert(map_key, repo);
+                }
+                Ok(repositories)
             }
         }
         /// Expected fields in the `repositories.json` file.
