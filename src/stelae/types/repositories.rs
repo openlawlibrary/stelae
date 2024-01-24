@@ -124,11 +124,12 @@ impl<'de> Deserialize<'de> for Repositories {
             where
                 V: MapAccess<'de>,
             {
-                RepositoriesVisitor::deserialize_repositories(&mut map)
+                Self::deserialize_repositories(&mut map)
             }
         }
 
         impl RepositoriesVisitor {
+            /// Deserialize the repositories map from the `repositories.json` file.
             fn deserialize_repositories<'de, V>(map: &mut V) -> Result<Repositories, V::Error>
             where
                 V: MapAccess<'de>,
@@ -154,6 +155,7 @@ impl<'de> Deserialize<'de> for Repositories {
                 })
             }
 
+            /// Deserialize individual repositories from the `repositories.json` file.
             fn deserialize_repositories_values<'de, V>(
                 map: &mut V,
             ) -> Result<HashMap<String, Repository>, V::Error>
