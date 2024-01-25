@@ -4,7 +4,7 @@ use tempfile::TempDir;
 
 /// Stele testing framework requires working with bare repositories.
 /// One idea was to initialize the git2 repository as a bare repository, and add/commit files to the bare repo.
-/// However, this approach does not work because we index methods fail on bare repositories, see [1].
+/// However, this approach does not work because index methods fail on bare repositories, see [1].
 /// Instead, we initialized the git2 repository as a normal repository, and then convert the repository to a bare repository.
 ///
 /// [1] - https://libgit2.org/libgit2/#HEAD/group/index/git_index_add_all
