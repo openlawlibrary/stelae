@@ -3,7 +3,6 @@ pub mod utils;
 
 use anyhow::Result;
 use git2::{Commit, Error, Oid};
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -163,8 +162,7 @@ fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
     .unwrap();
 
     let dependent_stele_1_org_name = "dependent_stele_1";
-    let dependent_stele_1_scopes: Vec<Cow<'_, str>> =
-        vec!["sub/scope/1".into(), "sub/scope/2".into()];
+    let dependent_stele_1_scopes: Vec<String> = vec!["sub/scope/1".into(), "sub/scope/2".into()];
 
     initialize_stele(
         td.path().to_path_buf(),
@@ -177,8 +175,7 @@ fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
     .unwrap();
 
     let dependent_stele_2_org_name = "dependent_stele_2";
-    let dependent_stele_2_scopes: Vec<Cow<'_, str>> =
-        vec!["sub/scope/3".into(), "sub/scope/4".into()];
+    let dependent_stele_2_scopes: Vec<String> = vec!["sub/scope/3".into(), "sub/scope/4".into()];
 
     initialize_stele(
         td.path().to_path_buf(),
@@ -256,7 +253,7 @@ pub fn initialize_stele(
     path: PathBuf,
     org_name: &str,
     data_repositories: &[TestDataRepositoryContext],
-    scopes: Option<&Vec<Cow<'_, str>>>,
+    scopes: Option<&Vec<String>>,
 ) -> Result<()> {
     let path = path.join(org_name);
     init_data_repositories(&path, data_repositories)?;
@@ -268,7 +265,7 @@ pub fn init_auth_repository(
     path: &Path,
     org_name: &str,
     data_repositories: &[TestDataRepositoryContext],
-    scopes: Option<&Vec<Cow<'_, str>>>,
+    scopes: Option<&Vec<String>>,
 ) -> Result<GitRepository> {
     let mut path = path.to_path_buf();
     path.push("law");
@@ -288,11 +285,8 @@ pub fn init_auth_repository(
                     .repositories
                     .entry(repository.name.clone())
                     .or_insert(repository);
-                repositories.scopes = scopes.map(|vec| {
-                    vec.into_iter()
-                        .map(|cow| cow.clone().into_owned())
-                        .collect()
-                });
+                repositories.scopes =
+                    scopes.map(|vec| vec.into_iter().map(|scope| scope.into()).collect());
                 repositories
             });
     let content = serde_json::to_string_pretty(&repositories).unwrap();
@@ -310,7 +304,7 @@ pub fn init_data_repositories(
     let mut data_git_repositories: Vec<GitRepository> = Vec::new();
     for data_repo in data_repositories {
         let mut path = path.to_path_buf();
-        path.push(data_repo.name);
+        path.push(&data_repo.name);
         std::fs::create_dir_all(&path).unwrap();
         let git_repo = GitRepository::init(&path).unwrap();
         init_data_repository(&git_repo, data_repo)?;

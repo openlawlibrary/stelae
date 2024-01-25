@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::borrow::Cow;
+use std::path::PathBuf;
 pub use stelae::stelae::types::repositories::{Custom, Repositories, Repository};
 
 pub enum ArchiveType {
@@ -23,31 +23,31 @@ pub enum TestDataRepositoryType {
 /// Information about a data repository.
 ///
 /// This struct is used to initialize a data repository in the test suite.
-pub struct TestDataRepositoryContext<'repo> {
+pub struct TestDataRepositoryContext {
     /// The name of the data repository.
-    pub name: &'repo str,
+    pub name: String,
     /// The paths of the data repository.
-    pub paths: Vec<Cow<'static, str>>,
+    pub paths: Vec<String>,
     /// The kind of data repository.
     pub kind: TestDataRepositoryType,
     /// The prefix to use when serving the data repository.
     ///
     /// If `None`, the data repository will be served at the root.
     /// If `Some("prefix")`, the data repository will be served from `/prefix/<data>`.
-    pub serve_prefix: Option<&'repo str>,
+    pub serve_prefix: Option<String>,
     /// The route glob patterns to use when serving the data repository.
-    pub route_glob_patterns: Option<Vec<&'repo str>>,
+    pub route_glob_patterns: Option<Vec<String>>,
     /// Whether the data repository is a fallback.
     pub is_fallback: bool,
 }
 
-impl<'repo> TestDataRepositoryContext<'repo> {
+impl TestDataRepositoryContext {
     pub fn new(
-        name: &'repo str,
-        paths: Vec<Cow<'static, str>>,
+        name: String,
+        paths: Vec<String>,
         kind: TestDataRepositoryType,
-        serve_prefix: Option<&'repo str>,
-        route_glob_patterns: Option<Vec<&'repo str>>,
+        serve_prefix: Option<String>,
+        route_glob_patterns: Option<Vec<String>>,
         is_fallback: bool,
     ) -> Result<Self> {
         if let None = serve_prefix {
@@ -67,7 +67,7 @@ impl<'repo> TestDataRepositoryContext<'repo> {
         })
     }
 
-    pub fn default_html_paths() -> Vec<Cow<'static, str>> {
+    pub fn default_html_paths() -> Vec<String> {
         let paths = &[
             "./index.html",
             "./a/index.html",
@@ -79,7 +79,7 @@ impl<'repo> TestDataRepositoryContext<'repo> {
         paths.iter().map(|&x| x.into()).collect()
     }
 
-    pub fn default_rdf_paths() -> Vec<Cow<'static, str>> {
+    pub fn default_rdf_paths() -> Vec<String> {
         let paths = &[
             "./index.rdf",
             "./a/index.rdf",
@@ -91,7 +91,7 @@ impl<'repo> TestDataRepositoryContext<'repo> {
         paths.iter().map(|&x| x.into()).collect()
     }
 
-    pub fn default_xml_paths() -> Vec<Cow<'static, str>> {
+    pub fn default_xml_paths() -> Vec<String> {
         let paths = &[
             "./index.xml",
             "./a/index.xml",
@@ -103,17 +103,17 @@ impl<'repo> TestDataRepositoryContext<'repo> {
         paths.iter().map(|&x| x.into()).collect()
     }
 
-    pub fn default_pdf_paths() -> Vec<Cow<'static, str>> {
+    pub fn default_pdf_paths() -> Vec<String> {
         let paths = &["./example.pdf", "./a/example.pdf", "./a/b/example.pdf"];
         paths.iter().map(|&x| x.into()).collect()
     }
 
-    pub fn default_json_paths() -> Vec<Cow<'static, str>> {
+    pub fn default_json_paths() -> Vec<String> {
         let paths = &["./example.json", "./a/example.json", "./a/b/example.json"];
         paths.iter().map(|&x| x.into()).collect()
     }
 
-    pub fn default_other_paths() -> Vec<Cow<'static, str>> {
+    pub fn default_other_paths() -> Vec<String> {
         let paths = &[
             "./index.html",
             "./example.json",
@@ -130,34 +130,34 @@ impl<'repo> TestDataRepositoryContext<'repo> {
     }
 }
 
-pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContext<'static>>> {
+pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContext>> {
     Ok(vec![
         TestDataRepositoryContext::new(
-            "law-html",
+            "law-html".into(),
             TestDataRepositoryContext::default_html_paths(),
             TestDataRepositoryType::Html,
             None,
-            Some(vec![".*"]),
+            Some(vec![".*".into()]),
             false,
         )?,
         TestDataRepositoryContext::new(
-            "law-rdf",
+            "law-rdf".into(),
             TestDataRepositoryContext::default_rdf_paths(),
             TestDataRepositoryType::Rdf,
-            Some("_rdf"),
+            Some("_rdf".into()),
             None,
             false,
         )?,
         TestDataRepositoryContext::new(
-            "law-xml",
+            "law-xml".into(),
             TestDataRepositoryContext::default_xml_paths(),
             TestDataRepositoryType::Xml,
-            Some("_xml"),
+            Some("_xml".into()),
             None,
             false,
         )?,
         TestDataRepositoryContext::new(
-            "law-xml-codified",
+            "law-xml-codified".into(),
             vec![
                 "./index.xml".into(),
                 "./e/index.xml".into(),
@@ -165,32 +165,32 @@ pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContex
                 "./e/g/index.xml".into(),
             ],
             TestDataRepositoryType::Xml,
-            Some("_xml_codified"),
+            Some("_xml_codified".into()),
             None,
             false,
         )?,
         TestDataRepositoryContext::new(
-            "law-pdf",
+            "law-pdf".into(),
             TestDataRepositoryContext::default_pdf_paths(),
             TestDataRepositoryType::Pdf,
             None,
-            Some(vec![".*\\.pdf"]),
+            Some(vec![".*\\.pdf".into()]),
             false,
         )?,
         TestDataRepositoryContext::new(
-            "law-other",
+            "law-other".into(),
             TestDataRepositoryContext::default_other_paths(),
             TestDataRepositoryType::Other("example.json".to_string()),
             None,
-            Some(vec![".*_doc/.*", "_prefix/.*"]),
+            Some(vec![".*_doc/.*".into(), "_prefix/.*".into()]),
             true,
         )?,
     ])
 }
 
 pub fn get_dependent_data_repositories_with_scopes(
-    scopes: &Vec<Cow<'static, str>>,
-) -> Result<Vec<TestDataRepositoryContext<'static>>> {
+    scopes: &Vec<String>,
+) -> Result<Vec<TestDataRepositoryContext>> {
     let mut result = Vec::new();
     for kind in [
         TestDataRepositoryType::Html,
@@ -210,8 +210,8 @@ pub fn get_dependent_data_repositories_with_scopes(
 
         match kind {
             TestDataRepositoryType::Html => {
-                name = "law-html";
-                route_glob_patterns = Some(vec![".*"]);
+                name = "law-html".into();
+                route_glob_patterns = Some(vec![".*".into()]);
                 default_paths = TestDataRepositoryContext::default_html_paths();
 
                 default_paths.extend(vec![
@@ -221,23 +221,23 @@ pub fn get_dependent_data_repositories_with_scopes(
                 ]);
             }
             TestDataRepositoryType::Rdf => {
-                name = "law-rdf";
-                serve_prefix = Some("_rdf");
+                name = "law-rdf".into();
+                serve_prefix = Some("_rdf".into());
                 default_paths = TestDataRepositoryContext::default_rdf_paths();
             }
             TestDataRepositoryType::Xml => {
-                name = "law-xml";
-                serve_prefix = Some("_xml");
+                name = "law-xml".into();
+                serve_prefix = Some("_xml".into());
                 default_paths = TestDataRepositoryContext::default_xml_paths()
             }
             TestDataRepositoryType::Pdf => {
-                name = "law-pdf";
-                route_glob_patterns = Some(vec![".*\\.pdf"]);
+                name = "law-pdf".into();
+                route_glob_patterns = Some(vec![".*\\.pdf".into()]);
                 default_paths = TestDataRepositoryContext::default_pdf_paths();
             }
             TestDataRepositoryType::Other(_) => {
-                name = "law-other";
-                route_glob_patterns = Some(vec![".*_doc/.*", "_prefix/.*"]);
+                name = "law-other".into();
+                route_glob_patterns = Some(vec![".*_doc/.*".into(), "_prefix/.*".into()]);
                 is_fallback = true;
                 default_paths = TestDataRepositoryContext::default_other_paths();
 
@@ -268,7 +268,7 @@ pub fn get_dependent_data_repositories_with_scopes(
     Ok(result)
 }
 
-impl From<&TestDataRepositoryContext<'_>> for Repository {
+impl From<&TestDataRepositoryContext> for Repository {
     fn from(context: &TestDataRepositoryContext) -> Self {
         let mut custom = Custom::default();
         custom.repository_type = Some(match context.kind {
@@ -279,7 +279,7 @@ impl From<&TestDataRepositoryContext<'_>> for Repository {
             TestDataRepositoryType::Other(_) => "other".to_string(),
         });
         custom.serve = "latest".to_string();
-        custom.scope = context.serve_prefix.map(|s| s.to_string());
+        custom.scope = context.serve_prefix.clone().map(|s| s.to_string());
         custom.routes = context
             .route_glob_patterns
             .as_ref()
