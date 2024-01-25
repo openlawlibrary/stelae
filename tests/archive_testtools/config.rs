@@ -68,67 +68,65 @@ impl<'repo> TestDataRepositoryContext<'repo> {
     }
 
     pub fn default_html_paths() -> Vec<Cow<'static, str>> {
-        vec![
-            "./index.html".into(),
-            "./a/index.html".into(),
-            "./a/b/index.html".into(),
-            "./a/d/index.html".into(),
-            "./a/b/c.html".into(),
-            "./a/b/c/index.html".into(),
-        ]
+        let paths = &[
+            "./index.html",
+            "./a/index.html",
+            "./a/b/index.html",
+            "./a/d/index.html",
+            "./a/b/c.html",
+            "./a/b/c/index.html",
+        ];
+        paths.iter().map(|&x| x.into()).collect()
     }
 
     pub fn default_rdf_paths() -> Vec<Cow<'static, str>> {
-        vec![
-            "./index.rdf".into(),
-            "./a/index.rdf".into(),
-            "./a/b/index.rdf".into(),
-            "./a/d/index.rdf".into(),
-            "./a/b/c.rdf".into(),
-            "./a/b/c/index.rdf".into(),
-        ]
+        let paths = &[
+            "./index.rdf",
+            "./a/index.rdf",
+            "./a/b/index.rdf",
+            "./a/d/index.rdf",
+            "./a/b/c.rdf",
+            "./a/b/c/index.rdf",
+        ];
+        paths.iter().map(|&x| x.into()).collect()
     }
 
     pub fn default_xml_paths() -> Vec<Cow<'static, str>> {
-        vec![
-            "./index.xml".into(),
-            "./a/index.xml".into(),
-            "./a/b/index.xml".into(),
-            "./a/d/index.xml".into(),
-            "./a/b/c.xml".into(),
-            "./a/b/c/index.xml".into(),
-        ]
+        let paths = &[
+            "./index.xml",
+            "./a/index.xml",
+            "./a/b/index.xml",
+            "./a/d/index.xml",
+            "./a/b/c.xml",
+            "./a/b/c/index.xml",
+        ];
+        paths.iter().map(|&x| x.into()).collect()
     }
 
     pub fn default_pdf_paths() -> Vec<Cow<'static, str>> {
-        vec![
-            "./example.pdf".into(),
-            "./a/example.pdf".into(),
-            "./a/b/example.pdf".into(),
-        ]
+        let paths = &["./example.pdf", "./a/example.pdf", "./a/b/example.pdf"];
+        paths.iter().map(|&x| x.into()).collect()
     }
 
     pub fn default_json_paths() -> Vec<Cow<'static, str>> {
-        vec![
-            "./example.json".into(),
-            "./a/example.json".into(),
-            "./a/b/example.json".into(),
-        ]
+        let paths = &["./example.json", "./a/example.json", "./a/b/example.json"];
+        paths.iter().map(|&x| x.into()).collect()
     }
 
     pub fn default_other_paths() -> Vec<Cow<'static, str>> {
-        vec![
-            "./index.html".into(),
-            "./example.json".into(),
-            "./a/index.html".into(),
-            "./a/b/index.html".into(),
-            "./a/b/c.html".into(),
-            "./a/d/index.html".into(),
-            "./_prefix/index.html".into(),
-            "./_prefix/a/index.html".into(),
-            "./a/_doc/e/index.html".into(),
-            "./a/e/_doc/f/index.html".into(),
-        ]
+        let paths = &[
+            "./index.html",
+            "./example.json",
+            "./a/index.html",
+            "./a/b/index.html",
+            "./a/b/c.html",
+            "./a/d/index.html",
+            "./_prefix/index.html",
+            "./_prefix/a/index.html",
+            "./a/_doc/e/index.html",
+            "./a/e/_doc/f/index.html",
+        ];
+        paths.iter().map(|&x| x.into()).collect()
     }
 }
 
