@@ -10,28 +10,41 @@ use serde_json::Value;
 
 /// Repositories object
 ///
-/// Represents data repositories in a stele.
+/// Represents data repositories in a Stele.
 /// Repositories object is serialized from `repositories.json`.
 ///
 /// `repositories.json` is expected to exist in /targets/repositories.json in the authentication repository.
-/// Example `repositories.json`:
+/// # Examples
 ///
+/// ```rust
+/// use serde_json::json;
+/// use stelae::stelae::types::repositories::Repositories;
 ///
+/// let data = r#"
 /// {
-/// "scopes": ["us/ca/cities/san-mateo"],
-/// "repositories": {
-///    "`test_org_1/data_repo_1"`: {
-///      "custom": {
-///        "routes": ["example-route-glob-pattern-1"]
-///      }
-///    },
-///    "`test_org_1/data_repo_2"`: {
-///      "custom": {
-///       "serve-prefix": "_prefix"
-///      }
-///  }
+///     "scopes": ["some/scope/path"],
+///     "repositories": {
+///         "test_org_1/data_repo_1": {
+///             "custom": {
+///                 "serve": "latest",
+///                 "routes": ["example-route-glob-pattern-1"]
+///             }
+///         },
+///         "test_org_1/data_repo_2": {
+///             "custom": {
+///                 "serve": "latest",
+///                 "serve-prefix": "_prefix",
+///                 "is_fallback": true
+///             }
+///         }
+///     }
 /// }
-///
+/// "#;
+/// let repositories: Repositories = serde_json::from_str(data).unwrap();
+/// assert_eq!(repositories.scopes.unwrap(), vec!["some/scope/path"]);
+/// assert!(repositories.repositories.contains_key("test_org_1/data_repo_1"));
+/// assert!(repositories.repositories.contains_key("test_org_1/data_repo_2"));
+/// ```
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct Repositories {
     /// Scopes of the repositories
