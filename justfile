@@ -15,7 +15,7 @@ format:
 test:
   cargo test
 nextest:
-  cargo nextest run --all --no-fail-fast
+  cargo nextest run --all --no-fail-fast && cargo test --doc
 
 # Run clippy maximum strictness. Passes through any flags to clippy.
 clippy *FLAGS:
