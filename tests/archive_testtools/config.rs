@@ -27,7 +27,7 @@ pub struct TestDataRepositoryContext {
     /// The name of the data repository.
     pub name: String,
     /// The paths of the data repository.
-    pub paths: Vec<String>,
+    pub paths: Vec<PathBuf>,
     /// The kind of data repository.
     pub kind: TestDataRepositoryType,
     /// The prefix to use when serving the data repository.
@@ -44,7 +44,7 @@ pub struct TestDataRepositoryContext {
 impl TestDataRepositoryContext {
     pub fn new(
         name: String,
-        paths: Vec<String>,
+        paths: Vec<PathBuf>,
         kind: TestDataRepositoryType,
         serve_prefix: Option<String>,
         route_glob_patterns: Option<Vec<String>>,
@@ -67,7 +67,7 @@ impl TestDataRepositoryContext {
         })
     }
 
-    pub fn default_html_paths() -> Vec<String> {
+    pub fn default_html_paths() -> Vec<PathBuf> {
         let paths = &[
             "./index.html",
             "./a/index.html",
@@ -76,10 +76,10 @@ impl TestDataRepositoryContext {
             "./a/b/c.html",
             "./a/b/c/index.html",
         ];
-        paths.iter().map(|&x| x.into()).collect()
+        paths.iter().map(|&x| PathBuf::from(x)).collect()
     }
 
-    pub fn default_rdf_paths() -> Vec<String> {
+    pub fn default_rdf_paths() -> Vec<PathBuf> {
         let paths = &[
             "./index.rdf",
             "./a/index.rdf",
@@ -88,10 +88,10 @@ impl TestDataRepositoryContext {
             "./a/b/c.rdf",
             "./a/b/c/index.rdf",
         ];
-        paths.iter().map(|&x| x.into()).collect()
+        paths.iter().map(|&x| PathBuf::from(x)).collect()
     }
 
-    pub fn default_xml_paths() -> Vec<String> {
+    pub fn default_xml_paths() -> Vec<PathBuf> {
         let paths = &[
             "./index.xml",
             "./a/index.xml",
@@ -100,20 +100,20 @@ impl TestDataRepositoryContext {
             "./a/b/c.xml",
             "./a/b/c/index.xml",
         ];
-        paths.iter().map(|&x| x.into()).collect()
+        paths.iter().map(|&x| PathBuf::from(x)).collect()
     }
 
-    pub fn default_pdf_paths() -> Vec<String> {
+    pub fn default_pdf_paths() -> Vec<PathBuf> {
         let paths = &["./example.pdf", "./a/example.pdf", "./a/b/example.pdf"];
-        paths.iter().map(|&x| x.into()).collect()
+        paths.iter().map(|&x| PathBuf::from(x)).collect()
     }
 
-    pub fn default_json_paths() -> Vec<String> {
+    pub fn default_json_paths() -> Vec<PathBuf> {
         let paths = &["./example.json", "./a/example.json", "./a/b/example.json"];
-        paths.iter().map(|&x| x.into()).collect()
+        paths.iter().map(|&x| PathBuf::from(x)).collect()
     }
 
-    pub fn default_other_paths() -> Vec<String> {
+    pub fn default_other_paths() -> Vec<PathBuf> {
         let paths = &[
             "./index.html",
             "./example.json",
@@ -126,7 +126,7 @@ impl TestDataRepositoryContext {
             "./a/_doc/e/index.html",
             "./a/e/_doc/f/index.html",
         ];
-        paths.iter().map(|&x| x.into()).collect()
+        paths.iter().map(|&x| PathBuf::from(x)).collect()
     }
 }
 
@@ -214,11 +214,13 @@ pub fn get_dependent_data_repositories_with_scopes(
                 route_glob_patterns = Some(vec![".*".into()]);
                 default_paths = TestDataRepositoryContext::default_html_paths();
 
-                default_paths.extend(vec![
-                    "./does-not-resolve.html".into(),
-                    "./a/does-not-resolve.html".into(),
-                    "./a/b/does-not-resolve.html".into(),
-                ]);
+                let paths = &[
+                    "./does-not-resolve.html",
+                    "./a/does-not-resolve.html",
+                    "./a/b/does-not-resolve.html",
+                ];
+
+                default_paths.extend(paths.iter().map(|&x| PathBuf::from(x)).collect::<Vec<_>>());
             }
             TestDataRepositoryType::Rdf => {
                 name = "law-rdf".into();
@@ -241,19 +243,26 @@ pub fn get_dependent_data_repositories_with_scopes(
                 is_fallback = true;
                 default_paths = TestDataRepositoryContext::default_other_paths();
 
-                default_paths.extend(vec![
-                    "./does-not-resolve.json".into(),
-                    "./a/does-not-resolve.json".into(),
-                    "./a/b/does-not-resolve.json".into(),
-                ]);
+                let paths = &[
+                    "./does-not-resolve.json",
+                    "./a/does-not-resolve.json",
+                    "./a/b/does-not-resolve.json",
+                ];
+                default_paths.extend(paths.iter().map(|&x| PathBuf::from(x)).collect::<Vec<_>>());
             }
         }
         for scope in scopes {
-            let additional_paths: Vec<String> = default_paths
+            let additional_paths: Vec<PathBuf> = default_paths
                 .iter()
-                .map(|path| format!("{scope}/{path}"))
-                .collect();
-            paths.extend(additional_paths.into_iter().map(|path| path.into()));
+                .map(|path| {
+                    PathBuf::from(format!(
+                        "{scope}/{path}",
+                        scope = scope,
+                        path = path.display()
+                    ))
+                })
+                .collect::<Vec<_>>();
+            paths.extend(additional_paths);
         }
 
         result.push(TestDataRepositoryContext::new(

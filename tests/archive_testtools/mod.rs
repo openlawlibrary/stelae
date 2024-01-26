@@ -324,9 +324,8 @@ fn init_data_repository(
     Ok(())
 }
 
-fn add_fixture_file_to_git_repo(git_repo: &GitRepository, path: &str) -> Result<()> {
-    let path_buf = PathBuf::from(path);
-    let filename = path_buf.file_name().unwrap().to_str().unwrap();
+fn add_fixture_file_to_git_repo(git_repo: &GitRepository, path: &Path) -> Result<()> {
+    let filename = path.file_name().unwrap().to_str().unwrap();
     let static_file_path = get_static_file_path(filename);
     copy_file(&static_file_path, &git_repo.path.join(path)).unwrap();
     Ok(())
