@@ -13,7 +13,7 @@ use stelae::utils::git::Repo;
 /// get the path to the test archive at `$REPO_ROOT/tests/fixtures/archive`.
 fn get_test_archive_path() -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.push("tests/fixtures/archive");
+    path.push("tests/fixtures/basic/archive");
     path
 }
 
@@ -39,7 +39,7 @@ fn bench_repo() {
     let test_archive_path = get_test_archive_path();
     let repo = Repo::new(&test_archive_path, "test", "law-html")
         .expect("Something went wrong creating the repo");
-    repo.get_bytes_at_path("ed782e08d119a580baa3067e2ea5df06f3d1cd05", "a/b/c.html")
+    repo.get_bytes_at_path("4ba432f61eec15194db527548be4cbc0105635b9", "a/b/c.html")
         .expect("Something went wrong calling `get_bytes_at_path`");
 }
 
