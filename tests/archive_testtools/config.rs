@@ -50,8 +50,8 @@ impl TestDataRepositoryContext {
         route_glob_patterns: Option<Vec<String>>,
         is_fallback: bool,
     ) -> Result<Self> {
-        if let None = serve_prefix {
-            if let None = route_glob_patterns {
+        if serve_prefix.is_none() {
+            if route_glob_patterns.is_none() {
                 return Err(anyhow::anyhow!(
                     "A test data repository must have either a serve prefix or route glob patterns."
                 ));
