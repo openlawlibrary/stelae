@@ -4,20 +4,21 @@
 #![allow(clippy::exit)]
 
 use crate::server::git::serve_git;
-use crate::utils::library::find_library_path;
+use crate::server::publish::serve_archive;
+use crate::utils::archive::find_archive_path;
 use clap::Parser;
 use std::path::Path;
 use tracing;
 
 /// Stelae is currently just a simple git server.
 /// run from the library directory or pass
-/// path to library.
+/// path to archive.
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    /// Path to the Stelae library. Defaults to cwd.
+    /// Path to the Stelae archive. Defaults to cwd.
     #[arg(short, long, default_value_t = String::from(".").to_owned())]
-    library_path: String,
+    archive_path: String,
     /// Stelae cli subcommands
     #[command(subcommand)]
     subcommands: Subcommands,
@@ -26,11 +27,20 @@ struct Cli {
 ///
 #[derive(Clone, clap::Subcommand)]
 enum Subcommands {
-    /// Serve git repositories in the Stelae library
+    /// Serve git repositories in the Stelae archive
     Git {
-        /// Port on which to serve the library.
+        /// Port on which to serve the archive.
         #[arg(short, long, default_value_t = 8080)]
         port: u16,
+    },
+    /// Serve documents in a Stelae archive.
+    Serve {
+        /// Port on which to serve the archive.
+        #[arg(short, long, default_value_t = 8080)]
+        port: u16,
+        #[arg(short, long, default_value_t = false)]
+        /// Serve an individual stele instead of the Stele specified in config.toml.
+        individual: bool,
     },
 }
 
@@ -50,16 +60,19 @@ pub fn run() -> std::io::Result<()> {
     init_tracing();
     tracing::debug!("Starting application");
     let cli = Cli::parse();
-    let library_path_wd = Path::new(&cli.library_path);
-    let Ok(library_path) = find_library_path(library_path_wd) else {
+    let archive_path_wd = Path::new(&cli.archive_path);
+    let Ok(archive_path) = find_archive_path(archive_path_wd) else {
         tracing::error!(
             "error: could not find `.stelae` folder in `{}` or any parent directory",
-            &cli.library_path
+            &cli.archive_path
         );
         std::process::exit(1);
     };
 
     match cli.subcommands {
-        Subcommands::Git { port } => serve_git(&cli.library_path, library_path, port),
+        Subcommands::Git { port } => serve_git(&cli.archive_path, archive_path, port),
+        Subcommands::Serve { port, individual } => {
+            serve_archive(&cli.archive_path, archive_path, port, individual)
+        }
     }
 }

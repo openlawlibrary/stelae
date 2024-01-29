@@ -1,1 +1,5 @@
 /target
+# VS Code settings
+.vscode/
+
+!.vscode/settings.json

@@ -10,41 +10,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install NuShell
         uses: hustcer/setup-nu@v3
         env:
           GITHUB_TOKEN: ${{ secrets.STELAE_GITHUB_TOKEN }}
-      
+
       - name: Install Just
         uses: extractions/setup-just@v1
         env:
           GITHUB_TOKEN: ${{ secrets.STELAE_GITHUB_TOKEN }}
 
-      - name: Run tests
-        run: just test
+      - uses: taiki-e/install-action@v1
+        with:
+          tool: nextest
+      - name: Run tests (nextest)
+        run: just nextest
 
   lints:
     name: Lints
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@1.70 # Pin based on current `rust-version` in Cargo.toml. IMPORTANT: Upgrade version when `rust-version` changes.
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
           components: rustfmt, clippy
 
       - name: Install Just
