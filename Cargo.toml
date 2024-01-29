@@ -31,7 +31,7 @@ derive_more = "0.99.17"
 toml = "0.8.8"
 toml_edit = "0.21.0"
 serde_derive = "1.0.152"
-sqlx = { version = "0.7", features = ["runtime-tokio", "postgres", "sqlite"] }
+sqlx = { version = "0.6", features = ["runtime-actix-native-tls", "postgres", "sqlite"] }
 
 [dev-dependencies]
 criterion = "0.3"
