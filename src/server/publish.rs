@@ -186,9 +186,8 @@ pub async fn serve_archive(
         Ok(db) => db,
         Err(err) => {
             tracing::error!(
-            "error: could not connect to database. Confirm that local `SQLite` database exists in `.stelae` directory in `{}`",
-            &raw_archive_path
-        );
+                "error: could not connect to database. Confirm that DATABASE_URL env var is set correctly."
+            );
             tracing::error!("Error: {:?}", err);
             std::process::exit(1);
         }
