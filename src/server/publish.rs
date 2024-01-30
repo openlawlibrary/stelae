@@ -182,12 +182,16 @@ pub async fn serve_archive(
     let message = "Running Publish Server on a Stelae archive at";
     tracing::info!("{message} '{raw_archive_path}' on http://{bind}:{port}.",);
 
-    let Ok(db) = db::init::connect(&archive_path).await else {
-        tracing::error!(
+    let db = match db::init::connect(&archive_path).await {
+        Ok(db) => db,
+        Err(err) => {
+            tracing::error!(
             "error: could not connect to database. Confirm that local `SQLite` database exists in `.stelae` directory in `{}`",
             &raw_archive_path
         );
-        std::process::exit(1);
+            tracing::error!("Error: {:?}", err);
+            std::process::exit(1);
+        }
     };
 
     let archive = Archive::parse(archive_path, &PathBuf::from(raw_archive_path), individual)
