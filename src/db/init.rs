@@ -13,7 +13,7 @@ pub async fn connect(archive_path: &Path) -> anyhow::Result<DatabaseConnection> 
         format!("sqlite://{}?mode=rwc", sqlite_db_path.to_string_lossy())
     });
     let connection = Database::connect(&db_url).await?;
-
+    tracing::info!("Connected to database");
     match connection {
         DatabaseConnection::Sqlite(ref pool) => {
             sqlx::migrate!("./migrations/sqlite").run(pool).await?;
