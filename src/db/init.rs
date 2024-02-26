@@ -1,4 +1,4 @@
-use crate::db::{Database, DatabaseConnection};
+use crate::db::{DatabaseConnection, DatabaseKind, Db};
 use std::env;
 use std::path::{Path, PathBuf};
 /// Connects to a database and applies migrations.
@@ -12,14 +12,18 @@ pub async fn connect(archive_path: &Path) -> anyhow::Result<DatabaseConnection> 
         let sqlite_db_path = &archive_path.join(PathBuf::from(".stelae/db.sqlite3"));
         format!("sqlite://{}?mode=rwc", sqlite_db_path.to_string_lossy())
     });
-    let connection = Database::connect(&db_url).await?;
+    let connection = DatabaseConnection::connect(&db_url).await?;
     tracing::info!("Connected to database");
-    match connection {
-        DatabaseConnection::Sqlite(ref pool) => {
-            sqlx::migrate!("./migrations/sqlite").run(pool).await?;
+    match connection.kind {
+        DatabaseKind::Sqlite => {
+            sqlx::migrate!("./migrations/sqlite")
+                .run(&connection.pool)
+                .await?;
         }
-        DatabaseConnection::Postgres(ref pool) => {
-            sqlx::migrate!("./migrations/postgres").run(pool).await?;
+        DatabaseKind::Postgres => {
+            sqlx::migrate!("./migrations/postgres")
+                .run(&connection.pool)
+                .await?;
         }
     }
     Ok(connection)

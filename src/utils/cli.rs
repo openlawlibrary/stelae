@@ -6,6 +6,7 @@
 use crate::server::git::serve_git;
 use crate::server::publish::serve_archive;
 use crate::utils::archive::find_archive_path;
+use crate::history::changes;
 use clap::Parser;
 use std::path::Path;
 use tracing;
@@ -42,6 +43,13 @@ enum Subcommands {
         /// Serve an individual stele instead of the Stele specified in config.toml.
         individual: bool,
     },
+    /// Insert historical information about the Steles in the archive.
+    /// Populates the database with change objects loaded in from RDF repository
+    /// By default inserts historical information for the root Stele (and all referenced stele) in the archive
+    InsertHistory {
+        /// Optionally insert historical information for this Stele only.
+        stele: Option<String>,
+    },
 }
 
 ///
@@ -73,6 +81,10 @@ pub fn run() -> std::io::Result<()> {
         Subcommands::Git { port } => serve_git(&cli.archive_path, archive_path, port),
         Subcommands::Serve { port, individual } => {
             serve_archive(&cli.archive_path, archive_path, port, individual)
+        }
+        Subcommands::InsertHistory { stele } => {
+            tracing::info!("Inserting history into archive");
+            changes::insert(&cli.archive_path, archive_path, stele)
         }
     }
 }

@@ -15,6 +15,7 @@ rust-version = "1.70"
 actix-web = "4"
 actix-service = "2.0"
 actix-http = "3.2"
+async-trait = "0.1.77"
 mime = "0.3.17"
 mime_guess = "2.0.4"
 anyhow = "1.0"
@@ -31,7 +32,14 @@ derive_more = "0.99.17"
 toml = "0.8.8"
 toml_edit = "0.21.0"
 serde_derive = "1.0.152"
-sqlx = { version = "0.6", features = ["runtime-actix-native-tls", "postgres", "sqlite"] }
+sqlx = { version = "0.6", features = [
+    "runtime-actix-native-tls",
+    "any",
+    "postgres",
+    "sqlite",
+] }
+sophia = { version = "0.8.0", features = ["xml"] }
+walkdir = "2"
 
 [dev-dependencies]
 criterion = "0.3"

@@ -115,6 +115,14 @@ impl Repositories {
         });
         result
     }
+
+    /// Get the RDF repository from repositories.
+    #[must_use]
+    pub fn get_rdf_repository(&self) -> Option<&Repository> {
+        self.repositories
+            .values()
+            .find(|repository| repository.custom.repository_type.as_deref() == Some("rdf"))
+    }
 }
 
 #[allow(clippy::missing_trait_methods)]
