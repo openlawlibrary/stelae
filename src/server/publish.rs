@@ -309,15 +309,15 @@ pub fn init_app<T: GlobalState>(
 /// # Errors
 /// Will error if unable to initialize the data repository
 fn init_repo_state(repo: &Repository, stele: &Stele) -> anyhow::Result<RepoState> {
-    let name = &repo.name;
     let custom = &repo.custom;
+    let (org, name) = get_name_parts(&repo.name)?;
     let mut repo_path = stele.archive_path.to_string_lossy().into_owned();
-    repo_path = format!("{repo_path}/{name}");
+    repo_path = format!("{repo_path}/{org}/{name}");
     Ok(RepoState {
         repo: Repo {
             archive_path: stele.archive_path.to_string_lossy().to_string(),
             path: PathBuf::from(&repo_path),
-            org: stele.auth_repo.org.clone(),
+            org: org.clone(),
             name: name.clone(),
             repo: GitRepository::open(&repo_path)?,
         },
