@@ -86,6 +86,7 @@
 )]
 
 pub mod db;
+pub mod history;
 pub mod server;
 pub mod stelae;
 pub mod utils;
