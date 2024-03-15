@@ -3,6 +3,8 @@ use sqlx::Row;
 
 use crate::db::DatabaseConnection;
 
+use super::DatabaseKind;
+
 /// Inserts a new document into the database.
 ///
 /// # Errors
@@ -12,16 +14,16 @@ pub async fn insert_new_document(conn: &DatabaseConnection, doc_id: &str) -> any
         INSERT OR IGNORE INTO document ( doc_id )
         VALUES ( $1 )
     "#;
-    match &conn {
-        DatabaseConnection::Sqlite(ref pool) => {
-            let mut connection = pool.acquire().await?;
+    match &conn.kind {
+        &DatabaseKind::Sqlite => {
+            let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
                 .bind(doc_id)
                 .execute(&mut *connection)
                 .await?;
         }
-        DatabaseConnection::Postgres(pool) => {
-            let mut connection = pool.acquire().await?;
+        DatabaseKind::Postgres => {
+            let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
                 .bind(doc_id)
                 .execute(&mut *connection)
@@ -40,16 +42,16 @@ pub async fn insert_new_stele(conn: &DatabaseConnection, stele_id: &str) -> anyh
         INSERT OR IGNORE INTO stele ( name )
         VALUES ( $1 )
     "#;
-    match &conn {
-        DatabaseConnection::Sqlite(ref pool) => {
-            let mut connection = pool.acquire().await?;
+    match &conn.kind {
+        DatabaseKind::Sqlite => {
+            let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
                 .bind(stele_id)
                 .execute(&mut *connection)
                 .await?;
         }
-        DatabaseConnection::Postgres(pool) => {
-            let mut connection = pool.acquire().await?;
+        DatabaseKind::Postgres => {
+            let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
                 .bind(stele_id)
                 .execute(&mut *connection)
@@ -72,9 +74,9 @@ pub async fn find_stele_by_name(
         FROM stele
         WHERE name = $1
     "#;
-    let row: Option<i32> = match &conn {
-        DatabaseConnection::Sqlite(ref pool) => {
-            let mut connection = pool.acquire().await?;
+    let row: Option<i32> = match &conn.kind {
+        &DatabaseKind::Sqlite => {
+            let mut connection = conn.pool.acquire().await?;
             let row = sqlx::query(statement)
                 .bind(name)
                 .fetch_one(&mut *connection)
@@ -82,8 +84,8 @@ pub async fn find_stele_by_name(
                 .ok();
             row.map(|r| r.get(0))
         }
-        DatabaseConnection::Postgres(pool) => {
-            let mut connection = pool.acquire().await?;
+        DatabaseKind::Postgres => {
+            let mut connection = conn.pool.acquire().await?;
             let row = sqlx::query(statement)
                 .bind(name)
                 .fetch_one(&mut *connection)

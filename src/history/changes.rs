@@ -184,6 +184,7 @@ async fn load_delta_from_publications(
 ) -> anyhow::Result<()> {
     insert_new_stele(conn, name).await?;
     let id = find_stele_by_name(conn, name).await?;
+    tracing::info!("Inserting changes from publications for stele: {}", name);
     dbg!(&id);
     dbg!(&publication_path);
     Ok(())
