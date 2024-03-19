@@ -9,8 +9,10 @@ use tracing::instrument;
 
 /// Database initialization.
 pub mod init;
-/// Queries for the database.
-pub mod queries;
+/// Statements for the database.
+pub mod statements;
+/// Models for the database.
+pub mod models;
 
 #[async_trait]
 /// Generic Database
