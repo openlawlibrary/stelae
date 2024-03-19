@@ -1,18 +1,21 @@
 //! Module for inserting changes into the database
+#![allow(clippy::shadow_reuse)]
 use crate::db::queries::{find_stele_by_name, insert_new_document, insert_new_stele};
-use crate::history::rdf_namespaces::{OLL_DOCUMENT_VERSION, OLL_DOC_ID};
+use crate::utils::archive::get_name_parts;
+use crate::utils::git::Repo;
 use crate::{
     db::{self, DatabaseConnection},
-    stelae::{archive::Archive, types::repositories::Repository},
+    stelae::archive::Archive,
 };
-use sophia::api::{ns::NsTerm, prelude::*, term::SimpleTerm, MownStr};
+use sophia::api::{prelude::*, term::SimpleTerm, MownStr};
 use sophia::xml::parser;
-use sophia::{api::ns::Namespace, inmem::graph::FastGraph};
+use sophia::{api::ns::rdfs, inmem::graph::FastGraph};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
 use walkdir::WalkDir;
+use crate::history::rdf::namespaces::{oll, dcterms};
 
 /// Inserts changes from the archive into the database
 ///
@@ -65,17 +68,19 @@ async fn insert_changes_archive(
 
     for (name, mut stele) in archive.stelae {
         if let Some(repositories) = stele.get_repositories()? {
-            let Some(rdf_repo) = repositories.get_rdf_repository() else {
+            let Some(rdf_data) = repositories.get_rdf_repository() else {
                 continue;
             };
-            let rdf_repo_path = archive_path.to_path_buf().join(&rdf_repo.name);
+            let rdf_repo_path = archive_path.to_path_buf().join(&rdf_data.name);
             if !rdf_repo_path.exists() {
                 anyhow::bail!(
                     "RDF repository should exist on disk but not found: {}",
                     rdf_repo_path.display()
                 );
             }
-            insert_changes_from_rdf_repository(conn, rdf_repo_path, &name, rdf_repo).await?;
+            let (rdf_org, rdf_name) = get_name_parts(&rdf_data.name)?;
+            let rdf_repo = Repo::new(archive_path, &rdf_org, &rdf_name)?;
+            insert_changes_from_rdf_repository(conn, rdf_repo, &name).await?;
         }
     }
     Ok(())
