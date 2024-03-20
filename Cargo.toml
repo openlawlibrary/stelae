@@ -33,6 +33,7 @@ toml = "0.8.8"
 toml_edit = "0.21.0"
 serde_derive = "1.0.152"
 sqlx = { version = "0.6", features = [
+    "chrono",
     "runtime-actix-native-tls",
     "any",
     "postgres",
