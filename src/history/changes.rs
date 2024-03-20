@@ -1,6 +1,7 @@
 //! Module for inserting changes into the database
 #![allow(clippy::shadow_reuse)]
-use crate::db::queries::{find_stele_by_name, insert_new_document, insert_new_stele};
+use crate::db::statements::queries::{find_publication_by_name_and_date_and_stele_id, find_stele_by_name};
+use crate::db::statements::inserts::{upsert_document, upsert_publication, upsert_stele};
 use crate::utils::archive::get_name_parts;
 use crate::utils::git::Repo;
 use crate::{
