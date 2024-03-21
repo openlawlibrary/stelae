@@ -11,6 +11,8 @@ use tracing::instrument;
 pub mod init;
 /// Statements for the database.
 pub mod statements;
+/// Models for the database.
+pub mod models;
 
 #[async_trait]
 /// Generic Database
