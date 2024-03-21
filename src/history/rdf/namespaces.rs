@@ -9,7 +9,14 @@ pub mod oll {
         CollectionVersion,
         DocumentVersion,
         docId,
-        codifiedDate
+        codifiedDate,
+        lastValidPublication,
+        lastValidCodifiedDate,
+        hasChanges,
+        documentMaterializedPath,
+        url,
+        reason,
+        status
     }
 }
 

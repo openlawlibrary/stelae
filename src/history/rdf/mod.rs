@@ -2,3 +2,6 @@
 
 /// RDF namespaces for the Stele ontology.
 pub mod namespaces;
+
+/// The graph module contains the `Graph` struct which is used to interact with the RDF graph.
+pub mod graph;
