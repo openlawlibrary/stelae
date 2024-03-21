@@ -1,5 +1,6 @@
 //! Module for inserting changes into the database
 #![allow(clippy::shadow_reuse)]
+use crate::db::models::publication::Publication;
 use crate::db::statements::queries::{find_last_inserted_publication, find_publication_by_name_and_date_and_stele_id, find_stele_by_name};
 use crate::db::statements::inserts::{create_document, create_publication, create_stele};
 use crate::utils::archive::get_name_parts;
@@ -8,6 +9,7 @@ use crate::{
     db::{self, DatabaseConnection},
     stelae::archive::Archive,
 };
+use anyhow::Context;
 use sophia::api::{prelude::*, term::SimpleTerm, MownStr};
 use sophia::xml::parser;
 use sophia::{api::ns::rdfs, inmem::graph::FastGraph};
@@ -53,7 +55,7 @@ pub async fn insert(
 }
 
 fn insert_changes_single_stele() -> std::io::Result<()> {
-    Ok(())
+    todo!()
 }
 
 /// Insert changes from the archive into the database
@@ -91,30 +93,90 @@ async fn insert_changes_archive(
 /// Insert changes from the RDF repository into the database
 async fn insert_changes_from_rdf_repository(
     conn: &DatabaseConnection,
-    rdf_repo_path: PathBuf,
-    name: &str,
-    rdf_repo: &Repository,
+    rdf_repo: Repo,
+    stele_id: &str,
 ) -> anyhow::Result<()> {
-    tracing::info!("Inserting changes from RDF repository: {}", name);
-    tracing::info!("RDF repository path: {}", rdf_repo_path.display());
-
-    // let response = reqwest::get(NAMESPACE_URL).await?.text().await?;
-    let mut graph = FastGraph::new();
-
-    for entry in WalkDir::new(&rdf_repo_path) {
-        match entry {
-            Ok(entry) if is_rdf(&entry) => {
-                tracing::debug!("Parsing file: {:?}", entry.path());
-                let file = std::fs::File::open(entry.path())?;
-                let reader = std::io::BufReader::new(file);
-                parser::parse_bufread(reader).add_to_graph(&mut graph)?;
+    tracing::info!("Inserting changes from RDF repository: {}", stele_id);
+    tracing::info!("RDF repository path: {}", rdf_repo.path.display());
+    let run_documents = false;
+    if run_documents {
+        let mut graph = FastGraph::new();
+        let head_commit = rdf_repo.repo.head()?.peel_to_commit()?;
+        let tree = head_commit.tree()?;
+        tree.walk(git2::TreeWalkMode::PreOrder, |_, entry| {
+            let path_name = entry.name().unwrap();
+            if path_name.contains(".rdf") {
+                let blob = rdf_repo.repo.find_blob(entry.id()).unwrap();
+                let data = blob.content();
+                let reader = std::io::BufReader::new(data);
+                parser::parse_bufread(reader)
+                    .add_to_graph(&mut graph)
+                    .unwrap();
             }
-            Ok(entry) => {
-                tracing::debug!("Skipping non-RDF file: {:?}", entry.path());
-                continue;
+            git2::TreeWalkResult::Ok
+        })?;
+        // for entry in WalkDir::new(&rdf_repo.path) {
+        //     match entry {
+        //         Ok(entry) if is_rdf(&entry) => {
+        //             tracing::debug!("Parsing file: {:?}", entry.path());
+        //             let file = std::fs::File::open(entry.path())?;
+        //             let reader = std::io::BufReader::new(file);
+        //             parser::parse_bufread(reader).add_to_graph(&mut graph)?;
+        //         }
+        //         Ok(entry) => {
+        //             tracing::debug!("Skipping non-RDF file: {:?}", entry.path());
+        //             continue;
+        //         }
+        //         Err(err) => {
+        //             tracing::error!("Error reading file: {:?}", err);
+        //         }
+        //     }
+        // }
+        let documents = graph.triples_matching(Any, Any, [oll::DocumentVersion]);
+        let mut doc_to_versions: HashMap<String, Vec<String>> = HashMap::new();
+        for triple in documents {
+            let triple = triple.unwrap();
+            let document = triple.s();
+            let mut doc_id_triples = graph.triples_matching([document], [oll::docId], Any);
+            if let Some(doc_id_triple) = doc_id_triples.next() {
+                let object = doc_id_triple.unwrap().o();
+                let document_iri = document.iri().unwrap().to_string();
+                if let SimpleTerm::LiteralDatatype(doc_id, _) = object {
+                    doc_to_versions
+                        .entry(doc_id.to_string())
+                        .or_insert_with(Vec::new)
+                        .push(document_iri);
+                }
             }
-            Err(err) => {
-                tracing::error!("Error reading file: {:?}", err);
+        }
+        for versions in doc_to_versions.values() {
+            // Find the version with the maximum docId
+            let doc_version = versions
+                .iter()
+                .max_by_key(|&v| {
+                    let mut doc_id_triples = graph.triples_matching([v.as_str()], [oll::docId], Any);
+                    doc_id_triples
+                        .next()
+                        .map_or_else(String::new, |doc_id_triple| {
+                            let object = doc_id_triple.unwrap().o();
+                            if let SimpleTerm::LiteralDatatype(doc_id, _) = object {
+                                doc_id.to_string()
+                            } else {
+                                String::new()
+                            }
+                        })
+                })
+                .unwrap();
+            // Get the docId for this version
+            // dbg!(&doc_version);
+            let doc_version_iri_ref = IriRef::new_unchecked(MownStr::from_str(doc_version.as_str()));
+            let mut doc_id_triples =
+                graph.triples_matching([SimpleTerm::Iri(doc_version_iri_ref)], [oll::docId], Any);
+            if let Some(doc_id_triple) = doc_id_triples.next() {
+                let object = doc_id_triple.unwrap().o();
+                if let SimpleTerm::LiteralDatatype(doc_id, _) = object {
+                    create_document(conn, doc_id).await?;
+                }
             }
         }
     }
