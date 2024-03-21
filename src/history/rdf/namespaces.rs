@@ -8,7 +8,8 @@ pub mod oll {
         "https://open.law/us/ngo/oll/_ontology/v0.1/ontology.owl#",
         CollectionVersion,
         DocumentVersion,
-        docId
+        docId,
+        codifiedDate
     }
 }
 
