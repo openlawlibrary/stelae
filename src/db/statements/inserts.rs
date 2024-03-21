@@ -95,3 +95,35 @@ pub async fn create_stele(conn: &DatabaseConnection, stele_id: &str) -> anyhow::
     };
     Ok(())
 }
+
+/// Upsert a new version into the database.
+///
+/// # Errors
+/// Errors if the version cannot be inserted into the database.
+pub async fn create_version(conn: &DatabaseConnection, codified_date: &str) -> anyhow::Result<()> {
+    let statement: &'static str = r#"
+        INSERT OR IGNORE INTO version ( codified_date )
+        VALUES ( $1 )
+    "#;
+    match conn.kind {
+        DatabaseKind::Sqlite => {
+            let mut connection = conn.pool.acquire().await?;
+            sqlx::query(statement)
+                .bind(codified_date)
+                .execute(&mut *connection)
+                .await?;
+        }
+        DatabaseKind::Postgres => {
+            let mut connection = conn.pool.acquire().await?;
+            sqlx::query(statement)
+                .bind(codified_date)
+                .execute(&mut *connection)
+                .await?;
+        }
+    };
+    Ok(())
+}
+
+pub async fn create_publication_version() {
+    todo!()
+}
