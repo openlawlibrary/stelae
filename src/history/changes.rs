@@ -217,58 +217,156 @@ async fn load_delta_from_publications(
             load_delta_from_publications_from_beginning(conn, rdf_repo, stele.id).await?;
         }
     }
-    for versions in doc_to_versions.values() {
-        // Find the version with the maximum docId
-        let doc_version = versions
-            .iter()
-            .max_by_key(|&v| {
-                let mut doc_id_triples = graph.triples_matching([v.as_str()], [oll_doc_id], Any);
-                doc_id_triples
-                    .next()
-                    .map_or_else(String::new, |doc_id_triple| {
-                        let object = doc_id_triple.unwrap().o();
-                        if let SimpleTerm::LiteralDatatype(doc_id, _) = object {
-                            doc_id.to_string()
-                        } else {
-                            String::new()
-                        }
-                    })
-            })
-            .unwrap();
-        // Get the docId for this version
-        // dbg!(&doc_version);
-        let doc_version_iri_ref = IriRef::new_unchecked(MownStr::from_str(doc_version.as_str()));
-        let mut doc_id_triples =
-            graph.triples_matching([SimpleTerm::Iri(doc_version_iri_ref)], [oll_doc_id], Any);
-        if let Some(doc_id_triple) = doc_id_triples.next() {
-            let object = doc_id_triple.unwrap().o();
-            if let SimpleTerm::LiteralDatatype(doc_id, _) = object {
-                insert_new_document(conn, doc_id).await?;
+    Ok(())
+}
+
+/// Iterate and load delta from all publications in the `_publication` directory
+///
+/// # Errors
+/// Errors if the delta cannot be loaded from the publications
+async fn load_delta_from_publications_from_beginning(
+    conn: &DatabaseConnection,
+    rdf_repo: &Repo,
+    stele_id: i32,
+) -> anyhow::Result<()> {
+    let head_commit = rdf_repo.repo.head()?.peel_to_commit()?;
+    let tree = head_commit.tree()?;
+    let publications_dir_entry = tree.get_path(&PathBuf::from("_publication"))?;
+    let publications_subtree = rdf_repo.repo.find_tree(publications_dir_entry.id())?;
+    for publication_entry in publications_subtree.iter() {
+        let name = publication_entry.name().unwrap();
+        dbg!(&name);
+        let mut pub_graph = FastGraph::new();
+        let object = publication_entry.to_object(&rdf_repo.repo)?;
+        let Some(publication_tree) = object.as_tree() else {
+            anyhow::bail!("Expected a tree but got something else");
+        };
+        let index_rdf = publication_tree.get_path(&PathBuf::from("index.rdf"))?;
+        let blob = rdf_repo.repo.find_blob(index_rdf.id())?;
+        let data = blob.content();
+        let reader = std::io::BufReader::new(data);
+        parser::parse_bufread(reader).add_to_graph(&mut pub_graph)?;
+        let Some(pub_label_obj) = pub_graph.triples_matching(Any, [rdfs::label], Any).next() else {
+            anyhow::bail!("Could not find pub_label in a publication");
+        };
+        let pub_label = {
+            let SimpleTerm::LiteralLanguage(pub_label, _) = pub_label_obj?.o() else 
+            {
+                anyhow::bail!("Found pub_label in a publication, but it was not a literal");
+            };
+            pub_label.to_string()
+        };
+        dbg!(&pub_label);
+        let pub_name = pub_label.strip_prefix("Publication ").context("Could not strip prefix")?.to_string();
+        let Some(pub_date_obj) = pub_graph.triples_matching(Any, [dcterms::available], Any).next() else {
+            anyhow::bail!("Could not find pub_date in a publication");
+        };
+        let pub_date = {
+            let SimpleTerm::LiteralDatatype(pub_date, _) = pub_date_obj?.o() else 
+            {
+                anyhow::bail!("Expected pub_date as a literal");
+            };
+            pub_date.to_string()
+        };
+        dbg!(&pub_date);
+        publication_tree.walk(git2::TreeWalkMode::PreOrder, |_, entry| {
+            let path_name = entry.name().unwrap();
+            if path_name.contains(".rdf") {
+                let current_blob = rdf_repo.repo.find_blob(entry.id()).unwrap();
+                let current_content = current_blob.content();
+                parser::parse_bufread(std::io::BufReader::new(current_content))
+                    .add_to_graph(&mut pub_graph)
+                    .unwrap();
+            }
+            git2::TreeWalkResult::Ok
+        })?;
+        
+        let pub_document_versions = get_document_publication_versions(&pub_graph);
+        let pub_collection_versions = get_collection_publication_versions(&pub_graph);
+        load_delta_for_publication(conn, pub_document_versions, pub_collection_versions, pub_name, pub_date, &pub_graph, stele_id, None).await?;
+    }
+    Ok(())
+}
+
+async fn load_delta_from_publications_from_last_inserted_publication() -> anyhow::Result<()> {
+    todo!()
+}
+
+/// 
+async fn load_delta_for_publication(
+    conn: &DatabaseConnection,
+    pub_document_versions: Vec<&SimpleTerm<'_>>,
+    pub_collection_versions: Vec<&SimpleTerm<'_>>,
+    pub_name: String,
+    pub_date: String,
+    pub_graph: &FastGraph,
+    stele_id: i32,
+    last_inserted_date: Option<String>,
+) -> anyhow::Result<()> {
+    let pub_date = NaiveDate::parse_from_str(pub_date.as_str(), "%Y-%m-%d")?;
+    create_publication(conn, &pub_name, &pub_date, stele_id).await?;
+    let publication = find_publication_by_name_and_date_and_stele_id(conn, &pub_name, &pub_date, stele_id).await?.unwrap();
+
+    insert_document_changes(conn, &last_inserted_date, pub_document_versions, pub_graph, &publication).await?;
+
+    insert_library_changes(conn, &last_inserted_date, pub_collection_versions, pub_graph, &publication).await?;
+
+    revoke_same_date_publications(conn, publication,  stele_id).await?;
+    Ok(())
+}
+
+async fn insert_document_changes(conn: &DatabaseConnection,  last_inserted_date: &Option<String>, pub_document_versions: Vec<&SimpleTerm<'_>>, pub_graph: &FastGraph, publication: &Publication) -> anyhow::Result<()> {
+    for version in pub_document_versions {
+        let Some(codified_date_obj) = pub_graph.triples_matching([version], [oll::codifiedDate], Any).next() else {
+                anyhow::bail!("Could not find codifiedDate for a document version");
+        };
+        let codified_date = {
+            let SimpleTerm::LiteralDatatype(codified_date, _) = codified_date_obj?.o() else {
+                anyhow::bail!("Expected codifiedDate as a literal");
+            };
+            codified_date.to_string()
+        };
+        if let Some(last_inserted_date) = last_inserted_date {
+            let codified_date = NaiveDate::parse_from_str(codified_date.as_str(), "%Y-%m-%d")?;
+            let last_inserted_date = NaiveDate::parse_from_str(last_inserted_date.as_str(), "%Y-%m-%d")?;
+            if codified_date <= last_inserted_date {
+                // Date already inserted
+                continue;
             }
         }
-    }
-
-    load_delta_from_publications(&mut graph, conn, rdf_repo_path.join("_publication"), name)
-        .await?;
-    Ok(())
+        //let mut doc_id_triples = graph.triples_matching([document], [oll::docId], Any);
+        }
+        Ok(())
 }
 
-/// Check if the entry is an RDF file
-fn is_rdf(entry: &walkdir::DirEntry) -> bool {
-    entry.path().extension() == Some("rdf".as_ref())
+async fn insert_library_changes(conn: &DatabaseConnection, last_inserted_date: &Option<String>, pub_collection_versions: Vec<&SimpleTerm<'_>>, pub_graph: &FastGraph, publication: &Publication) -> anyhow::Result<()> {
+    todo!()
 }
 
-/// Load deltas from the publications
-async fn load_delta_from_publications(
-    graph: &mut FastGraph,
-    conn: &DatabaseConnection,
-    publication_path: PathBuf,
-    name: &str,
-) -> anyhow::Result<()> {
-    insert_new_stele(conn, name).await?;
-    let id = find_stele_by_name(conn, name).await?;
-    tracing::info!("Inserting changes from publications for stele: {}", name);
-    dbg!(&id);
-    dbg!(&publication_path);
-    Ok(())
+async fn revoke_same_date_publications(conn: &DatabaseConnection, publication: Publication, stele_id: i32) -> anyhow::Result<()> {
+    todo!()
+}
+
+/// Get the document publication version IRIs from the graph
+fn get_document_publication_versions(graph: &FastGraph) -> Vec<&SimpleTerm> {
+    let triples = graph.triples_matching(Any, Any, [oll::DocumentVersion]);
+    triples
+        .filter_map(|t| {
+            let t = t.ok()?;
+            let subject = t.s();
+            Some(subject)
+        })
+        .collect()
+}
+
+/// Get the collection publication version IRIs from the graph
+fn get_collection_publication_versions(graph: &FastGraph) -> Vec<&SimpleTerm> {
+    let triples = graph.triples_matching(Any, Any, [oll::CollectionVersion]);
+    triples
+        .filter_map(|t| {
+            let t = t.ok()?;
+            let subject = t.s();
+            Some(subject)
+        })
+        .collect()
 }
