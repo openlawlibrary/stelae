@@ -180,27 +180,41 @@ async fn insert_changes_from_rdf_repository(
             }
         }
     }
-    let namespace_url = "https://open.law/us/ngo/oll/_ontology/v0.1/ontology.owl#";
-    let oll: Namespace<&str> = Namespace::new(namespace_url).unwrap();
+    let tx = conn.pool.begin().await?;
+    match load_delta_from_publications(conn, &rdf_repo, stele_id).await {
+        Ok(_) => {
+            tx.commit().await?;
+            Ok(())
+        }
+        Err(err) => {
+            tx.rollback().await?;
+            Err(err)
+        }
+    }
+}
 
     let oll_document_version: NsTerm = oll.get("DocumentVersion").unwrap();
     let oll_doc_id = oll.get("docId").unwrap();
 
-    let documents = graph.triples_matching(Any, Any, [oll_document_version]);
-    let mut doc_to_versions: HashMap<String, Vec<String>> = HashMap::new();
-    for triple in documents {
-        let triple = triple.unwrap();
-        let document = triple.s();
-        let mut doc_id_triples = graph.triples_matching([document], [oll_doc_id], Any);
-        if let Some(doc_id_triple) = doc_id_triples.next() {
-            let object = doc_id_triple.unwrap().o();
-            let document_iri = document.iri().unwrap().to_string();
-            if let SimpleTerm::LiteralDatatype(doc_id, _) = object {
-                doc_to_versions
-                    .entry(doc_id.to_string())
-                    .or_insert_with(Vec::new)
-                    .push(document_iri);
-            }
+/// Load deltas from the publications
+async fn load_delta_from_publications(
+    conn: &DatabaseConnection,
+    rdf_repo: &Repo,
+    stele_name: &str,
+) -> anyhow::Result<()> {
+    create_stele(conn, stele_name).await?;
+    let stele = find_stele_by_name(conn, stele_name).await?.unwrap();
+    match find_last_inserted_publication(conn, stele.id).await? {
+        Some(publication) => {
+            tracing::info!("Inserting changes from last inserted publication");
+            load_delta_from_publications_from_last_inserted_publication().await?;
+        },
+        None => {
+            tracing::info!(
+                "Inserting changes from beginning for stele: {}",
+                stele_name
+            );
+            load_delta_from_publications_from_beginning(conn, rdf_repo, stele.id).await?;
         }
     }
     for versions in doc_to_versions.values() {
