@@ -1,7 +1,7 @@
 //! Module for inserting changes into the database
 #![allow(clippy::shadow_reuse)]
-use crate::db::statements::queries::{find_publication_by_name_and_date_and_stele_id, find_stele_by_name};
-use crate::db::statements::inserts::{upsert_document, upsert_publication, upsert_stele};
+use crate::db::statements::queries::{find_last_inserted_publication, find_publication_by_name_and_date_and_stele_id, find_stele_by_name};
+use crate::db::statements::inserts::{create_document, create_publication, create_stele};
 use crate::utils::archive::get_name_parts;
 use crate::utils::git::Repo;
 use crate::{
@@ -15,6 +15,7 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
+use sqlx::types::chrono::NaiveDate;
 use walkdir::WalkDir;
 use crate::history::rdf::namespaces::{oll, dcterms};
 
