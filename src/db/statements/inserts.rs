@@ -8,7 +8,7 @@ use crate::db::DatabaseKind;
 ///
 /// # Errors
 /// Errors if the document cannot be inserted into the database.
-pub async fn upsert_document(conn: &DatabaseConnection, doc_id: &str) -> anyhow::Result<()> {
+pub async fn create_document(conn: &DatabaseConnection, doc_id: &str) -> anyhow::Result<()> {
     let statement: &'static str = r#"
         INSERT OR IGNORE INTO document ( doc_id )
         VALUES ( $1 )
@@ -35,7 +35,7 @@ pub async fn upsert_document(conn: &DatabaseConnection, doc_id: &str) -> anyhow:
 /// Upsert a new publication into the database.
 /// # Errors
 /// Errors if the publication cannot be inserted into the database.
-pub async fn upsert_publication(
+pub async fn create_publication(
     conn: &DatabaseConnection,
     name: &str,
     date: &NaiveDate,
@@ -72,7 +72,7 @@ pub async fn upsert_publication(
 ///
 /// # Errors
 /// Errors if the stele cannot be inserted into the database.
-pub async fn upsert_stele(conn: &DatabaseConnection, stele_id: &str) -> anyhow::Result<()> {
+pub async fn create_stele(conn: &DatabaseConnection, stele_id: &str) -> anyhow::Result<()> {
     let statement: &'static str = r#"
         INSERT OR IGNORE INTO stele ( name )
         VALUES ( $1 )
