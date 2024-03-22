@@ -8,28 +8,33 @@ use crate::db::DatabaseKind;
 ///
 /// # Errors
 /// Errors if the document cannot be inserted into the database.
-pub async fn create_document(conn: &DatabaseConnection, doc_id: &str) -> anyhow::Result<()> {
+pub async fn create_document(
+    conn: &DatabaseConnection,
+    doc_id: &str,
+) -> anyhow::Result<Option<i64>> {
     let statement: &'static str = r#"
         INSERT OR IGNORE INTO document ( doc_id )
         VALUES ( $1 )
     "#;
-    match conn.kind {
+    let id = match conn.kind {
         DatabaseKind::Sqlite => {
             let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
                 .bind(doc_id)
                 .execute(&mut *connection)
-                .await?;
+                .await?
+                .last_insert_id()
         }
         DatabaseKind::Postgres => {
             let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
                 .bind(doc_id)
                 .execute(&mut *connection)
-                .await?;
+                .await?
+                .last_insert_id()
         }
     };
-    Ok(())
+    Ok(id)
 }
 
 /// Upsert a new publication into the database.
@@ -40,12 +45,12 @@ pub async fn create_publication(
     name: &str,
     date: &NaiveDate,
     stele_id: i32,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Option<i64>> {
     let statement: &'static str = r#"
         INSERT OR IGNORE INTO publication ( name, date, stele_id, revoked )
         VALUES ( $1, $2, $3, FALSE )
     "#;
-    match conn.kind {
+    let id = match conn.kind {
         DatabaseKind::Sqlite => {
             let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
@@ -53,7 +58,8 @@ pub async fn create_publication(
                 .bind(date)
                 .bind(stele_id)
                 .execute(&mut *connection)
-                .await?;
+                .await?
+                .last_insert_id()
         }
         DatabaseKind::Postgres => {
             let mut connection = conn.pool.acquire().await?;
@@ -62,68 +68,112 @@ pub async fn create_publication(
                 .bind(date)
                 .bind(stele_id)
                 .execute(&mut *connection)
-                .await?;
+                .await?
+                .last_insert_id()
         }
     };
-    Ok(())
+    Ok(id)
 }
 
 /// Upsert a new stele into the database.
 ///
 /// # Errors
 /// Errors if the stele cannot be inserted into the database.
-pub async fn create_stele(conn: &DatabaseConnection, stele_id: &str) -> anyhow::Result<()> {
+pub async fn create_stele(
+    conn: &DatabaseConnection,
+    stele_id: &str,
+) -> anyhow::Result<Option<i64>> {
     let statement: &'static str = r#"
         INSERT OR IGNORE INTO stele ( name )
         VALUES ( $1 )
     "#;
-    match conn.kind {
+    let id = match conn.kind {
         DatabaseKind::Sqlite => {
             let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
                 .bind(stele_id)
                 .execute(&mut *connection)
-                .await?;
+                .await?
+                .last_insert_id()
         }
         DatabaseKind::Postgres => {
             let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
                 .bind(stele_id)
                 .execute(&mut *connection)
-                .await?;
+                .await?
+                .last_insert_id()
         }
     };
-    Ok(())
+    Ok(id)
 }
 
 /// Upsert a new version into the database.
 ///
 /// # Errors
 /// Errors if the version cannot be inserted into the database.
-pub async fn create_version(conn: &DatabaseConnection, codified_date: &str) -> anyhow::Result<()> {
+pub async fn create_version(
+    conn: &DatabaseConnection,
+    codified_date: &str,
+) -> anyhow::Result<Option<i64>> {
     let statement: &'static str = r#"
         INSERT OR IGNORE INTO version ( codified_date )
         VALUES ( $1 )
     "#;
-    match conn.kind {
+    let id = match conn.kind {
         DatabaseKind::Sqlite => {
             let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
                 .bind(codified_date)
                 .execute(&mut *connection)
-                .await?;
+                .await?
+                .last_insert_id()
         }
         DatabaseKind::Postgres => {
             let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
                 .bind(codified_date)
                 .execute(&mut *connection)
-                .await?;
+                .await?
+                .last_insert_id()
         }
     };
-    Ok(())
+    Ok(id)
 }
 
-pub async fn create_publication_version() {
-    todo!()
+/// Upsert a new publication version into the database.
+///
+/// # Errors
+/// Errors if the publication version cannot be inserted into the database.
+pub async fn create_publication_version(
+    conn: &DatabaseConnection,
+    publication_id: i32,
+    codified_date: &str,
+) -> anyhow::Result<Option<i64>> {
+    let statement = r#"
+        INSERT OR IGNORE INTO publication_version ( publication_id, version )
+        VALUES ( $1, $2 )
+    "#;
+
+    let id = match conn.kind {
+        DatabaseKind::Sqlite => {
+            let mut connection = conn.pool.acquire().await?;
+            sqlx::query(statement)
+                .bind(publication_id)
+                .bind(codified_date)
+                .execute(&mut *connection)
+                .await?
+                .last_insert_id()
+        }
+        DatabaseKind::Postgres => {
+            let mut connection = conn.pool.acquire().await?;
+            sqlx::query(statement)
+                .bind(publication_id)
+                .bind(codified_date)
+                .execute(&mut *connection)
+                .await?
+                .last_insert_id()
+        }
+    };
+    Ok(id)
 }
