@@ -12,7 +12,7 @@ pub struct Publication {
     pub name: String,
     /// Date of the publication.
     pub date: chrono::NaiveDate,
-    /// FK reference to Stele id.
+    /// Foreign key reference to stele id.
     pub stele_id: i32,
     /// Whether the publication has been revoked.
     /// A publication is revoked if another publication exists
