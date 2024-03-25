@@ -1,8 +1,8 @@
 //! Module for inserting changes into the database
 #![allow(clippy::shadow_reuse)]
 use crate::db::models::publication::Publication;
-use crate::db::statements::queries::{find_last_inserted_publication, find_publication_by_name_and_date_and_stele_id, find_stele_by_name};
-use crate::db::statements::inserts::{create_document, create_publication, create_stele};
+use crate::db::statements::queries::{find_last_inserted_publication, find_publication_by_name_and_date_and_stele_id, find_publication_version_by_publication_id_and_version, find_stele_by_name};
+use crate::db::statements::inserts::{create_document, create_publication, create_publication_version, create_stele, create_version};
 use crate::utils::archive::get_name_parts;
 use crate::utils::git::Repo;
 use crate::{
@@ -334,7 +334,9 @@ async fn insert_document_changes(conn: &DatabaseConnection,  last_inserted_date:
                 continue;
             }
         }
-        //let mut doc_id_triples = graph.triples_matching([document], [oll::docId], Any);
+        create_version(conn, &codified_date).await?;
+        create_publication_version(conn, publication.id, &codified_date).await?;
+        let publication_version = find_publication_version_by_publication_id_and_version(conn, publication.id, &codified_date).await?.context("Could not find publication version")?;
         }
         Ok(())
 }
