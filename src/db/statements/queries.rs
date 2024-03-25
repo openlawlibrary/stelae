@@ -51,15 +51,15 @@ pub async fn find_last_inserted_publication(
     conn: &DatabaseConnection,
     stele_id: i32,
 ) -> anyhow::Result<Option<Publication>> {
-    let statement: &'static str = r#"
-        SELECT *
-        FROM publication
-        WHERE revoked = 0 AND stele_id = $1
-        ORDER BY date DESC
-        LIMIT 1
-    "#;
     let row = match conn.kind {
         DatabaseKind::Sqlite => {
+            let statement: &'static str = r#"
+                SELECT *
+                FROM publication
+                WHERE revoked = 0 AND stele_id = $1
+                ORDER BY date DESC
+                LIMIT 1
+            "#;
             let mut connection = conn.pool.acquire().await?;
             sqlx::query_as::<_, Publication>(statement)
                 .bind(stele_id)
@@ -68,6 +68,13 @@ pub async fn find_last_inserted_publication(
                 .ok()
         }
         DatabaseKind::Postgres => {
+            let statement: &'static str = r#"
+                SELECT *
+                FROM publication
+                WHERE revoked = FALSE AND stele_id = $1
+                ORDER BY date DESC
+                LIMIT 1
+            "#;
             let mut connection = conn.pool.acquire().await?;
             sqlx::query_as::<_, Publication>(statement)
                 .bind(stele_id)
