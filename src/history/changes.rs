@@ -280,10 +280,11 @@ async fn load_delta_from_publications_from_beginning(
             }
             git2::TreeWalkResult::Ok
         })?;
-        
-        let pub_document_versions = get_document_publication_versions(&pub_graph);
-        let pub_collection_versions = get_collection_publication_versions(&pub_graph);
-        load_delta_for_publication(conn, pub_document_versions, pub_collection_versions, pub_name, pub_date, &pub_graph, stele_id, None).await?;
+        let pub_date = NaiveDate::parse_from_str(pub_date.as_str(), "%Y-%m-%d")?;
+        create_publication(conn, &pub_name, &pub_date, stele_id).await?;
+        let publication = find_publication_by_name_and_date_and_stele_id(conn, &pub_name, &pub_date, stele_id).await?.unwrap();
+
+        load_delta_for_publication(conn, publication, &pub_graph, None).await?;
     }
     Ok(())
 }
@@ -295,23 +296,18 @@ async fn load_delta_from_publications_from_last_inserted_publication() -> anyhow
 /// 
 async fn load_delta_for_publication(
     conn: &DatabaseConnection,
-    pub_document_versions: Vec<&SimpleTerm<'_>>,
-    pub_collection_versions: Vec<&SimpleTerm<'_>>,
-    pub_name: String,
-    pub_date: String,
+    publication: Publication,
     pub_graph: &FastGraph,
-    stele_id: i32,
     last_inserted_date: Option<String>,
 ) -> anyhow::Result<()> {
-    let pub_date = NaiveDate::parse_from_str(pub_date.as_str(), "%Y-%m-%d")?;
-    create_publication(conn, &pub_name, &pub_date, stele_id).await?;
-    let publication = find_publication_by_name_and_date_and_stele_id(conn, &pub_name, &pub_date, stele_id).await?.unwrap();
+    let pub_document_versions = get_document_publication_versions(&pub_graph);
+    let pub_collection_versions = get_collection_publication_versions(&pub_graph);
 
     insert_document_changes(conn, &last_inserted_date, pub_document_versions, pub_graph, &publication).await?;
 
     insert_library_changes(conn, &last_inserted_date, pub_collection_versions, pub_graph, &publication).await?;
 
-    revoke_same_date_publications(conn, publication,  stele_id).await?;
+    // revoke_same_date_publications(conn, publication,  stele_id).await?;
     Ok(())
 }
 
