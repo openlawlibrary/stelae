@@ -257,7 +257,7 @@ async fn load_delta_from_publications_from_beginning(
             };
             pub_label.to_string()
         };
-        dbg!(&pub_label);
+        tracing::info!("Publication: {pub_label}");
         let pub_name = pub_label.strip_prefix("Publication ").context("Could not strip prefix")?.to_string();
         let Some(pub_date_obj) = pub_graph.triples_matching(Any, [dcterms::available], Any).next() else {
             anyhow::bail!("Could not find pub_date in a publication");
@@ -269,7 +269,6 @@ async fn load_delta_from_publications_from_beginning(
             };
             pub_date.to_string()
         };
-        dbg!(&pub_date);
         publication_tree.walk(git2::TreeWalkMode::PreOrder, |_, entry| {
             let path_name = entry.name().unwrap();
             if path_name.contains(".rdf") {
