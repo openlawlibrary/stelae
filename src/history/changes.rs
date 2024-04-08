@@ -2,8 +2,15 @@
 #![allow(clippy::shadow_reuse)]
 use crate::db::models::document_change::DocumentChange;
 use crate::db::models::publication::Publication;
-use crate::db::statements::queries::{find_last_inserted_publication, find_publication_by_name_and_date_and_stele_id, find_publication_version_by_publication_id_and_version, find_stele_by_name};
-use crate::db::statements::inserts::{create_document, create_publication, create_publication_version, create_stele, create_version};
+use crate::db::statements::inserts::{
+    create_document, create_publication, create_publication_version, create_stele, create_version,
+};
+use crate::db::statements::queries::{
+    find_last_inserted_publication, find_publication_by_name_and_date_and_stele_id,
+    find_publication_version_by_publication_id_and_version, find_stele_by_name,
+};
+use crate::history::rdf::graph::StelaeGraph;
+use crate::history::rdf::namespaces::{dcterms, oll};
 use crate::utils::archive::get_name_parts;
 use crate::utils::git::Repo;
 use crate::{
@@ -11,16 +18,15 @@ use crate::{
     stelae::archive::Archive,
 };
 use anyhow::Context;
-use sophia::api::{prelude::*, term::SimpleTerm, MownStr};
+use sophia::api::{prelude::*, term::SimpleTerm};
 use sophia::xml::parser;
 use sophia::{api::ns::rdfs, inmem::graph::FastGraph};
+use sqlx::types::chrono::NaiveDate;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
-use sqlx::types::chrono::NaiveDate;
 use walkdir::WalkDir;
-use crate::history::rdf::namespaces::{oll, dcterms};
 
 /// Inserts changes from the archive into the database
 ///
