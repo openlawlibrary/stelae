@@ -2,6 +2,8 @@
 
 /// sqlx structs for document table.
 pub mod document;
+/// sqlx structs for document_change table.
+pub mod document_change;
 /// sqlx structs for publication table.
 pub mod publication;
 /// sqlx structs for publication_version table
