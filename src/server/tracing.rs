@@ -55,7 +55,7 @@ impl RootSpanBuilder for StelaeRootSpanBuilder {
         //   error, as I assume that's considered a handled error. So maybe `outcome` is only ever
         //   an error for an Actix-internal error? Either way, the root span and timings all work
         //   normally for known and handled request errors.
-        outcome.as_ref().map_or((), |response| {
+        let () = outcome.as_ref().map_or((), |response| {
             if let Some(req_start) = response.request().extensions().get::<RequestStart>() {
                 let elapsed = req_start.0.elapsed();
                 let millis = elapsed.as_millis();

@@ -3,16 +3,17 @@
 use async_trait::async_trait;
 use std::str::FromStr;
 
-use sqlx::any::{AnyPool, AnyPoolOptions};
+use sqlx::any::{self, AnyPoolOptions};
+use sqlx::AnyPool;
 use sqlx::ConnectOptions;
 use tracing::instrument;
 
 /// Database initialization.
 pub mod init;
-/// Statements for the database.
-pub mod statements;
 /// Models for the database.
 pub mod models;
+/// Statements for the database.
+pub mod statements;
 
 #[async_trait]
 /// Generic Database
@@ -22,12 +23,6 @@ pub trait Db {
     /// # Errors
     /// Errors if connection to database fails.
     async fn connect(url: &str) -> anyhow::Result<DatabaseConnection>;
-
-    // async fn execute_statement(statement: &str, conn: &DatabaseConnection) -> anyhow::Result<()>;
-
-    // async fn begin(&self) -> anyhow::Result<()>;
-
-    // async fn close(&self) -> anyhow::Result<()>;
 }
 
 /// Type of database connection.
@@ -56,15 +51,14 @@ impl Db for DatabaseConnection {
     /// Errors if connection to database fails.
     #[instrument(level = "trace")]
     async fn connect(db_url: &str) -> anyhow::Result<Self> {
-        let options = sqlx::any::AnyConnectOptions::from_str(db_url)?
-            .disable_statement_logging()
-            .clone();
+        any::install_default_drivers();
+        let options = any::AnyConnectOptions::from_str(db_url)?.disable_statement_logging();
         let pool = AnyPoolOptions::new()
             .max_connections(50)
             .connect_with(options)
             .await?;
         let connection = match db_url {
-            url if url.starts_with("sqlite://") => Self {
+            url if url.starts_with("sqlite:///") => Self {
                 pool,
                 kind: DatabaseKind::Sqlite,
             },

@@ -6,8 +6,9 @@ use crate::stelae::stele::Stele;
 use crate::utils::archive::{find_archive_path, get_name_parts};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs::{create_dir_all, read_to_string, write};
+use std::fs::{self, create_dir_all, read_to_string, write};
 use std::path::{Path, PathBuf};
+use toml_edit::ser;
 
 /// The Archive struct is used for interacting with a Stelae Archive.
 #[derive(Debug, Clone)]
@@ -36,7 +37,7 @@ impl Archive {
         let root = self
             .stelae
             .values()
-            .find(|s| s.is_root())
+            .find(|stele| stele.is_root())
             .ok_or_else(|| anyhow::anyhow!("No root Stele found in archive"))?;
         Ok(root)
     }
@@ -70,6 +71,15 @@ impl Archive {
         Ok(())
     }
 
+    /// Return sorted vector of all Stelae in the Archive.
+    #[must_use]
+    pub fn get_stelae(&self) -> Vec<(String, Stele)> {
+        let mut stelae = self.stelae.clone();
+        let mut stelae_vec: Vec<(String, Stele)> = stelae.drain().collect();
+        stelae_vec.sort_by(|first_stele, second_stele| first_stele.0.cmp(&second_stele.0));
+        stelae_vec
+    }
+
     /// Parse an Archive.
     /// # Errors
     /// Will raise error if unable to determine the current root stele or if unable to traverse the child steles.
@@ -101,10 +111,10 @@ impl Archive {
     /// If unable to unwrap the parent directory of the current path.
     pub fn traverse_children(&mut self, current: &Stele) -> anyhow::Result<()> {
         if let Some(dependencies) = current.get_dependencies()? {
-            for (qualified_name, _) in dependencies.dependencies {
+            for qualified_name in dependencies.sorted_dependencies_names() {
                 let parent_dir = self.path.clone();
                 let (org, name) = get_name_parts(&qualified_name)?;
-                if std::fs::metadata(parent_dir.join(&org).join(&name)).is_err() {
+                if fs::metadata(parent_dir.join(&org).join(&name)).is_err() {
                     // Stele does not exist on the filesystem, continue to traverse other Steles
                     continue;
                 }
@@ -182,7 +192,7 @@ pub fn init(
         shallow,
         headers,
     };
-    let conf_str = toml_edit::ser::to_string_pretty(&conf)?;
+    let conf_str = ser::to_string_pretty(&conf)?;
     write(config_path, conf_str)?;
     let archive = Archive {
         path,

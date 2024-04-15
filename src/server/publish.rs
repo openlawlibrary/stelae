@@ -1,6 +1,5 @@
 //! Serve documents in a Stelae archive.
-#![allow(clippy::exit)]
-#![allow(clippy::unused_async)]
+#![allow(clippy::exit, clippy::unused_async, clippy::infinite_loop)]
 use crate::db;
 use crate::stelae::archive::Archive;
 use crate::stelae::types::repositories::{Repositories, Repository};
@@ -13,7 +12,7 @@ use actix_web::{guard, web, App, Error, HttpRequest, HttpResponse, HttpServer, R
 use git2::Repository as GitRepository;
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::{fmt, path::PathBuf};
+use std::{fmt, io, path::PathBuf, process};
 use tracing_actix_web::TracingLogger;
 
 use actix_http::body::MessageBody;
@@ -32,7 +31,7 @@ const HEAD_COMMIT: &str = "HEAD";
 /// Remove leading and trailing `/`s from the `path` string.
 fn clean_path(path: &str) -> String {
     lazy_static! {
-        static ref RE: Regex = Regex::new(r"(?:^/*|/*$)").expect("Failed to compile regex!?!");
+        static ref RE: Regex = Regex::new("(?:^/*|/*$)").expect("Failed to compile regex!?!");
     }
     RE.replace_all(path, "").to_string()
 }
@@ -79,9 +78,9 @@ pub struct SharedState {
 }
 
 impl fmt::Debug for RepoState {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         write!(
-            f,
+            formatter,
             "Repo for {} in the archive at {}",
             self.repo.name,
             self.repo.path.display()
@@ -90,16 +89,16 @@ impl fmt::Debug for RepoState {
 }
 
 impl fmt::Debug for SharedState {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         let fb = &self.fallback;
-        match *fb {
-            Some(ref fallback) => write!(
-                f,
+        match fb.as_ref() {
+            Some(fallback) => write!(
+                formatter,
                 "Repo for {} in the archive at {}",
                 fallback.repo.name,
                 fallback.repo.path.display()
             ),
-            None => write!(f, "No fallback repo"),
+            None => write!(formatter, "No fallback repo"),
         }
     }
 }
@@ -158,7 +157,7 @@ fn find_current_blob(repo: &Repo, shared: &SharedState, path: &str) -> anyhow::R
     match blob {
         Ok(content) => Ok(content),
         Err(error) => {
-            if let Some(ref fallback) = shared.fallback {
+            if let Some(fallback) = shared.fallback.as_ref() {
                 let fallback_blob = fallback.repo.get_bytes_at_path(HEAD_COMMIT, path);
                 return fallback_blob.map_or_else(
                     |err| anyhow::bail!("No fallback blob found - {}", err.to_string()),
@@ -177,7 +176,7 @@ pub async fn serve_archive(
     archive_path: PathBuf,
     port: u16,
     individual: bool,
-) -> std::io::Result<()> {
+) -> io::Result<()> {
     let bind = "127.0.0.1";
     let message = "Running Publish Server on a Stelae archive at";
     tracing::info!("{message} '{raw_archive_path}' on http://{bind}:{port}.",);
@@ -189,7 +188,7 @@ pub async fn serve_archive(
                 "error: could not connect to database. Confirm that DATABASE_URL env var is set correctly."
             );
             tracing::error!("Error: {:?}", err);
-            std::process::exit(1);
+            process::exit(1);
         }
     };
 
@@ -197,7 +196,7 @@ pub async fn serve_archive(
         .unwrap_or_else(|err| {
             tracing::error!("Unable to parse archive at '{raw_archive_path}'.");
             tracing::error!("Error: {:?}", err);
-            std::process::exit(1);
+            process::exit(1);
         });
     let state = AppState { archive, db };
 
@@ -205,7 +204,7 @@ pub async fn serve_archive(
         init_app(&state).unwrap_or_else(|err| {
             tracing::error!("Unable to initialize app.");
             tracing::error!("Error: {:?}", err);
-            std::process::exit(1);
+            process::exit(1);
         })
     })
     .bind((bind, port))?
@@ -252,7 +251,7 @@ pub fn init_app<T: GlobalState>(
                                 "Failed to initialize routes for root Stele: {}",
                                 root.get_qualified_name()
                             );
-                            std::process::exit(1);
+                            process::exit(1);
                         });
                     }),
             ))
@@ -291,7 +290,7 @@ pub fn init_app<T: GlobalState>(
                                             "Failed to initialize routes for Stele: {}",
                                             guarded_stele.get_qualified_name()
                                         );
-                                        std::process::exit(1);
+                                        process::exit(1);
                                     });
                                 }),
                         );
@@ -317,8 +316,8 @@ fn init_repo_state(repo: &Repository, stele: &Stele) -> anyhow::Result<RepoState
         repo: Repo {
             archive_path: stele.archive_path.to_string_lossy().to_string(),
             path: PathBuf::from(&repo_path),
-            org: org.clone(),
-            name: name.clone(),
+            org,
+            name,
             repo: GitRepository::open(&repo_path)?,
         },
         serve: custom.serve.clone(),
@@ -334,6 +333,7 @@ fn init_repo_state(repo: &Repository, stele: &Stele) -> anyhow::Result<RepoState
 /// * `state` - The application state
 /// # Errors
 /// Will error if unable to register routes (e.g. if git repository cannot be opened)
+#[allow(clippy::iter_over_hash_type)]
 fn register_routes<T: GlobalState>(cfg: &mut web::ServiceConfig, state: &T) -> anyhow::Result<()> {
     for stele in state.archive().stelae.values() {
         if let Some(repositories) = stele.repositories.as_ref() {
@@ -383,7 +383,7 @@ fn register_root_routes(cfg: &mut web::ServiceConfig, stele: &Stele) -> anyhow::
         for repository in sorted_repositories {
             let custom = &repository.custom;
             let repo_state = init_repo_state(repository, stele)?;
-            for route in custom.routes.iter().flat_map(|r| r.iter()) {
+            for route in custom.routes.iter().flat_map(|routes| routes.iter()) {
                 let actix_route = format!("/{{tail:{}}}", &route);
                 root_scope = root_scope.service(
                     web::resource(actix_route.as_str())
@@ -421,13 +421,13 @@ fn register_dependent_routes(
     repositories: &Repositories,
 ) -> anyhow::Result<()> {
     let sorted_repositories = repositories.get_sorted_repositories();
-    for scope in repositories.scopes.iter().flat_map(|s| s.iter()) {
+    for scope in repositories.scopes.iter().flat_map(|scopes| scopes.iter()) {
         let scope_str = format!("/{{prefix:{}}}", &scope.as_str());
         let mut actix_scope = web::scope(scope_str.as_str());
         for repository in &sorted_repositories {
             let custom = &repository.custom;
             let repo_state = init_repo_state(repository, stele)?;
-            for route in custom.routes.iter().flat_map(|r| r.iter()) {
+            for route in custom.routes.iter().flat_map(|routes| routes.iter()) {
                 if route.starts_with('_') {
                     // Ignore routes in dependent Stele that start with underscore
                     // These routes are handled by the root Stele.

@@ -16,7 +16,8 @@ pub mod oll {
         documentMaterializedPath,
         url,
         reason,
-        status
+        status,
+        libraryMaterializedPath
     }
 }
 
