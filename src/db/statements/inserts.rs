@@ -1,6 +1,10 @@
 //! Central place for database queries in Stelae
 use sqlx::types::chrono::NaiveDate;
+use sqlx::Any;
+use sqlx::QueryBuilder;
+use sqlx::Sqlite;
 
+use crate::db::models::document_change::DocumentChange;
 use crate::db::DatabaseConnection;
 use crate::db::DatabaseKind;
 
@@ -40,6 +44,35 @@ pub async fn create_document(
         }
     };
     Ok(id)
+}
+
+pub async fn insert_document_changes_bulk(
+    conn: &DatabaseConnection,
+    document_changes: Vec<DocumentChange>,
+) -> anyhow::Result<()> {
+    match conn.kind {
+        DatabaseKind::Sqlite => {
+            let mut connection = conn.pool.acquire().await?;
+            let mut query_builder: QueryBuilder<'_, Any> = QueryBuilder::new("INSERT OR IGNORE INTO document_change (doc_mpath, status, url, change_reason, publication, version, stele, doc_id) ");
+            query_builder.push_values(document_changes, |mut b, dc| {
+                b.push_bind(dc.doc_mpath)
+                    .push_bind(dc.status)
+                    .push_bind(dc.url)
+                    .push_bind(dc.change_reason)
+                    .push_bind(dc.publication)
+                    .push_bind(dc.version)
+                    .push_bind(dc.stele)
+                    .push_bind(dc.doc_id);
+            });
+            let query = query_builder.build().persistent(false);
+            query.fetch(&mut *connection);
+        },
+        DatabaseKind::Postgres => {
+            anyhow::bail!("Not supported yet")
+        }
+    };
+
+    Ok(())
 }
 
 /// Upsert a new publication into the database.
