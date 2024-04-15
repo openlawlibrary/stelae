@@ -11,7 +11,12 @@ pub mod oll {
         docId,
         codifiedDate,
         lastValidPublication,
-        lastValidCodifiedDate
+        lastValidCodifiedDate,
+        hasChanges,
+        documentMaterializedPath,
+        url,
+        reason,
+        status
     }
 }
 
