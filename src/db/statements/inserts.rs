@@ -95,10 +95,7 @@ pub async fn create_publication(
 ///
 /// # Errors
 /// Errors if the stele cannot be inserted into the database.
-pub async fn create_stele(
-    conn: &DatabaseConnection,
-    stele: &str,
-) -> anyhow::Result<Option<i64>> {
+pub async fn create_stele(conn: &DatabaseConnection, stele: &str) -> anyhow::Result<Option<i64>> {
     let id = match conn.kind {
         DatabaseKind::Sqlite => {
             let statement: &'static str = r#"
@@ -175,7 +172,7 @@ pub async fn create_publication_version(
     conn: &DatabaseConnection,
     publication: &str,
     codified_date: &str,
-    stele: &str
+    stele: &str,
 ) -> anyhow::Result<Option<i64>> {
     let id = match conn.kind {
         DatabaseKind::Sqlite => {

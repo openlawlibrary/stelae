@@ -18,6 +18,7 @@ use crate::{
     stelae::archive::Archive,
 };
 use anyhow::Context;
+use sophia::api::MownStr;
 use sophia::api::{prelude::*, term::SimpleTerm};
 use sophia::xml::parser;
 use sophia::{api::ns::rdfs, inmem::graph::FastGraph};
@@ -326,7 +327,7 @@ async fn insert_document_changes(
     pub_graph: &StelaeGraph,
     publication: &Publication,
 ) -> anyhow::Result<()> {
-    let document_changes_bulk: Vec<DocumentChange> = Vec::new();
+    let mut document_changes_bulk: Vec<DocumentChange> = Vec::new();
     for version in pub_document_versions {
         let codified_date =
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::codifiedDate), None)?;
@@ -340,14 +341,52 @@ async fn insert_document_changes(
             }
         }
         create_version(conn, &codified_date).await?;
-        create_publication_version(conn, publication.id, &codified_date).await?;
-        let publication_version = find_publication_version_by_publication_id_and_version(
-            conn,
-            publication.id,
-            &codified_date,
-        )
-        .await?
-        .context("Could not find publication version")?;
+        create_publication_version(conn, &publication.name, &codified_date, &publication.stele)
+            .await?;
+        let doc_id =
+            pub_graph.literal_from_triple_matching(Some(version), Some(oll::docId), None)?;
+        create_document(conn, &doc_id).await?;
+
+        let changes_uri =
+            pub_graph.iri_from_triple_matching(Some(version), Some(oll::hasChanges), None)?;
+        let changes = pub_graph.subjects_from_triples_matching_subject(changes_uri);
+        for change in changes {
+            let doc_mpath = pub_graph.literal_from_triple_matching(
+                Some(&change),
+                Some(oll::documentMaterializedPath),
+                None,
+            )?;
+            let url =
+                pub_graph.literal_from_triple_matching(Some(&change), Some(oll::url), None)?;
+            let reason = pub_graph
+                .literal_from_triple_matching(Some(&change), Some(oll::reason), None)
+                .ok();
+            let statuses = pub_graph.all_literals_from_triple_matching(
+                Some(&change),
+                Some(oll::status),
+                None,
+            )?;
+            for status in statuses {
+                document_changes_bulk.push(DocumentChange {
+                    doc_mpath: doc_mpath.to_string(),
+                    status: status.to_string(),
+                    url: url.to_string(),
+                    change_reason: reason.clone(),
+                    publication: publication.name.clone(),
+                    version: codified_date.to_string(),
+                    stele: publication.stele.clone(),
+                    doc_id: doc_id.to_string(),
+                });
+            }
+        }
+        insert_document_changes_bulk(conn, &document_changes_bulk).await?;
+        // let publication_version = find_publication_version_by_publication_id_and_version(
+        //     conn,
+        //     publication.id,
+        //     &codified_date,
+        // )
+        // .await?
+        // .context("Could not find publication version")?;
     }
     Ok(())
 }
