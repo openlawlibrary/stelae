@@ -9,7 +9,9 @@ pub mod oll {
         CollectionVersion,
         DocumentVersion,
         docId,
-        codifiedDate
+        codifiedDate,
+        lastValidPublication,
+        lastValidCodifiedDate
     }
 }
 

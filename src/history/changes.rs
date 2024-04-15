@@ -207,18 +207,17 @@ async fn insert_changes_from_rdf_repository(
 async fn load_delta_from_publications(
     conn: &DatabaseConnection,
     rdf_repo: &Repo,
-    stele_name: &str,
+    stele: &str,
 ) -> anyhow::Result<()> {
-    create_stele(conn, stele_name).await?;
-    let stele = find_stele_by_name(conn, stele_name).await?.unwrap();
-    match find_last_inserted_publication(conn, stele.id).await? {
+    create_stele(conn, stele).await?;
+    match find_last_inserted_publication(conn, stele).await? {
         Some(publication) => {
             tracing::info!("Inserting changes from last inserted publication");
             load_delta_from_publications_from_last_inserted_publication().await?;
         }
         None => {
-            tracing::info!("Inserting changes from beginning for stele: {}", stele_name);
-            load_delta_from_publications_from_beginning(conn, rdf_repo, stele.id).await?;
+            tracing::info!("Inserting changes from beginning for stele: {}", stele);
+            load_delta_from_publications_from_beginning(conn, rdf_repo, stele).await?;
         }
     }
     Ok(())
@@ -231,7 +230,7 @@ async fn load_delta_from_publications(
 async fn load_delta_from_publications_from_beginning(
     conn: &DatabaseConnection,
     rdf_repo: &Repo,
-    stele_id: i32,
+    stele: &str,
 ) -> anyhow::Result<()> {
     let head_commit = rdf_repo.repo.head()?.peel_to_commit()?;
     let tree = head_commit.tree()?;
@@ -269,9 +268,19 @@ async fn load_delta_from_publications_from_beginning(
             git2::TreeWalkResult::Ok
         })?;
         let pub_date = NaiveDate::parse_from_str(pub_date.as_str(), "%Y-%m-%d")?;
-        create_publication(conn, &pub_name, &pub_date, stele_id).await?;
+        let (last_valid_pub_name, last_valid_codified_date) =
+            referenced_publication_information(&pub_graph);
+        create_publication(
+            conn,
+            &pub_name,
+            &pub_date,
+            stele,
+            last_valid_pub_name,
+            last_valid_codified_date,
+        )
+        .await?;
         let publication =
-            find_publication_by_name_and_date_and_stele_id(conn, &pub_name, &pub_date, stele_id)
+            find_publication_by_name_and_date_and_stele_id(conn, &pub_name, &pub_date, stele)
                 .await?
                 .unwrap();
 
@@ -351,6 +360,21 @@ async fn insert_library_changes(
     publication: &Publication,
 ) -> anyhow::Result<()> {
     todo!()
+}
+
+/// Get the last valid publication name and codified date from the graph
+fn referenced_publication_information(pub_graph: &StelaeGraph) -> (Option<String>, Option<String>) {
+    let last_valid_pub = pub_graph
+        .literal_from_triple_matching(None, Some(oll::lastValidPublication), None)
+        .ok()
+        .and_then(|p: String| {
+            p.strip_prefix("Publication ")
+                .and_then(|s| Some(s.to_string()))
+        });
+    let last_valid_version = pub_graph
+        .literal_from_triple_matching(None, Some(oll::lastValidCodifiedDate), None)
+        .ok();
+    return (last_valid_pub, last_valid_version);
 }
 
 async fn revoke_same_date_publications(
