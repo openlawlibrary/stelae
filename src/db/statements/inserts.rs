@@ -49,34 +49,40 @@ pub async fn create_publication(
     conn: &DatabaseConnection,
     name: &str,
     date: &NaiveDate,
-    stele_id: i32,
+    stele: &str,
+    last_valid_publication_name: Option<String>,
+    last_valid_version: Option<String>,
 ) -> anyhow::Result<Option<i64>> {
     let id = match conn.kind {
         DatabaseKind::Sqlite => {
             let statement: &'static str = r#"
-                INSERT OR IGNORE INTO publication ( name, date, stele_id, revoked )
-                VALUES ( $1, $2, $3, FALSE )
+                INSERT OR IGNORE INTO publication ( name, date, stele, revoked, last_valid_publication_name, last_valid_version )
+                VALUES ( $1, $2, $3, FALSE, $4, $5 )
             "#;
             let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
                 .bind(name)
                 .bind(date)
-                .bind(stele_id)
+                .bind(stele)
+                .bind(last_valid_publication_name)
+                .bind(last_valid_version)
                 .execute(&mut *connection)
                 .await?
                 .last_insert_id()
         }
         DatabaseKind::Postgres => {
             let statement: &'static str = r#"
-                INSERT INTO publication ( name, date, stele_id, revoked )
-                VALUES ( $1, $2, $3, FALSE )
-                ON CONFLICT ( name, date, stele_id ) DO NOTHING;
+                INSERT INTO publication ( name, date, stele, revoked, last_valid_publication_name, last_valid_version )
+                VALUES ( $1, $2, $3, FALSE, $4, $5 )
+                ON CONFLICT ( name, stele ) DO NOTHING;
             "#;
             let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
                 .bind(name)
                 .bind(date)
-                .bind(stele_id)
+                .bind(stele)
+                .bind(last_valid_publication_name)
+                .bind(last_valid_version)
                 .execute(&mut *connection)
                 .await?
                 .last_insert_id()
@@ -91,7 +97,7 @@ pub async fn create_publication(
 /// Errors if the stele cannot be inserted into the database.
 pub async fn create_stele(
     conn: &DatabaseConnection,
-    stele_id: &str,
+    stele: &str,
 ) -> anyhow::Result<Option<i64>> {
     let id = match conn.kind {
         DatabaseKind::Sqlite => {
@@ -101,7 +107,7 @@ pub async fn create_stele(
             "#;
             let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
-                .bind(stele_id)
+                .bind(stele)
                 .execute(&mut *connection)
                 .await?
                 .last_insert_id()
@@ -114,7 +120,7 @@ pub async fn create_stele(
             "#;
             let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
-                .bind(stele_id)
+                .bind(stele)
                 .execute(&mut *connection)
                 .await?
                 .last_insert_id()
@@ -167,33 +173,36 @@ pub async fn create_version(
 /// Errors if the publication version cannot be inserted into the database.
 pub async fn create_publication_version(
     conn: &DatabaseConnection,
-    publication_id: i32,
+    publication: &str,
     codified_date: &str,
+    stele: &str
 ) -> anyhow::Result<Option<i64>> {
     let id = match conn.kind {
         DatabaseKind::Sqlite => {
             let statement = r#"
-                INSERT OR IGNORE INTO publication_version ( publication_id, version )
-                VALUES ( $1, $2 )
+                INSERT OR IGNORE INTO publication_version ( publication, version, stele )
+                VALUES ( $1, $2, $3 )
             "#;
             let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
-                .bind(publication_id)
+                .bind(publication)
                 .bind(codified_date)
+                .bind(stele)
                 .execute(&mut *connection)
                 .await?
                 .last_insert_id()
         }
         DatabaseKind::Postgres => {
             let statement = r#"
-                INSERT INTO publication_version ( publication_id, version )
-                VALUES ( $1, $2 )
-                ON CONFLICT ( publication_id, version ) DO NOTHING;
+                INSERT INTO publication_version ( publication, version, stele )
+                VALUES ( $1, $2, $3 )
+                ON CONFLICT ( publication, version, stele ) DO NOTHING;
             "#;
             let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
-                .bind(publication_id)
+                .bind(publication)
                 .bind(codified_date)
+                .bind(stele)
                 .execute(&mut *connection)
                 .await?
                 .last_insert_id()
