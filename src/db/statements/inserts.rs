@@ -95,7 +95,7 @@ pub async fn create_publication(
             let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
                 .bind(name)
-                .bind(date)
+                .bind(date.to_string())
                 .bind(stele)
                 .bind(last_valid_publication_name)
                 .bind(last_valid_version)
@@ -112,7 +112,7 @@ pub async fn create_publication(
             let mut connection = conn.pool.acquire().await?;
             sqlx::query(statement)
                 .bind(name)
-                .bind(date)
+                .bind(date.to_string())
                 .bind(stele)
                 .bind(last_valid_publication_name)
                 .bind(last_valid_version)

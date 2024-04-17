@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
-use sqlx::types::chrono;
+use sqlx::{any::AnyRow, FromRow, Row};
 
-#[derive(sqlx::FromRow, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 /// Model for a Stele.
 pub struct Publication {
     /// Name of the publication in %YYYY-%MM-%DD format
@@ -9,13 +9,13 @@ pub struct Publication {
     /// when two publications exist on same date.
     pub name: String,
     /// Date of the publication.
-    pub date: chrono::NaiveDate,
+    pub date: String,
     /// Foreign key reference to stele by name.
     pub stele: String,
     /// Whether the publication has been revoked.
     /// A publication is revoked if another publication exists
     /// on the same date with a higher version number.
-    pub revoked: bool,
+    pub revoked: i64,
     /// If a publication is derived from another publication,
     /// represents the last publication name that was valid before this publication.
     pub last_valid_publication_name: Option<String>,
@@ -23,4 +23,17 @@ pub struct Publication {
     /// represents the last publication version (codified date) from the previous publication
     /// that the current publication is derived from.
     pub last_valid_version: Option<String>
+}
+
+impl FromRow<'_, AnyRow> for Publication {
+    fn from_row(row: &AnyRow) -> Result<Self, sqlx::Error> {
+        Ok(Publication {
+            name: row.try_get("name").unwrap(),
+            date: row.try_get("date").unwrap(),
+            stele: row.try_get("stele").unwrap(),
+            revoked: row.try_get("revoked").unwrap(),
+            last_valid_publication_name: row.try_get("last_valid_publication_name").ok(),
+            last_valid_version: row.try_get("last_valid_version").ok(),
+        })
+    }
 }

@@ -3,16 +3,17 @@
 use async_trait::async_trait;
 use std::str::FromStr;
 
-use sqlx::any::{AnyPool, AnyPoolOptions};
+use sqlx::any::AnyPoolOptions;
+use sqlx::AnyPool;
 use sqlx::ConnectOptions;
 use tracing::instrument;
 
 /// Database initialization.
 pub mod init;
-/// Statements for the database.
-pub mod statements;
 /// Models for the database.
 pub mod models;
+/// Statements for the database.
+pub mod statements;
 
 #[async_trait]
 /// Generic Database
@@ -56,6 +57,7 @@ impl Db for DatabaseConnection {
     /// Errors if connection to database fails.
     #[instrument(level = "trace")]
     async fn connect(db_url: &str) -> anyhow::Result<Self> {
+        sqlx::any::install_default_drivers();
         let options = sqlx::any::AnyConnectOptions::from_str(db_url)?
             .disable_statement_logging()
             .clone();
@@ -64,7 +66,7 @@ impl Db for DatabaseConnection {
             .connect_with(options)
             .await?;
         let connection = match db_url {
-            url if url.starts_with("sqlite://") => Self {
+            url if url.starts_with("sqlite:///") => Self {
                 pool,
                 kind: DatabaseKind::Sqlite,
             },
