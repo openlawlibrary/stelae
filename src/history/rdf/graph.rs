@@ -1,11 +1,9 @@
 /// The helper methods for working with RDF in Stelae.
 use anyhow::Context;
 use sophia::api::graph::Graph;
-use sophia::api::ns::rdf::li;
 use sophia::api::ns::NsTerm;
 use sophia::api::{prelude::*, term::SimpleTerm};
 use sophia::inmem::graph::FastGraph;
-use sophia::inmem::index::TermIndexFullError;
 
 /// Stelae representation of an RDF graph.
 pub struct StelaeGraph {
