@@ -7,7 +7,8 @@ use crate::db::statements::inserts::{
     insert_document_changes_bulk,
 };
 use crate::db::statements::queries::{
-    find_last_inserted_publication, find_publication_by_name_and_stele, find_publication_version_by_publication_id_and_version, find_stele_by_name
+    find_last_inserted_publication, find_publication_by_name_and_stele,
+    find_publication_version_by_publication_id_and_version, find_stele_by_name,
 };
 use crate::history::rdf::graph::StelaeGraph;
 use crate::history::rdf::namespaces::{dcterms, oll};
@@ -280,11 +281,7 @@ async fn load_delta_from_publications_from_beginning(
             last_valid_codified_date,
         )
         .await?;
-        let publication =
-            find_publication_by_name_and_date_and_stele_id(conn, &pub_name, &pub_date, stele)
-                .await?
-                .unwrap();
-
+        let publication = find_publication_by_name_and_stele(conn, &pub_name, stele).await?;
         load_delta_for_publication(conn, publication, &pub_graph, None).await?;
     }
     Ok(())
