@@ -54,11 +54,12 @@ impl StelaeGraph {
         predicate: Option<NsTerm>,
         object: Option<NsTerm>,
     ) -> anyhow::Result<Vec<String>> {
-        Ok(self
-            .literal_from_triple_matching(subject, predicate, object)
-            .into_iter()
-            .map(|t| t)
-            .collect())
+        let mut literals = Vec::new();
+        let mut triples_iter = self.triples_matching_inner(subject, predicate, object);
+        while let Some(term) = triples_iter.next() {
+            literals.push(self.term_to_literal(&term?)?);
+        }
+        Ok(literals)
     }
 
     /// Extract an IRI from a triple matching.
