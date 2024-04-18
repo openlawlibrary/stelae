@@ -30,14 +30,17 @@ impl StelaeGraph {
         object: Option<NsTerm>,
     ) -> anyhow::Result<String> {
         let triple = self.get_next_triples_matching(subject, predicate, object)?;
-        let literal = match triple.o() {
-            SimpleTerm::LiteralLanguage(literal, _) => literal,
-            SimpleTerm::LiteralDatatype(literal, _) => literal,
-            _ => {
-                anyhow::bail!("Expected literal language, got - {:?}", triple.o());
-            }
-        };
-        Ok(literal.to_string())
+        let literal = self.term_to_literal(&triple)?;
+        Ok(literal)
+    }
+
+    /// Convert a term to a literal.
+    pub fn term_to_literal(&self, term: &[&SimpleTerm<'_>; 3]) -> anyhow::Result<String> {
+        match term.o() {
+            SimpleTerm::LiteralLanguage(literal, _) => Ok(literal.to_string()),
+            SimpleTerm::LiteralDatatype(literal, _) => Ok(literal.to_string()),
+            _ => anyhow::bail!("Expected literal language, got - {:?}", term),
+        }
     }
 
     /// Extract all literals from a triple matching.
