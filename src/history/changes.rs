@@ -4,6 +4,7 @@ use crate::db::models::document_change::DocumentChange;
 use crate::db::models::publication::Publication;
 use crate::db::statements::inserts::{
     create_document, create_publication, create_publication_version, create_stele, create_version,
+    insert_document_changes_bulk,
 };
 use crate::db::statements::queries::{
     find_last_inserted_publication, find_publication_by_name_and_stele, find_publication_version_by_publication_id_and_version, find_stele_by_name
