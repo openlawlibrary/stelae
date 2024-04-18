@@ -30,6 +30,8 @@ use std::{
 };
 use walkdir::WalkDir;
 
+use super::rdf::graph::Bag;
+
 /// Inserts changes from the archive into the database
 ///
 /// # Errors
@@ -261,8 +263,8 @@ async fn insert_document_changes(
 
         let changes_uri =
             pub_graph.iri_from_triple_matching(Some(version), Some(oll::hasChanges), None)?;
-        let changes = pub_graph.subjects_from_triples_matching_subject(changes_uri);
-        for change in changes {
+        let changes = Bag::new(&pub_graph, changes_uri);
+        for change in changes.items()? {
             let doc_mpath = pub_graph.literal_from_triple_matching(
                 Some(&change),
                 Some(oll::documentMaterializedPath),
