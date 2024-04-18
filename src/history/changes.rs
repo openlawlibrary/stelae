@@ -291,15 +291,8 @@ async fn insert_document_changes(
                 });
             }
         }
-        insert_document_changes_bulk(conn, &document_changes_bulk).await?;
-        // let publication_version = find_publication_version_by_publication_id_and_version(
-        //     conn,
-        //     publication.id,
-        //     &codified_date,
-        // )
-        // .await?
-        // .context("Could not find publication version")?;
     }
+    insert_document_changes_bulk(conn, &document_changes_bulk).await?;
     Ok(())
 }
 
