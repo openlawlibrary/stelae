@@ -88,32 +88,10 @@ impl StelaeGraph {
         predicate: Option<NsTerm<'graph>>,
         object: Option<NsTerm<'graph>>,
     ) -> anyhow::Result<[&'graph SimpleTerm<'_>; 3]> {
-        let triple = match (subject, predicate, object) {
-                (Some(s), None, None) => {
-                    self.g.triples_matching([s], Any, Any).next().context("Did not find a triple matching provided subject in the graph")
-                },
-                (None, Some(p), None) => {
-                    self.g.triples_matching(Any, [p], Any).next().context("Did not find a triple matching provided predicate in the graph")
-                },
-                (None, None, Some(o)) => {
-                    self.g.triples_matching(Any, Any, [o]).next().context("Did not find a triple matching provided object in the graph")
-                },
-                (Some(s), Some(p), None) => {
-                    self.g.triples_matching([s], [p], Any).next().context("Did not find a triple matching provided subject and predicate in the graph")
-                },
-                (Some(s), None, Some(o)) => {
-                    self.g.triples_matching([s], Any, [o]).next().context("Did not find a triple matching provided subject and object in the graph")
-                },
-                (None, Some(p), Some(o)) => {
-                    self.g.triples_matching(Any, [p], [o]).next().context("Did not find a triple matching provided predicate and object in the graph")
-                },
-                (Some(s), Some(p), Some(o)) => {
-                    self.g.triples_matching([s], [p], [o]).next().context("Did not find a triple matching provided subject, predicate and object in the graph")
-                },
-                (None, None, None) => {
-                    anyhow::bail!("No subject, predicate or object provided")
-                }
-            }?;
+        let triple = self
+            .triples_matching_inner(subject, predicate, object)
+            .next()
+            .context("Expected to find triple matching")?;
         Ok(triple?)
     }
 }
