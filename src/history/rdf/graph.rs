@@ -82,18 +82,6 @@ impl StelaeGraph {
         Ok(SimpleTerm::Iri(iri.clone()))
     }
 
-    /// Extract subjects from a triple matching a subject.
-    pub fn subjects_from_triples_matching_subject(&self, subject: SimpleTerm) -> Vec<SimpleTerm> {
-        self.g
-            .triples_matching([subject], Any, Any)
-            .into_iter()
-            .filter_map(|t| {
-                let t = t.ok()?;
-                Some(t.s().clone())
-            })
-            .collect()
-    }
-
     fn get_next_triples_matching<'graph>(
         &'graph self,
         subject: Option<&'graph SimpleTerm>,
