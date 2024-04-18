@@ -107,88 +107,6 @@ async fn insert_changes_from_rdf_repository(
 ) -> anyhow::Result<()> {
     tracing::info!("Inserting changes from RDF repository: {}", stele_id);
     tracing::info!("RDF repository path: {}", rdf_repo.path.display());
-    let run_documents = false;
-    if run_documents {
-        let mut graph = FastGraph::new();
-        let head_commit = rdf_repo.repo.head()?.peel_to_commit()?;
-        let tree = head_commit.tree()?;
-        tree.walk(git2::TreeWalkMode::PreOrder, |_, entry| {
-            let path_name = entry.name().unwrap();
-            if path_name.contains(".rdf") {
-                let blob = rdf_repo.repo.find_blob(entry.id()).unwrap();
-                let data = blob.content();
-                let reader = std::io::BufReader::new(data);
-                parser::parse_bufread(reader)
-                    .add_to_graph(&mut graph)
-                    .unwrap();
-            }
-            git2::TreeWalkResult::Ok
-        })?;
-        // for entry in WalkDir::new(&rdf_repo.path) {
-        //     match entry {
-        //         Ok(entry) if is_rdf(&entry) => {
-        //             tracing::debug!("Parsing file: {:?}", entry.path());
-        //             let file = std::fs::File::open(entry.path())?;
-        //             let reader = std::io::BufReader::new(file);
-        //             parser::parse_bufread(reader).add_to_graph(&mut graph)?;
-        //         }
-        //         Ok(entry) => {
-        //             tracing::debug!("Skipping non-RDF file: {:?}", entry.path());
-        //             continue;
-        //         }
-        //         Err(err) => {
-        //             tracing::error!("Error reading file: {:?}", err);
-        //         }
-        //     }
-        // }
-        let documents = graph.triples_matching(Any, Any, [oll::DocumentVersion]);
-        let mut doc_to_versions: HashMap<String, Vec<String>> = HashMap::new();
-        for triple in documents {
-            let triple = triple.unwrap();
-            let document = triple.s();
-            let mut doc_id_triples = graph.triples_matching([document], [oll::docId], Any);
-            if let Some(doc_id_triple) = doc_id_triples.next() {
-                let object = doc_id_triple.unwrap().o();
-                let document_iri = document.iri().unwrap().to_string();
-                if let SimpleTerm::LiteralDatatype(doc_id, _) = object {
-                    doc_to_versions
-                        .entry(doc_id.to_string())
-                        .or_insert_with(Vec::new)
-                        .push(document_iri);
-                }
-            }
-        }
-        for versions in doc_to_versions.values() {
-            // Find the version with the maximum docId
-            let doc_version = versions
-                .iter()
-                .max_by_key(|&v| {
-                    let mut doc_id_triples = graph.triples_matching([v.as_str()], [oll::docId], Any);
-                    doc_id_triples
-                        .next()
-                        .map_or_else(String::new, |doc_id_triple| {
-                            let object = doc_id_triple.unwrap().o();
-                            if let SimpleTerm::LiteralDatatype(doc_id, _) = object {
-                                doc_id.to_string()
-                            } else {
-                                String::new()
-                            }
-                        })
-                })
-                .unwrap();
-            // Get the docId for this version
-            // dbg!(&doc_version);
-            let doc_version_iri_ref = IriRef::new_unchecked(MownStr::from_str(doc_version.as_str()));
-            let mut doc_id_triples =
-                graph.triples_matching([SimpleTerm::Iri(doc_version_iri_ref)], [oll::docId], Any);
-            if let Some(doc_id_triple) = doc_id_triples.next() {
-                let object = doc_id_triple.unwrap().o();
-                if let SimpleTerm::LiteralDatatype(doc_id, _) = object {
-                    create_document(conn, doc_id).await?;
-                }
-            }
-        }
-    }
     let tx = conn.pool.begin().await?;
     match load_delta_from_publications(conn, &rdf_repo, stele_id).await {
         Ok(_) => {
@@ -201,9 +119,6 @@ async fn insert_changes_from_rdf_repository(
         }
     }
 }
-
-    let oll_document_version: NsTerm = oll.get("DocumentVersion").unwrap();
-    let oll_doc_id = oll.get("docId").unwrap();
 
 /// Load deltas from the publications
 async fn load_delta_from_publications(
