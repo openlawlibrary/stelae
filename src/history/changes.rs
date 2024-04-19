@@ -7,7 +7,8 @@ use crate::db::models::library_change::LibraryChange;
 use crate::db::models::publication::Publication;
 use crate::db::statements::inserts::{
     create_document, create_publication, create_publication_version, create_stele, create_version,
-    insert_document_changes_bulk,
+    insert_changed_library_document_bulk, insert_document_changes_bulk, insert_library_bulk,
+    insert_library_changes_bulk,
 };
 use crate::db::statements::queries::{
     find_last_inserted_publication, find_publication_by_name_and_stele,
@@ -230,7 +231,14 @@ async fn load_delta_for_publication(
     )
     .await?;
 
-    // insert_library_changes(conn, &last_inserted_date, pub_collection_versions, pub_graph, &publication).await?;
+    insert_library_changes(
+        conn,
+        &last_inserted_date,
+        pub_collection_versions,
+        pub_graph,
+        &publication,
+    )
+    .await?;
     // insert_shared_publication_versions_for_publication(con, pub.id, pub.last_valid_publication_name, pub.last_valid_version, pub.stele_id)
 
     // revoke_same_date_publications(conn, publication,  stele_id).await?;
@@ -244,7 +252,7 @@ async fn insert_document_changes(
     pub_graph: &StelaeGraph,
     publication: &Publication,
 ) -> anyhow::Result<()> {
-    let mut document_changes_bulk: Vec<DocumentChange> = Vec::new();
+    let mut document_changes_bulk: Vec<DocumentChange> = vec![];
     for version in pub_document_versions {
         let codified_date =
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::codifiedDate), None)?;
@@ -305,10 +313,74 @@ async fn insert_library_changes(
     conn: &DatabaseConnection,
     last_inserted_date: &Option<String>,
     pub_collection_versions: Vec<&SimpleTerm<'_>>,
-    pub_graph: &FastGraph,
+    pub_graph: &StelaeGraph,
     publication: &Publication,
 ) -> anyhow::Result<()> {
-    todo!()
+    let mut library_changes_bulk: Vec<LibraryChange> = vec![];
+    let mut changed_library_document_bulk: Vec<ChangedLibraryDocument> = vec![];
+    let mut library_bulk: Vec<Library> = vec![];
+    for version in pub_collection_versions {
+        let codified_date =
+            pub_graph.literal_from_triple_matching(Some(version), Some(oll::codifiedDate), None)?;
+        if let Some(last_inserted_date) = last_inserted_date {
+            let codified_date = NaiveDate::parse_from_str(codified_date.as_str(), "%Y-%m-%d")?;
+            let last_inserted_date =
+                NaiveDate::parse_from_str(last_inserted_date.as_str(), "%Y-%m-%d")?;
+            if codified_date <= last_inserted_date {
+                // Date already inserted
+                continue;
+            }
+        }
+        let library_mpath = pub_graph.literal_from_triple_matching(
+            Some(version),
+            Some(oll::libraryMaterializedPath),
+            None,
+        )?;
+        let url = pub_graph.literal_from_triple_matching(Some(version), Some(oll::url), None)?;
+        let status =
+            pub_graph.literal_from_triple_matching(Some(version), Some(oll::status), None)?;
+        library_bulk.push(Library {
+            mpath: library_mpath.to_string(),
+        });
+        library_changes_bulk.push(LibraryChange {
+            library_mpath: library_mpath.to_string(),
+            publication: publication.name.to_string(),
+            version: codified_date.to_string(),
+            stele: publication.stele.to_string(),
+            status: status.to_string(),
+            url: url.to_string(),
+        });
+        let changes_uri =
+            pub_graph.iri_from_triple_matching(Some(version), Some(oll::hasChanges), None)?;
+        let changes = Bag::new(&pub_graph, changes_uri);
+        for change in changes.items()? {
+            let Ok(status) =
+                pub_graph.literal_from_triple_matching(Some(&change), Some(oll::status), None)
+            else {
+                continue;
+            };
+            let Ok(doc_mpath) = pub_graph.literal_from_triple_matching(
+                Some(&change),
+                Some(oll::documentMaterializedPath),
+                None,
+            ) else {
+                continue;
+            };
+            changed_library_document_bulk.push(ChangedLibraryDocument {
+                publication: publication.name.to_string(),
+                version: codified_date.to_string(),
+                stele: publication.stele.to_string(),
+                doc_mpath: doc_mpath.to_string(),
+                status: status.to_string(),
+                library_mpath: library_mpath.to_string(),
+                url: url.to_string(),
+            });
+        }
+    }
+    insert_library_bulk(conn, &library_bulk).await?;
+    insert_library_changes_bulk(conn, &library_changes_bulk).await?;
+    insert_changed_library_document_bulk(conn, &changed_library_document_bulk).await?;
+    Ok(())
 }
 
 /// Get the last valid publication name and codified date from the graph
