@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(sqlx::FromRow, Deserialize, Serialize)]
+#[derive(sqlx::FromRow, Deserialize, Serialize, Debug)]
 /// Model for library (collection) change events.
 pub struct LibraryChange {
     /// Foreign key reference to publication name

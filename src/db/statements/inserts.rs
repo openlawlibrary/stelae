@@ -3,7 +3,10 @@ use sqlx::types::chrono::NaiveDate;
 use sqlx::Any;
 use sqlx::QueryBuilder;
 
+use crate::db::models::changed_library_document::ChangedLibraryDocument;
 use crate::db::models::document_change::DocumentChange;
+use crate::db::models::library::Library;
+use crate::db::models::library_change::LibraryChange;
 use crate::db::DatabaseConnection;
 use crate::db::DatabaseKind;
 
@@ -55,7 +58,7 @@ pub async fn insert_document_changes_bulk(
     match conn.kind {
         DatabaseKind::Sqlite => {
             let mut connection = conn.pool.acquire().await?;
-            let mut query_builder: QueryBuilder<'_, Any> = QueryBuilder::new("INSERT OR IGNORE INTO document_change (doc_mpath, status, url, change_reason, publication, version, stele, doc_id) ");
+            let mut query_builder = QueryBuilder::new("INSERT OR IGNORE INTO document_change (doc_mpath, status, url, change_reason, publication, version, stele, doc_id) ");
             for chunk in document_changes.chunks(BATCH_SIZE) {
                 query_builder.push_values(chunk, |mut b, dc| {
                     b.push_bind(&dc.doc_mpath)
@@ -77,6 +80,89 @@ pub async fn insert_document_changes_bulk(
         }
     };
 
+    Ok(())
+}
+
+/// Upsert a bulk of libraries into the database.
+pub async fn insert_library_bulk(
+    conn: &DatabaseConnection,
+    libraries: &Vec<Library>,
+) -> anyhow::Result<()> {
+    match conn.kind {
+        DatabaseKind::Sqlite => {
+            let mut connection = conn.pool.acquire().await?;
+            let mut query_builder = QueryBuilder::new("INSERT OR IGNORE INTO library (mpath) ");
+            for chunk in libraries.chunks(BATCH_SIZE) {
+                query_builder.push_values(chunk, |mut b, l| {
+                    b.push_bind(&l.mpath);
+                });
+                let query = query_builder.build();
+                query.execute(&mut *connection).await?;
+            }
+        }
+        DatabaseKind::Postgres => {
+            anyhow::bail!("Not supported yet")
+        }
+    }
+    Ok(())
+}
+
+/// Upsert a bulk of library changes into the database.
+pub async fn insert_library_changes_bulk(
+    conn: &DatabaseConnection,
+    library_changes: &Vec<LibraryChange>,
+) -> anyhow::Result<()> {
+    match conn.kind {
+        DatabaseKind::Sqlite => {
+            let mut connection = conn.pool.acquire().await?;
+            let mut query_builder = QueryBuilder::new("INSERT OR IGNORE INTO library_change (library_mpath, publication, version, stele, status, url) ");
+            for chunk in library_changes.chunks(BATCH_SIZE) {
+                query_builder.push_values(chunk, |mut b, lc| {
+                    b.push_bind(&lc.library_mpath)
+                        .push_bind(&lc.publication)
+                        .push_bind(&lc.version)
+                        .push_bind(&lc.stele)
+                        .push_bind(&lc.status)
+                        .push_bind(&lc.url);
+                });
+                let query = query_builder.build();
+                query.execute(&mut *connection).await?;
+            }
+        }
+        DatabaseKind::Postgres => {
+            anyhow::bail!("Not supported yet")
+        }
+    }
+    Ok(())
+}
+
+/// Upsert a bulk of changed library documents into the database.
+pub async fn insert_changed_library_document_bulk(
+    conn: &DatabaseConnection,
+    changed_library_document: &Vec<ChangedLibraryDocument>,
+) -> anyhow::Result<()> {
+    match conn.kind {
+        DatabaseKind::Sqlite => {
+            let mut connection = conn.pool.acquire().await?;
+            let mut query_builder = QueryBuilder::new("INSERT OR IGNORE INTO changed_library_document (publication, version, stele, doc_mpath, status, library_mpath, url) ");
+            for chunk in changed_library_document.chunks(BATCH_SIZE) {
+                query_builder.push_values(chunk, |mut b, cl| {
+                    b.push_bind(&cl.publication)
+                        .push_bind(&cl.version)
+                        .push_bind(&cl.stele)
+                        .push_bind(&cl.doc_mpath)
+                        .push_bind(&cl.status)
+                        .push_bind(&cl.library_mpath)
+                        .push_bind(&cl.url);
+                });
+                let query = query_builder.build();
+                query.execute(&mut *connection).await?;
+            }
+        }
+        DatabaseKind::Postgres => {
+            anyhow::bail!("Not supported yet")
+        }
+    }
     Ok(())
 }
 
