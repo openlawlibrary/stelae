@@ -1,8 +1,11 @@
 //! Central place for database queries
+use sqlx::QueryBuilder;
+
 use crate::db::models::publication::Publication;
 use crate::db::models::publication_version::PublicationVersion;
 use crate::db::models::stele::Stele;
 use crate::db::DatabaseConnection;
+use std::collections::HashSet;
 
 use crate::db::DatabaseKind;
 

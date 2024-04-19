@@ -166,6 +166,33 @@ pub async fn insert_changed_library_document_bulk(
     Ok(())
 }
 
+/// Upsert a bulk of publication_has_publication_versions into the database.
+pub async fn insert_publication_has_publication_versions_bulk(
+    conn: &DatabaseConnection,
+    publication_has_publication_versions: Vec<PublicationHasPublicationVersions>,
+) -> anyhow::Result<()> {
+    match conn.kind {
+        DatabaseKind::Sqlite => {
+            let mut connection = conn.pool.acquire().await?;
+            let mut query_builder = QueryBuilder::new("INSERT OR IGNORE INTO publication_has_publication_versions (publication, referenced_publication, version, stele) ");
+            for chunk in publication_has_publication_versions.chunks(BATCH_SIZE) {
+                query_builder.push_values(chunk, |mut b, p| {
+                    b.push_bind(&p.publication)
+                        .push_bind(&p.referenced_publication)
+                        .push_bind(&p.version)
+                        .push_bind(&p.stele);
+                });
+                let query = query_builder.build();
+                query.execute(&mut *connection).await?;
+            }
+        }
+        DatabaseKind::Postgres => {
+            anyhow::bail!("Not supported yet")
+        }
+    }
+    Ok(())
+}
+
 /// Upsert a new publication into the database.
 /// # Errors
 /// Errors if the publication cannot be inserted into the database.
