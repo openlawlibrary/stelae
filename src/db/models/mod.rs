@@ -12,6 +12,8 @@ pub mod library;
 pub mod library_change;
 /// sqlx structs for publication table.
 pub mod publication;
+/// sqlx structs for publication_has_publication_versions table.
+pub mod publication_has_publication_versions;
 /// sqlx structs for publication_version table
 pub mod publication_version;
 /// sqlx structs for stele table.
