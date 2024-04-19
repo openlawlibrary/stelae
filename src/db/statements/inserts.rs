@@ -7,6 +7,7 @@ use crate::db::models::changed_library_document::ChangedLibraryDocument;
 use crate::db::models::document_change::DocumentChange;
 use crate::db::models::library::Library;
 use crate::db::models::library_change::LibraryChange;
+use crate::db::models::publication_has_publication_versions::PublicationHasPublicationVersions;
 use crate::db::DatabaseConnection;
 use crate::db::DatabaseKind;
 

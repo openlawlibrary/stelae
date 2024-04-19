@@ -5,14 +5,15 @@ use crate::db::models::document_change::DocumentChange;
 use crate::db::models::library::Library;
 use crate::db::models::library_change::LibraryChange;
 use crate::db::models::publication::Publication;
+use crate::db::models::publication_has_publication_versions::PublicationHasPublicationVersions;
 use crate::db::statements::inserts::{
     create_document, create_publication, create_publication_version, create_stele, create_version,
     insert_changed_library_document_bulk, insert_document_changes_bulk, insert_library_bulk,
-    insert_library_changes_bulk,
+    insert_library_changes_bulk, insert_publication_has_publication_versions_bulk,
 };
 use crate::db::statements::queries::{
     find_last_inserted_publication, find_publication_by_name_and_stele,
-    find_publication_version_by_publication_id_and_version, find_stele_by_name,
+    find_publication_versions_for_publication, find_stele_by_name,
 };
 use crate::history::rdf::graph::StelaeGraph;
 use crate::history::rdf::namespaces::{dcterms, oll};
@@ -239,7 +240,7 @@ async fn load_delta_for_publication(
         &publication,
     )
     .await?;
-    // insert_shared_publication_versions_for_publication(con, pub.id, pub.last_valid_publication_name, pub.last_valid_version, pub.stele_id)
+    insert_shared_publication_versions_for_publication(conn, &publication).await?;
 
     // revoke_same_date_publications(conn, publication,  stele_id).await?;
     Ok(())
@@ -380,6 +381,47 @@ async fn insert_library_changes(
     insert_library_bulk(conn, &library_bulk).await?;
     insert_library_changes_bulk(conn, &library_changes_bulk).await?;
     insert_changed_library_document_bulk(conn, &changed_library_document_bulk).await?;
+    Ok(())
+}
+
+async fn insert_shared_publication_versions_for_publication(
+    conn: &DatabaseConnection,
+    publication: &Publication,
+) -> anyhow::Result<()> {
+    let mut publication_has_publication_versions_bulk: Vec<PublicationHasPublicationVersions> =
+        vec![];
+    let mut publication_versions = find_publication_versions_for_publication(
+        conn,
+        publication.name.to_string(),
+        publication.stele.to_string(),
+    )
+    .await?;
+    if let (Some(last_valid_pub_name), Some(_)) = (
+        &publication.last_valid_publication_name,
+        &publication.last_valid_version,
+    ) {
+        let publication_versions_last_valid = find_publication_versions_for_publication(
+            conn,
+            last_valid_pub_name.to_string(),
+            publication.stele.to_string(),
+        )
+        .await?;
+        publication_versions.extend(publication_versions_last_valid);
+    }
+    publication_has_publication_versions_bulk.extend(publication_versions.iter().map(|pv| {
+        PublicationHasPublicationVersions {
+            publication: publication.name.to_string(),
+            referenced_publication: pv.name.to_string(),
+            version: pv.version.to_string(),
+            stele: publication.stele.to_string(),
+        }
+    }));
+    insert_publication_has_publication_versions_bulk(
+        conn,
+        publication_has_publication_versions_bulk,
+    )
+    .await?;
+
     Ok(())
 }
 
