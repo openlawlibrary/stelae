@@ -233,8 +233,8 @@ pub async fn find_publication_versions_for_publication(
         publication_names_to_check = new_versions
             .clone()
             .into_iter()
-            .filter(|pv| !checked_publication_names.contains(&pv.name.to_string()))
-            .map(|pv| pv.name.to_string())
+            .filter(|pv| !checked_publication_names.contains(&pv.publication.to_string()))
+            .map(|pv| pv.publication.to_string())
             .collect();
     }
     Ok(versions.into_iter().collect())

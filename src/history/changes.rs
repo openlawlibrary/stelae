@@ -411,8 +411,8 @@ async fn insert_shared_publication_versions_for_publication(
     publication_has_publication_versions_bulk.extend(publication_versions.iter().map(|pv| {
         PublicationHasPublicationVersions {
             publication: publication.name.to_string(),
-            referenced_publication: pv.name.to_string(),
-            version: pv.version.to_string(),
+            referenced_publication: pv.publication.to_string(),
+            referenced_version: pv.version.to_string(),
             stele: publication.stele.to_string(),
         }
     }));

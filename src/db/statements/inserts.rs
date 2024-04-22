@@ -175,12 +175,12 @@ pub async fn insert_publication_has_publication_versions_bulk(
     match conn.kind {
         DatabaseKind::Sqlite => {
             let mut connection = conn.pool.acquire().await?;
-            let mut query_builder = QueryBuilder::new("INSERT OR IGNORE INTO publication_has_publication_versions (publication, referenced_publication, version, stele) ");
+            let mut query_builder = QueryBuilder::new("INSERT OR IGNORE INTO publication_has_publication_versions (publication, referenced_publication, referenced_version, stele) ");
             for chunk in publication_has_publication_versions.chunks(BATCH_SIZE) {
                 query_builder.push_values(chunk, |mut b, p| {
                     b.push_bind(&p.publication)
                         .push_bind(&p.referenced_publication)
-                        .push_bind(&p.version)
+                        .push_bind(&p.referenced_version)
                         .push_bind(&p.stele);
                 });
                 let query = query_builder.build();
