@@ -135,7 +135,7 @@ pub async fn find_all_publication_versions_by_publication_name_and_stele(
         FROM publication_version
         WHERE publication = $1 AND stele = $2
     "#;
-    let row = match conn.kind {
+    let rows = match conn.kind {
         DatabaseKind::Sqlite => {
             let mut connection = conn.pool.acquire().await?;
             sqlx::query_as::<_, PublicationVersion>(statement)
@@ -153,7 +153,7 @@ pub async fn find_all_publication_versions_by_publication_name_and_stele(
                 .await?
         }
     };
-    Ok(row)
+    Ok(rows)
 }
 
 /// Find all publication versions in `publications`.
@@ -237,4 +237,32 @@ pub async fn find_publication_versions_for_publication(
             .collect();
     }
     Ok(versions.into_iter().collect())
+}
+
+/// Find all publication names by date and stele.
+pub async fn find_all_publications_by_date_and_stele_order_by_name_desc(
+    conn: &DatabaseConnection,
+    date: String,
+    stele: String,
+) -> anyhow::Result<Vec<Publication>> {
+    let statement = r#"
+                SELECT *
+                FROM publication
+                WHERE date = $1 AND stele = $2
+                ORDER BY name DESC
+            "#;
+    let rows = match conn.kind {
+        DatabaseKind::Sqlite => {
+            let mut connection = conn.pool.acquire().await?;
+            sqlx::query_as::<_, Publication>(statement)
+                .bind(date)
+                .bind(stele)
+                .fetch_all(&mut *connection)
+                .await?
+        }
+        DatabaseKind::Postgres => {
+            todo!("Postgres not implemented");
+        }
+    };
+    Ok(rows)
 }

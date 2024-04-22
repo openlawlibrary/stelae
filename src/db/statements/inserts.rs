@@ -358,3 +358,43 @@ pub async fn create_publication_version(
     };
     Ok(id)
 }
+
+/// Update a publication by name and stele to be revoked.
+///
+/// # Errors
+/// Errors if the publication cannot be updated.
+pub async fn update_publication_by_name_and_stele_set_revoked_true(
+    conn: &DatabaseConnection,
+    name: &str,
+    stele: &str,
+) -> anyhow::Result<()> {
+    match conn.kind {
+        DatabaseKind::Sqlite => {
+            let statement = r#"
+                UPDATE publication
+                SET revoked = TRUE
+                WHERE name = $1 AND stele = $2
+            "#;
+            let mut connection = conn.pool.acquire().await?;
+            sqlx::query(statement)
+                .bind(name)
+                .bind(stele)
+                .execute(&mut *connection)
+                .await?;
+        }
+        DatabaseKind::Postgres => {
+            let statement = r#"
+                UPDATE publication
+                SET revoked = TRUE
+                WHERE name = $1 AND stele = $2
+            "#;
+            let mut connection = conn.pool.acquire().await?;
+            sqlx::query(statement)
+                .bind(name)
+                .bind(stele)
+                .execute(&mut *connection)
+                .await?;
+        }
+    }
+    Ok(())
+}

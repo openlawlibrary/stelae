@@ -10,10 +10,11 @@ use crate::db::statements::inserts::{
     create_document, create_publication, create_publication_version, create_stele, create_version,
     insert_changed_library_document_bulk, insert_document_changes_bulk, insert_library_bulk,
     insert_library_changes_bulk, insert_publication_has_publication_versions_bulk,
+    update_publication_by_name_and_stele_set_revoked_true,
 };
 use crate::db::statements::queries::{
-    find_last_inserted_publication, find_publication_by_name_and_stele,
-    find_publication_versions_for_publication,
+    find_all_publications_by_date_and_stele_order_by_name_desc, find_last_inserted_publication,
+    find_publication_by_name_and_stele, find_publication_versions_for_publication,
 };
 use crate::history::rdf::graph::StelaeGraph;
 use crate::history::rdf::namespaces::{dcterms, oll};
@@ -237,7 +238,7 @@ async fn load_delta_for_publication(
     .await?;
     insert_shared_publication_versions_for_publication(conn, &publication).await?;
 
-    // revoke_same_date_publications(conn, publication,  stele_id).await?;
+    revoke_same_date_publications(conn, publication).await?;
     Ok(())
 }
 
@@ -438,9 +439,22 @@ fn referenced_publication_information(pub_graph: &StelaeGraph) -> (Option<String
 async fn revoke_same_date_publications(
     conn: &DatabaseConnection,
     publication: Publication,
-    stele_id: i32,
 ) -> anyhow::Result<()> {
-    todo!()
+    let publications = find_all_publications_by_date_and_stele_order_by_name_desc(
+        conn,
+        publication.date.to_string(),
+        publication.stele.to_string(),
+    )
+    .await?;
+    for publication in &publications[1..] {
+        update_publication_by_name_and_stele_set_revoked_true(
+            conn,
+            &publication.name,
+            &publication.stele,
+        )
+        .await?;
+    }
+    Ok(())
 }
 
 /// Get the document publication version IRIs from the graph
