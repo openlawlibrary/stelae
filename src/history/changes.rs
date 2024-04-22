@@ -14,6 +14,7 @@ use crate::db::statements::inserts::{
 };
 use crate::db::statements::queries::{
     find_all_publications_by_date_and_stele_order_by_name_desc, find_last_inserted_publication,
+    find_last_inserted_publication_version_by_publication_and_stele,
     find_publication_by_name_and_stele, find_publication_versions_for_publication,
 };
 use crate::history::rdf::graph::StelaeGraph;
@@ -111,7 +112,7 @@ async fn insert_changes_from_rdf_repository(
     tracing::info!("Inserting changes from RDF repository: {}", stele_id);
     tracing::info!("RDF repository path: {}", rdf_repo.path.display());
     let tx = conn.pool.begin().await?;
-    match load_delta_from_publications(conn, &rdf_repo, stele_id).await {
+    match load_delta_for_stele(conn, &rdf_repo, stele_id).await {
         Ok(_) => {
             tx.commit().await?;
             Ok(())
@@ -124,7 +125,7 @@ async fn insert_changes_from_rdf_repository(
 }
 
 /// Load deltas from the publications
-async fn load_delta_from_publications(
+async fn load_delta_for_stele(
     conn: &DatabaseConnection,
     rdf_repo: &Repo,
     stele: &str,
@@ -133,11 +134,11 @@ async fn load_delta_from_publications(
     match find_last_inserted_publication(conn, stele).await? {
         Some(publication) => {
             tracing::info!("Inserting changes from last inserted publication");
-            load_delta_from_publications_from_last_inserted_publication().await?;
+            load_delta_from_publications(conn, rdf_repo, stele, Some(publication)).await?;
         }
         None => {
             tracing::info!("Inserting changes from beginning for stele: {}", stele);
-            load_delta_from_publications_from_beginning(conn, rdf_repo, stele).await?;
+            load_delta_from_publications(conn, rdf_repo, stele, None).await?;
         }
     }
     Ok(())
@@ -147,22 +148,23 @@ async fn load_delta_from_publications(
 ///
 /// # Errors
 /// Errors if the delta cannot be loaded from the publications
-async fn load_delta_from_publications_from_beginning(
+async fn load_delta_from_publications(
     conn: &DatabaseConnection,
     rdf_repo: &Repo,
     stele: &str,
+    last_inserted_publication: Option<Publication>,
 ) -> anyhow::Result<()> {
     let head_commit = rdf_repo.repo.head()?.peel_to_commit()?;
     let tree = head_commit.tree()?;
     let publications_dir_entry = tree.get_path(&PathBuf::from("_publication"))?;
     let publications_subtree = rdf_repo.repo.find_tree(publications_dir_entry.id())?;
+    let mut last_inserted_date: Option<NaiveDate> = None;
     for publication_entry in publications_subtree.iter() {
-        let name = publication_entry.name().unwrap();
         let mut pub_graph = StelaeGraph::new();
         let object = publication_entry.to_object(&rdf_repo.repo)?;
-        let Some(publication_tree) = object.as_tree() else {
-            anyhow::bail!("Expected a tree but got something else");
-        };
+        let publication_tree = object
+            .as_tree()
+            .context("Expected a tree but got something else")?;
         let index_rdf = publication_tree.get_path(&PathBuf::from("index.rdf"))?;
         let blob = rdf_repo.repo.find_blob(index_rdf.id())?;
         let data = blob.content();
@@ -173,9 +175,29 @@ async fn load_delta_from_publications_from_beginning(
             .strip_prefix("Publication ")
             .context("Could not strip prefix")?
             .to_string();
-        tracing::info!("[{stele}] | Publication: {pub_name}");
         let pub_date =
             pub_graph.literal_from_triple_matching(None, Some(dcterms::available), None)?;
+        let pub_date = NaiveDate::parse_from_str(pub_date.as_str(), "%Y-%m-%d")?;
+        if let Some(last_inserted_pub) = &last_inserted_publication {
+            let last_inserted_pub_date =
+                NaiveDate::parse_from_str(&last_inserted_pub.date, "%Y-%m-%d")?;
+            // continue from last inserted publication, since that publication can contain
+            // new changes (versions) that are not in db
+            if pub_date < last_inserted_pub_date {
+                // skip past publications since they are already in db
+                continue;
+            }
+            last_inserted_date = find_last_inserted_publication_version_by_publication_and_stele(
+                conn, &pub_name, &stele,
+            )
+            .await?
+            .map(|p| {
+                NaiveDate::parse_from_str(&p.version, "%Y-%m-%d").context("Could not parse date")
+            })
+            .context("Could not find last inserted publication version")?
+            .ok();
+        }
+        tracing::info!("[{stele}] | Publication: {pub_name}");
         publication_tree.walk(git2::TreeWalkMode::PreOrder, |_, entry| {
             let path_name = entry.name().unwrap();
             if path_name.contains(".rdf") {
@@ -187,7 +209,7 @@ async fn load_delta_from_publications_from_beginning(
             }
             git2::TreeWalkResult::Ok
         })?;
-        let pub_date = NaiveDate::parse_from_str(pub_date.as_str(), "%Y-%m-%d")?;
+
         let (last_valid_pub_name, last_valid_codified_date) =
             referenced_publication_information(&pub_graph);
         create_publication(
@@ -200,21 +222,16 @@ async fn load_delta_from_publications_from_beginning(
         )
         .await?;
         let publication = find_publication_by_name_and_stele(conn, &pub_name, stele).await?;
-        load_delta_for_publication(conn, publication, &pub_graph, None).await?;
+        load_delta_for_publication(conn, publication, &pub_graph, last_inserted_date).await?;
     }
     Ok(())
 }
 
-async fn load_delta_from_publications_from_last_inserted_publication() -> anyhow::Result<()> {
-    todo!()
-}
-
-///
 async fn load_delta_for_publication(
     conn: &DatabaseConnection,
     publication: Publication,
     pub_graph: &StelaeGraph,
-    last_inserted_date: Option<String>,
+    last_inserted_date: Option<NaiveDate>,
 ) -> anyhow::Result<()> {
     let pub_document_versions = get_document_publication_versions(&pub_graph);
     let pub_collection_versions = get_collection_publication_versions(&pub_graph);
@@ -244,7 +261,7 @@ async fn load_delta_for_publication(
 
 async fn insert_document_changes(
     conn: &DatabaseConnection,
-    last_inserted_date: &Option<String>,
+    last_inserted_date: &Option<NaiveDate>,
     pub_document_versions: Vec<&SimpleTerm<'_>>,
     pub_graph: &StelaeGraph,
     publication: &Publication,
@@ -255,9 +272,7 @@ async fn insert_document_changes(
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::codifiedDate), None)?;
         if let Some(last_inserted_date) = last_inserted_date {
             let codified_date = NaiveDate::parse_from_str(codified_date.as_str(), "%Y-%m-%d")?;
-            let last_inserted_date =
-                NaiveDate::parse_from_str(last_inserted_date.as_str(), "%Y-%m-%d")?;
-            if codified_date <= last_inserted_date {
+            if &codified_date <= last_inserted_date {
                 // Date already inserted
                 continue;
             }
@@ -308,7 +323,7 @@ async fn insert_document_changes(
 
 async fn insert_library_changes(
     conn: &DatabaseConnection,
-    last_inserted_date: &Option<String>,
+    last_inserted_date: &Option<NaiveDate>,
     pub_collection_versions: Vec<&SimpleTerm<'_>>,
     pub_graph: &StelaeGraph,
     publication: &Publication,
@@ -321,9 +336,7 @@ async fn insert_library_changes(
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::codifiedDate), None)?;
         if let Some(last_inserted_date) = last_inserted_date {
             let codified_date = NaiveDate::parse_from_str(codified_date.as_str(), "%Y-%m-%d")?;
-            let last_inserted_date =
-                NaiveDate::parse_from_str(last_inserted_date.as_str(), "%Y-%m-%d")?;
-            if codified_date <= last_inserted_date {
+            if &codified_date <= last_inserted_date {
                 // Date already inserted
                 continue;
             }
