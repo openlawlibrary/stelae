@@ -22,7 +22,7 @@ pub struct Publication {
     /// If a publication is derived from another publication,
     /// represents the last publication version (codified date) from the previous publication
     /// that the current publication is derived from.
-    pub last_valid_version: Option<String>
+    pub last_valid_version: Option<String>,
 }
 
 impl FromRow<'_, AnyRow> for Publication {

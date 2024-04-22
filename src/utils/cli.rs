@@ -3,10 +3,10 @@
 // Allow exits because in this file we ideally handle all errors with known exit codes
 #![allow(clippy::exit)]
 
+use crate::history::changes;
 use crate::server::git::serve_git;
 use crate::server::publish::serve_archive;
 use crate::utils::archive::find_archive_path;
-use crate::history::changes;
 use clap::Parser;
 use std::path::Path;
 use tracing;
