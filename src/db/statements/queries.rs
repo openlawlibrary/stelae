@@ -172,10 +172,10 @@ async fn find_all_publication_versions_in_publication_has_publication_versions(
             let mut connection = conn.pool.acquire().await?;
 
             let statement = format!("
-            SELECT DISTINCT pv.publication, pv.version
-            FROM publication_version pv
-            LEFT JOIN publication_has_publication_versions phpv ON pv.publication = phpv.referenced_publication AND pv.version = phpv.referenced_version
-            WHERE phpv.publication IN ({parameters} AND pv.stele = ?)
+                SELECT DISTINCT pv.publication, pv.version
+                FROM publication_version pv
+                LEFT JOIN publication_has_publication_versions phpv ON pv.publication = phpv.referenced_publication AND pv.version = phpv.referenced_version
+                WHERE phpv.publication IN ({parameters} AND pv.stele = ?)
             ");
 
             let mut query = sqlx::query_as::<_, PublicationVersion>(&statement);
@@ -246,11 +246,11 @@ pub async fn find_all_publications_by_date_and_stele_order_by_name_desc(
     stele: String,
 ) -> anyhow::Result<Vec<Publication>> {
     let statement = r#"
-                SELECT *
-                FROM publication
-                WHERE date = $1 AND stele = $2
-                ORDER BY name DESC
-            "#;
+        SELECT *
+        FROM publication
+        WHERE date = $1 AND stele = $2
+        ORDER BY name DESC
+    "#;
     let rows = match conn.kind {
         DatabaseKind::Sqlite => {
             let mut connection = conn.pool.acquire().await?;
