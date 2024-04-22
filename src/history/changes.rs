@@ -194,8 +194,7 @@ async fn load_delta_from_publications(
             .map(|p| {
                 NaiveDate::parse_from_str(&p.version, "%Y-%m-%d").context("Could not parse date")
             })
-            .context("Could not find last inserted publication version")?
-            .ok();
+            .and_then(|d| d.ok());
         }
         tracing::info!("[{stele}] | Publication: {pub_name}");
         publication_tree.walk(git2::TreeWalkMode::PreOrder, |_, entry| {
