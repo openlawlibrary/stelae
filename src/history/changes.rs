@@ -177,7 +177,7 @@ async fn load_delta_from_publications_from_beginning(
             .strip_prefix("Publication ")
             .context("Could not strip prefix")?
             .to_string();
-        tracing::info!("Publication: {pub_name}");
+        tracing::info!("[{stele}] | Publication: {pub_name}");
         let pub_date =
             pub_graph.literal_from_triple_matching(None, Some(dcterms::available), None)?;
         publication_tree.walk(git2::TreeWalkMode::PreOrder, |_, entry| {
