@@ -266,3 +266,37 @@ pub async fn find_all_publications_by_date_and_stele_order_by_name_desc(
     };
     Ok(rows)
 }
+
+/// Find last inserted publication version in DB.
+/// Used when partially inserted new changes to the database.
+///
+/// # Errors
+/// Errors if can't establish a connection to the database.
+pub async fn find_last_inserted_publication_version_by_publication_and_stele(
+    conn: &DatabaseConnection,
+    publication: &str,
+    stele: &str,
+) -> anyhow::Result<Option<PublicationVersion>> {
+    let statement = r#"
+        SELECT *
+        FROM publication_version
+        WHERE publication = $1 AND stele = $2
+        ORDER BY version DESC
+        LIMIT 1
+    "#;
+    let row = match conn.kind {
+        DatabaseKind::Sqlite => {
+            let mut connection = conn.pool.acquire().await?;
+            sqlx::query_as::<_, PublicationVersion>(statement)
+                .bind(publication)
+                .bind(stele)
+                .fetch_one(&mut *connection)
+                .await
+                .ok()
+        }
+        DatabaseKind::Postgres => {
+            todo!("Postgres not implemented");
+        }
+    };
+    Ok(row)
+}
