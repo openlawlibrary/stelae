@@ -232,8 +232,10 @@ async fn load_delta_for_publication(
     pub_graph: &StelaeGraph,
     last_inserted_date: Option<NaiveDate>,
 ) -> anyhow::Result<()> {
-    let pub_document_versions = get_document_publication_versions(&pub_graph);
-    let pub_collection_versions = get_collection_publication_versions(&pub_graph);
+    let pub_document_versions =
+        pub_graph.all_iris_from_triple_matching(None, None, Some(oll::DocumentVersion))?;
+    let pub_collection_versions =
+        pub_graph.all_iris_from_triple_matching(None, None, Some(oll::CollectionVersion))?;
 
     insert_document_changes(
         conn,
@@ -467,28 +469,4 @@ async fn revoke_same_date_publications(
         .await?;
     }
     Ok(())
-}
-
-/// Get the document publication version IRIs from the graph
-fn get_document_publication_versions(graph: &StelaeGraph) -> Vec<&SimpleTerm> {
-    let triples = graph.g.triples_matching(Any, Any, [oll::DocumentVersion]);
-    triples
-        .filter_map(|t| {
-            let t = t.ok()?;
-            let subject = t.s();
-            Some(subject)
-        })
-        .collect()
-}
-
-/// Get the collection publication version IRIs from the graph
-fn get_collection_publication_versions(graph: &StelaeGraph) -> Vec<&SimpleTerm> {
-    let triples = graph.g.triples_matching(Any, Any, [oll::CollectionVersion]);
-    triples
-        .filter_map(|t| {
-            let t = t.ok()?;
-            let subject = t.s();
-            Some(subject)
-        })
-        .collect()
 }

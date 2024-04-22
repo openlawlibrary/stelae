@@ -115,6 +115,29 @@ impl StelaeGraph {
         };
         triple
     }
+
+    /// Extract all IRIs from a triple matching.
+    ///
+    /// # Errors
+    /// Errors if the triple matching the object is not found.
+    /// Errors if the object is not an RDF IRI.
+    pub fn all_iris_from_triple_matching<'graph>(
+        &'graph self,
+        subject: Option<&'graph SimpleTerm>,
+        predicate: Option<NsTerm<'graph>>,
+        object: Option<NsTerm<'graph>>,
+    ) -> anyhow::Result<Vec<&SimpleTerm>> {
+        let triples_iter = self.triples_matching_inner(subject, predicate, object);
+        let iris = triples_iter
+            .into_iter()
+            .filter_map(|t| {
+                let t = t.ok()?;
+                let subject = t.s();
+                Some(subject)
+            })
+            .collect();
+        Ok(iris)
+    }
 }
 
 /// Unordered container of RDF items.
