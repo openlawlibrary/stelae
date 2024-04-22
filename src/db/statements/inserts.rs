@@ -1,6 +1,5 @@
 //! Central place for database queries in Stelae
 use sqlx::types::chrono::NaiveDate;
-use sqlx::Any;
 use sqlx::QueryBuilder;
 
 use crate::db::models::changed_library_document::ChangedLibraryDocument;

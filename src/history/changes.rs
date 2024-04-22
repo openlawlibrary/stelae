@@ -13,7 +13,7 @@ use crate::db::statements::inserts::{
 };
 use crate::db::statements::queries::{
     find_last_inserted_publication, find_publication_by_name_and_stele,
-    find_publication_versions_for_publication, find_stele_by_name,
+    find_publication_versions_for_publication,
 };
 use crate::history::rdf::graph::StelaeGraph;
 use crate::history::rdf::namespaces::{dcterms, oll};
@@ -24,16 +24,11 @@ use crate::{
     stelae::archive::Archive,
 };
 use anyhow::Context;
-use sophia::api::MownStr;
+use sophia::api::ns::rdfs;
 use sophia::api::{prelude::*, term::SimpleTerm};
 use sophia::xml::parser;
-use sophia::{api::ns::rdfs, inmem::graph::FastGraph};
 use sqlx::types::chrono::NaiveDate;
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
-use walkdir::WalkDir;
+use std::path::{Path, PathBuf};
 
 use super::rdf::graph::Bag;
 
