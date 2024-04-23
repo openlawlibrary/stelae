@@ -3,7 +3,7 @@
 use async_trait::async_trait;
 use std::str::FromStr;
 
-use sqlx::any::AnyPoolOptions;
+use sqlx::any::{self, AnyPoolOptions};
 use sqlx::AnyPool;
 use sqlx::ConnectOptions;
 use tracing::instrument;
@@ -57,10 +57,8 @@ impl Db for DatabaseConnection {
     /// Errors if connection to database fails.
     #[instrument(level = "trace")]
     async fn connect(db_url: &str) -> anyhow::Result<Self> {
-        sqlx::any::install_default_drivers();
-        let options = sqlx::any::AnyConnectOptions::from_str(db_url)?
-            .disable_statement_logging()
-            .clone();
+        any::install_default_drivers();
+        let options = any::AnyConnectOptions::from_str(db_url)?.disable_statement_logging();
         let pool = AnyPoolOptions::new()
             .max_connections(50)
             .connect_with(options)

@@ -15,8 +15,9 @@ pub struct PublicationVersion {
 }
 
 impl FromRow<'_, AnyRow> for PublicationVersion {
+    #[allow(clippy::unwrap_in_result, clippy::unwrap_used)]
     fn from_row(row: &AnyRow) -> Result<Self, sqlx::Error> {
-        Ok(PublicationVersion {
+        Ok(Self {
             version: row.try_get("version").unwrap(),
             publication: row.try_get("publication").unwrap(),
             stele: row.try_get("stele").unwrap(),

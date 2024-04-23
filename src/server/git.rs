@@ -4,14 +4,19 @@
     // Unused asyncs are the norm in Actix route definition files
     clippy::unused_async,
     clippy::unreachable,
-    clippy::let_with_type_underscore
+    clippy::let_with_type_underscore,
+    // Clippy wrongly detects the `infinite_loop` lint on functions with tracing::instrument!
+    clippy::infinite_loop
 )]
 
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
-use git2;
+use git2::{self, ErrorCode};
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::path::{Path, PathBuf};
+use std::{
+    io,
+    path::{Path, PathBuf},
+};
 use tracing_actix_web::TracingLogger;
 
 use super::errors::StelaeError;
@@ -29,7 +34,7 @@ struct AppState {
 /// Remove leading and trailing `/`s from the `path` string.
 fn clean_path(path: &str) -> String {
     lazy_static! {
-        static ref RE: Regex = Regex::new(r"(?:^/*|/*$)").expect("Failed to compile regex!?!");
+        static ref RE: Regex = Regex::new("(?:^/*|/*$)").expect("Failed to compile regex!?!");
     }
     RE.replace_all(path, "").to_string()
 }
@@ -92,7 +97,7 @@ fn blob_error_response(error: &anyhow::Error, namespace: &str, name: &str) -> Ht
     if let Some(git_error) = error.downcast_ref::<git2::Error>() {
         return match git_error.code() {
             // TODO: check this is the right error
-            git2::ErrorCode::NotFound => {
+            ErrorCode::NotFound => {
                 HttpResponse::NotFound().body(format!("repo {namespace}/{name} does not exist"))
             }
             _ => HttpResponse::InternalServerError().body("Unexpected Git error"),
@@ -109,11 +114,7 @@ fn blob_error_response(error: &anyhow::Error, namespace: &str, name: &str) -> Ht
 
 /// Serve git repositories in the Stelae archive.
 #[actix_web::main] // or #[tokio::main]
-pub async fn serve_git(
-    raw_archive_path: &str,
-    archive_path: PathBuf,
-    port: u16,
-) -> std::io::Result<()> {
+pub async fn serve_git(raw_archive_path: &str, archive_path: PathBuf, port: u16) -> io::Result<()> {
     let bind = "127.0.0.1";
     let message = "Serving content from the Stelae archive at";
     tracing::info!("{message} '{raw_archive_path}' on http://{bind}:{port}.",);

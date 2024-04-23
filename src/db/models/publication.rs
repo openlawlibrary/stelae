@@ -26,8 +26,9 @@ pub struct Publication {
 }
 
 impl FromRow<'_, AnyRow> for Publication {
+    #[allow(clippy::unwrap_in_result, clippy::unwrap_used)]
     fn from_row(row: &AnyRow) -> Result<Self, sqlx::Error> {
-        Ok(Publication {
+        Ok(Self {
             name: row.try_get("name").unwrap(),
             date: row.try_get("date").unwrap(),
             stele: row.try_get("stele").unwrap(),

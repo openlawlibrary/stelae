@@ -18,3 +18,13 @@ pub struct Dependency {
     /// The default branch for a Stele.
     pub branch: String,
 }
+
+impl Dependencies {
+    /// Get the dependencies names for a given Stele.
+    #[must_use]
+    pub fn sorted_dependencies_names(&self) -> Vec<String> {
+        let mut keys = self.dependencies.keys().cloned().collect::<Vec<String>>();
+        keys.sort();
+        keys
+    }
+}

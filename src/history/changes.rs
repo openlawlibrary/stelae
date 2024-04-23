@@ -1,5 +1,5 @@
 //! Module for inserting changes into the database
-#![allow(clippy::shadow_reuse)]
+#![allow(clippy::exit, clippy::shadow_reuse, clippy::future_not_send)]
 use crate::db::models::changed_library_document::ChangedLibraryDocument;
 use crate::db::models::document_change::DocumentChange;
 use crate::db::models::library::Library;
@@ -26,11 +26,18 @@ use crate::{
     stelae::archive::Archive,
 };
 use anyhow::Context;
+use git2::{TreeWalkMode, TreeWalkResult};
 use sophia::api::ns::rdfs;
 use sophia::api::{prelude::*, term::SimpleTerm};
 use sophia::xml::parser;
 use sqlx::types::chrono::NaiveDate;
-use std::path::{Path, PathBuf};
+use std::{
+    borrow::ToOwned,
+    io::{self, BufReader},
+    path::{Path, PathBuf},
+    process,
+    result::Result,
+};
 
 use super::rdf::graph::Bag;
 
@@ -43,7 +50,7 @@ pub async fn insert(
     raw_archive_path: &str,
     archive_path: PathBuf,
     stele: Option<String>,
-) -> std::io::Result<()> {
+) -> io::Result<()> {
     let conn = match db::init::connect(&archive_path).await {
         Ok(conn) => conn,
         Err(err) => {
@@ -51,10 +58,10 @@ pub async fn insert(
                 "error: could not connect to database. Confirm that DATABASE_URL env var is set correctly."
             );
             tracing::error!("Error: {:?}", err);
-            std::process::exit(1);
+            process::exit(1);
         }
     };
-    if let Some(stele) = stele {
+    if let Some(_stele) = stele {
         insert_changes_single_stele()?;
     } else {
         insert_changes_archive(&conn, raw_archive_path, &archive_path)
@@ -67,8 +74,9 @@ pub async fn insert(
     Ok(())
 }
 
-fn insert_changes_single_stele() -> std::io::Result<()> {
-    todo!()
+/// Insert changes for a single stele instead of an entire archive
+fn insert_changes_single_stele() -> io::Result<()> {
+    unimplemented!()
 }
 
 /// Insert changes from the archive into the database
@@ -83,7 +91,7 @@ async fn insert_changes_archive(
         false,
     )?;
 
-    for (name, mut stele) in archive.stelae {
+    for (name, mut stele) in archive.get_stelae() {
         if let Some(repositories) = stele.get_repositories()? {
             let Some(rdf_data) = repositories.get_rdf_repository() else {
                 continue;
@@ -113,7 +121,7 @@ async fn insert_changes_from_rdf_repository(
     tracing::info!("RDF repository path: {}", rdf_repo.path.display());
     let tx = conn.pool.begin().await?;
     match load_delta_for_stele(conn, &rdf_repo, stele_id).await {
-        Ok(_) => {
+        Ok(()) => {
             tx.commit().await?;
             Ok(())
         }
@@ -131,15 +139,12 @@ async fn load_delta_for_stele(
     stele: &str,
 ) -> anyhow::Result<()> {
     create_stele(conn, stele).await?;
-    match find_last_inserted_publication(conn, stele).await? {
-        Some(publication) => {
-            tracing::info!("Inserting changes from last inserted publication");
-            load_delta_from_publications(conn, rdf_repo, stele, Some(publication)).await?;
-        }
-        None => {
-            tracing::info!("Inserting changes from beginning for stele: {}", stele);
-            load_delta_from_publications(conn, rdf_repo, stele, None).await?;
-        }
+    if let Some(publication) = find_last_inserted_publication(conn, stele).await? {
+        tracing::info!("Inserting changes from last inserted publication");
+        load_delta_from_publications(conn, rdf_repo, stele, Some(publication)).await?;
+    } else {
+        tracing::info!("Inserting changes from beginning for stele: {}", stele);
+        load_delta_from_publications(conn, rdf_repo, stele, None).await?;
     }
     Ok(())
 }
@@ -148,6 +153,7 @@ async fn load_delta_for_stele(
 ///
 /// # Errors
 /// Errors if the delta cannot be loaded from the publications
+#[allow(clippy::unwrap_used)]
 async fn load_delta_from_publications(
     conn: &DatabaseConnection,
     rdf_repo: &Repo,
@@ -159,7 +165,7 @@ async fn load_delta_from_publications(
     let publications_dir_entry = tree.get_path(&PathBuf::from("_publication"))?;
     let publications_subtree = rdf_repo.repo.find_tree(publications_dir_entry.id())?;
     let mut last_inserted_date: Option<NaiveDate> = None;
-    for publication_entry in publications_subtree.iter() {
+    for publication_entry in &publications_subtree {
         let mut pub_graph = StelaeGraph::new();
         let object = publication_entry.to_object(&rdf_repo.repo)?;
         let publication_tree = object
@@ -168,17 +174,17 @@ async fn load_delta_from_publications(
         let index_rdf = publication_tree.get_path(&PathBuf::from("index.rdf"))?;
         let blob = rdf_repo.repo.find_blob(index_rdf.id())?;
         let data = blob.content();
-        let reader = std::io::BufReader::new(data);
+        let reader = io::BufReader::new(data);
         parser::parse_bufread(reader).add_to_graph(&mut pub_graph.g)?;
         let pub_label = pub_graph.literal_from_triple_matching(None, Some(rdfs::label), None)?;
         let pub_name = pub_label
             .strip_prefix("Publication ")
             .context("Could not strip prefix")?
-            .to_string();
+            .to_owned();
         let pub_date =
             pub_graph.literal_from_triple_matching(None, Some(dcterms::available), None)?;
         let pub_date = NaiveDate::parse_from_str(pub_date.as_str(), "%Y-%m-%d")?;
-        if let Some(last_inserted_pub) = &last_inserted_publication {
+        if let Some(last_inserted_pub) = last_inserted_publication.as_ref() {
             let last_inserted_pub_date =
                 NaiveDate::parse_from_str(&last_inserted_pub.date, "%Y-%m-%d")?;
             // continue from last inserted publication, since that publication can contain
@@ -188,25 +194,25 @@ async fn load_delta_from_publications(
                 continue;
             }
             last_inserted_date = find_last_inserted_publication_version_by_publication_and_stele(
-                conn, &pub_name, &stele,
+                conn, &pub_name, stele,
             )
             .await?
-            .map(|p| {
-                NaiveDate::parse_from_str(&p.version, "%Y-%m-%d").context("Could not parse date")
+            .map(|pv| {
+                NaiveDate::parse_from_str(&pv.version, "%Y-%m-%d").context("Could not parse date")
             })
-            .and_then(|d| d.ok());
+            .and_then(Result::ok);
         }
         tracing::info!("[{stele}] | Publication: {pub_name}");
-        publication_tree.walk(git2::TreeWalkMode::PreOrder, |_, entry| {
-            let path_name = entry.name().unwrap();
+        publication_tree.walk(TreeWalkMode::PreOrder, |_, entry| {
+            let path_name = entry.name().unwrap_or_default();
             if path_name.contains(".rdf") {
                 let current_blob = rdf_repo.repo.find_blob(entry.id()).unwrap();
                 let current_content = current_blob.content();
-                parser::parse_bufread(std::io::BufReader::new(current_content))
+                parser::parse_bufread(BufReader::new(current_content))
                     .add_to_graph(&mut pub_graph.g)
                     .unwrap();
             }
-            git2::TreeWalkResult::Ok
+            TreeWalkResult::Ok
         })?;
 
         let (last_valid_pub_name, last_valid_codified_date) =
@@ -226,6 +232,10 @@ async fn load_delta_from_publications(
     Ok(())
 }
 
+/// Load all deltas for the publication given a stele
+///
+/// # Errors
+/// Errors if database connection fails or if delta cannot be loaded for the publication
 async fn load_delta_for_publication(
     conn: &DatabaseConnection,
     publication: Publication,
@@ -260,6 +270,7 @@ async fn load_delta_for_publication(
     Ok(())
 }
 
+/// Insert document changes into the database
 async fn insert_document_changes(
     conn: &DatabaseConnection,
     last_inserted_date: &Option<NaiveDate>,
@@ -271,7 +282,7 @@ async fn insert_document_changes(
     for version in pub_document_versions {
         let codified_date =
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::codifiedDate), None)?;
-        if let Some(last_inserted_date) = last_inserted_date {
+        if let Some(last_inserted_date) = last_inserted_date.as_ref() {
             let codified_date = NaiveDate::parse_from_str(codified_date.as_str(), "%Y-%m-%d")?;
             if &codified_date <= last_inserted_date {
                 // Date already inserted
@@ -287,7 +298,7 @@ async fn insert_document_changes(
 
         let changes_uri =
             pub_graph.iri_from_triple_matching(Some(version), Some(oll::hasChanges), None)?;
-        let changes = Bag::new(&pub_graph, changes_uri);
+        let changes = Bag::new(pub_graph, changes_uri);
         for change in changes.items()? {
             let doc_mpath = pub_graph.literal_from_triple_matching(
                 Some(&change),
@@ -306,22 +317,23 @@ async fn insert_document_changes(
             )?;
             for status in statuses {
                 document_changes_bulk.push(DocumentChange {
-                    doc_mpath: doc_mpath.to_string(),
-                    status: status.to_string(),
-                    url: url.to_string(),
+                    doc_mpath: doc_mpath.clone(),
+                    status: status.clone(),
+                    url: url.clone(),
                     change_reason: reason.clone(),
                     publication: publication.name.clone(),
-                    version: codified_date.to_string(),
+                    version: codified_date.clone(),
                     stele: publication.stele.clone(),
-                    doc_id: doc_id.to_string(),
+                    doc_id: doc_id.clone(),
                 });
             }
         }
     }
-    insert_document_changes_bulk(conn, &document_changes_bulk).await?;
+    insert_document_changes_bulk(conn, document_changes_bulk).await?;
     Ok(())
 }
 
+/// Insert library changes into the database
 async fn insert_library_changes(
     conn: &DatabaseConnection,
     last_inserted_date: &Option<NaiveDate>,
@@ -335,7 +347,7 @@ async fn insert_library_changes(
     for version in pub_collection_versions {
         let codified_date =
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::codifiedDate), None)?;
-        if let Some(last_inserted_date) = last_inserted_date {
+        if let Some(last_inserted_date) = last_inserted_date.as_ref() {
             let codified_date = NaiveDate::parse_from_str(codified_date.as_str(), "%Y-%m-%d")?;
             if &codified_date <= last_inserted_date {
                 // Date already inserted
@@ -351,21 +363,21 @@ async fn insert_library_changes(
         let status =
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::status), None)?;
         library_bulk.push(Library {
-            mpath: library_mpath.to_string(),
+            mpath: library_mpath.clone(),
         });
         library_changes_bulk.push(LibraryChange {
-            library_mpath: library_mpath.to_string(),
-            publication: publication.name.to_string(),
-            version: codified_date.to_string(),
-            stele: publication.stele.to_string(),
-            status: status.to_string(),
-            url: url.to_string(),
+            library_mpath: library_mpath.clone(),
+            publication: publication.name.clone(),
+            version: codified_date.clone(),
+            stele: publication.stele.clone(),
+            status: status.clone(),
+            url: url.clone(),
         });
         let changes_uri =
             pub_graph.iri_from_triple_matching(Some(version), Some(oll::hasChanges), None)?;
-        let changes = Bag::new(&pub_graph, changes_uri);
+        let changes = Bag::new(pub_graph, changes_uri);
         for change in changes.items()? {
-            let Ok(status) =
+            let Ok(el_status) =
                 pub_graph.literal_from_triple_matching(Some(&change), Some(oll::status), None)
             else {
                 continue;
@@ -378,22 +390,25 @@ async fn insert_library_changes(
                 continue;
             };
             changed_library_document_bulk.push(ChangedLibraryDocument {
-                publication: publication.name.to_string(),
-                version: codified_date.to_string(),
-                stele: publication.stele.to_string(),
-                doc_mpath: doc_mpath.to_string(),
-                status: status.to_string(),
-                library_mpath: library_mpath.to_string(),
-                url: url.to_string(),
+                publication: publication.name.clone(),
+                version: codified_date.clone(),
+                stele: publication.stele.clone(),
+                doc_mpath: doc_mpath.clone(),
+                status: el_status.clone(),
+                library_mpath: library_mpath.clone(),
+                url: url.clone(),
             });
         }
     }
-    insert_library_bulk(conn, &library_bulk).await?;
-    insert_library_changes_bulk(conn, &library_changes_bulk).await?;
-    insert_changed_library_document_bulk(conn, &changed_library_document_bulk).await?;
+    insert_library_bulk(conn, library_bulk).await?;
+    insert_library_changes_bulk(conn, library_changes_bulk).await?;
+    insert_changed_library_document_bulk(conn, changed_library_document_bulk).await?;
     Ok(())
 }
 
+/// Insert shared publication versions for the publication
+/// Support for lightweight publications.
+/// Populate the many-to-many mapping between change objects and publications
 async fn insert_shared_publication_versions_for_publication(
     conn: &DatabaseConnection,
     publication: &Publication,
@@ -402,28 +417,28 @@ async fn insert_shared_publication_versions_for_publication(
         vec![];
     let mut publication_versions = find_publication_versions_for_publication(
         conn,
-        publication.name.to_string(),
-        publication.stele.to_string(),
+        publication.name.clone(),
+        publication.stele.clone(),
     )
     .await?;
     if let (Some(last_valid_pub_name), Some(_)) = (
-        &publication.last_valid_publication_name,
-        &publication.last_valid_version,
+        publication.last_valid_publication_name.as_ref(),
+        publication.last_valid_version.as_ref(),
     ) {
         let publication_versions_last_valid = find_publication_versions_for_publication(
             conn,
-            last_valid_pub_name.to_string(),
-            publication.stele.to_string(),
+            last_valid_pub_name.clone(),
+            publication.stele.clone(),
         )
         .await?;
         publication_versions.extend(publication_versions_last_valid);
     }
     publication_has_publication_versions_bulk.extend(publication_versions.iter().map(|pv| {
         PublicationHasPublicationVersions {
-            publication: publication.name.to_string(),
-            referenced_publication: pv.publication.to_string(),
-            referenced_version: pv.version.to_string(),
-            stele: publication.stele.to_string(),
+            publication: publication.name.clone(),
+            referenced_publication: pv.publication.clone(),
+            referenced_version: pv.version.clone(),
+            stele: publication.stele.clone(),
         }
     }));
     insert_publication_has_publication_versions_bulk(
@@ -440,33 +455,36 @@ fn referenced_publication_information(pub_graph: &StelaeGraph) -> (Option<String
     let last_valid_pub = pub_graph
         .literal_from_triple_matching(None, Some(oll::lastValidPublication), None)
         .ok()
-        .and_then(|p: String| {
-            p.strip_prefix("Publication ")
-                .and_then(|s| Some(s.to_string()))
-        });
+        .and_then(|pub_name: String| pub_name.strip_prefix("Publication ").map(ToOwned::to_owned));
     let last_valid_version = pub_graph
         .literal_from_triple_matching(None, Some(oll::lastValidCodifiedDate), None)
         .ok();
-    return (last_valid_pub, last_valid_version);
+    (last_valid_pub, last_valid_version)
 }
 
+/// Revoke publications that have the same date as the current publication
+///
+/// # Errors
+/// Errors if db operations fail
 async fn revoke_same_date_publications(
     conn: &DatabaseConnection,
     publication: Publication,
 ) -> anyhow::Result<()> {
-    let publications = find_all_publications_by_date_and_stele_order_by_name_desc(
+    let duplicate_publications = find_all_publications_by_date_and_stele_order_by_name_desc(
         conn,
-        publication.date.to_string(),
-        publication.stele.to_string(),
+        publication.date,
+        publication.stele,
     )
     .await?;
-    for publication in &publications[1..] {
-        update_publication_by_name_and_stele_set_revoked_true(
-            conn,
-            &publication.name,
-            &publication.stele,
-        )
-        .await?;
+    if let Some(duplicate_publications_slice) = duplicate_publications.get(1..) {
+        for duplicate_pub in duplicate_publications_slice {
+            update_publication_by_name_and_stele_set_revoked_true(
+                conn,
+                &duplicate_pub.name,
+                &duplicate_pub.stele,
+            )
+            .await?;
+        }
     }
     Ok(())
 }
