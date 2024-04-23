@@ -23,12 +23,6 @@ pub trait Db {
     /// # Errors
     /// Errors if connection to database fails.
     async fn connect(url: &str) -> anyhow::Result<DatabaseConnection>;
-
-    // async fn execute_statement(statement: &str, conn: &DatabaseConnection) -> anyhow::Result<()>;
-
-    // async fn begin(&self) -> anyhow::Result<()>;
-
-    // async fn close(&self) -> anyhow::Result<()>;
 }
 
 /// Type of database connection.
