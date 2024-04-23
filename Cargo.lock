@@ -2778,7 +2778,6 @@ dependencies = [
  "tracing",
  "tracing-actix-web",
  "tracing-subscriber",
- "walkdir",
 ]
 
 [[package]]
