@@ -1,6 +1,7 @@
 //! Serve documents in a Stelae archive.
 #![allow(clippy::exit, clippy::unused_async, clippy::infinite_loop)]
 use crate::db;
+use crate::server::routes::register_api;
 use crate::stelae::archive::Archive;
 use crate::stelae::types::repositories::{Repositories, Repository};
 use crate::utils::archive::get_name_parts;
@@ -218,7 +219,7 @@ pub async fn serve_archive(
 /// * `state` - The application state
 /// # Errors
 /// Will error if unable to initialize the application
-pub fn init_app<T: GlobalState>(
+pub fn init_app<T: GlobalState + Clone + 'static>(
     state: &T,
 ) -> anyhow::Result<
     App<
@@ -246,6 +247,7 @@ pub fn init_app<T: GlobalState>(
                     .app_data(web::Data::new(shared_state))
                     .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
                     .configure(|cfg| {
+                        register_api(cfg, state);
                         register_routes(cfg, state).unwrap_or_else(|_| {
                             tracing::error!(
                                 "Failed to initialize routes for root Stele: {}",
