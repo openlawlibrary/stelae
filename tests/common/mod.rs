@@ -31,6 +31,7 @@ pub fn blob_to_string(blob: Vec<u8>) -> String {
 // to manually inspect state of test environment at present,
 // we use anyhow::bail!() which aborts the entire test suite.
 
+#[derive(Debug, Clone)]
 pub struct TestAppState {
     archive: Archive,
 }
