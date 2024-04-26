@@ -1,5 +1,16 @@
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use sqlx::{any::AnyRow, FromRow, Row};
+
+/// Trait for managing publications.
+#[async_trait]
+pub trait Manager {
+    /// Find all publications which are not revoked for a given stele.
+    async fn find_all_non_revoked_publications(
+        &self,
+        stele: &str,
+    ) -> anyhow::Result<Vec<Publication>>;
+}
 
 #[derive(Deserialize, Serialize, Debug)]
 /// Model for a Stele.
@@ -36,5 +47,20 @@ impl FromRow<'_, AnyRow> for Publication {
             last_valid_publication_name: row.try_get("last_valid_publication_name").ok(),
             last_valid_version: row.try_get("last_valid_version").ok(),
         })
+    }
+}
+
+impl Publication {
+    /// Create a new publication.
+    #[must_use]
+    pub const fn new(name: String, date: String, stele: String) -> Self {
+        Self {
+            name,
+            date,
+            stele,
+            revoked: 0,
+            last_valid_publication_name: None,
+            last_valid_version: None,
+        }
     }
 }
