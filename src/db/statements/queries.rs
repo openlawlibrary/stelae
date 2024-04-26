@@ -1,8 +1,13 @@
 //! Central place for database queries
 
-use crate::db::models::publication::Publication;
+use async_trait::async_trait;
+use chrono::NaiveDate;
+
+use crate::db::models::publication::{self, Publication};
 use crate::db::models::publication_version::PublicationVersion;
 use crate::db::models::stele::Stele;
+use crate::db::models::version::Version;
+use crate::db::models::{document_change, library_change};
 use crate::db::DatabaseConnection;
 use std::collections::HashSet;
 
@@ -281,4 +286,238 @@ pub async fn find_last_inserted_publication_version_by_publication_and_stele(
         }
     };
     Ok(row)
+}
+
+#[async_trait]
+impl document_change::Manager for DatabaseConnection {
+    /// Find one document materialized path by url.
+    ///
+    /// # Errors
+    /// Errors if can't establish a connection to the database.
+    async fn find_doc_mpath_by_url(&self, url: &str) -> anyhow::Result<Option<String>> {
+        let statement = "
+            SELECT doc_mpath
+            FROM document_change
+            WHERE url = $1
+            LIMIT 1
+        ";
+        let row = match self.kind {
+            DatabaseKind::Postgres | DatabaseKind::Sqlite => {
+                let mut connection = self.pool.acquire().await?;
+                sqlx::query_as::<_, (String,)>(statement)
+                    .bind(url)
+                    .fetch_one(&mut *connection)
+                    .await
+                    .ok()
+            }
+        };
+        Ok(row.map(|(doc_mpath,)| doc_mpath))
+    }
+
+    /// All dates on which given document changed.
+    ///
+    /// # Errors
+    /// Errors if can't establish a connection to the database.
+    async fn find_all_document_versions_by_mpath_and_publication(
+        &self,
+        mpath: &str,
+        publication: &str,
+    ) -> anyhow::Result<Vec<Version>> {
+        let mut statement = "
+            SELECT DISTINCT phpv.referenced_version as codified_date
+            FROM document_change dc
+            LEFT JOIN publication_has_publication_versions phpv
+                ON dc.publication = phpv.referenced_publication
+                AND dc.version = phpv.referenced_version
+            WHERE dc.doc_mpath LIKE $1 AND phpv.publication = $2
+        ";
+        let mut rows = match self.kind {
+            DatabaseKind::Postgres | DatabaseKind::Sqlite => {
+                let mut connection = self.pool.acquire().await?;
+                sqlx::query_as::<_, Version>(statement)
+                    .bind(format!("{mpath}%"))
+                    .bind(publication)
+                    .fetch_all(&mut *connection)
+                    .await?
+            }
+        };
+        statement = "
+            SELECT phpv.referenced_version as codified_date
+            FROM document_change dc
+            LEFT JOIN publication_has_publication_versions phpv
+                ON dc.publication = phpv.referenced_publication
+                AND dc.version = phpv.referenced_version
+            WHERE dc.doc_mpath = $1
+            AND phpv.publication = $2
+            AND dc.status = 'Element added'
+            LIMIT 1
+        ";
+        let element_added = match self.kind {
+            DatabaseKind::Postgres | DatabaseKind::Sqlite => {
+                let mut connection = self.pool.acquire().await?;
+                sqlx::query_as::<_, Version>(statement)
+                    .bind(mpath)
+                    .bind(publication)
+                    .fetch_one(&mut *connection)
+                    .await
+                    .ok()
+            }
+        };
+
+        if element_added.is_none() {
+            // When element doesn't have date added, it means we're looking
+            // at an old publication and this element doesn't yet exist in it
+            rows.sort_by(|v1, v2| v2.codified_date.cmp(&v1.codified_date));
+            return Ok(rows);
+        }
+
+        statement = "
+            SELECT phpv.referenced_version as codified_date
+            FROM document_change dc
+            LEFT JOIN publication_has_publication_versions phpv
+                ON dc.publication = phpv.referenced_publication
+                AND dc.version = phpv.referenced_version
+            WHERE dc.doc_mpath = $1
+            AND phpv.publication = $2
+            AND dc.status = 'Element effective'
+            LIMIT 1
+        ";
+        let mut doc = mpath.split('|').next().unwrap_or("").to_owned();
+        doc.push('|');
+
+        let document_effective = match self.kind {
+            DatabaseKind::Postgres | DatabaseKind::Sqlite => {
+                let mut connection = self.pool.acquire().await?;
+                sqlx::query_as::<_, Version>(statement)
+                    .bind(doc)
+                    .bind(publication)
+                    .fetch_one(&mut *connection)
+                    .await
+                    .ok()
+            }
+        };
+
+        if let (Some(doc_effective), Some(el_added)) = (document_effective, element_added) {
+            if NaiveDate::parse_from_str(&doc_effective.codified_date, "%Y-%m-%d")
+                .unwrap_or_default()
+                > NaiveDate::parse_from_str(&el_added.codified_date, "%Y-%m-%d").unwrap_or_default()
+            {
+                rows.push(doc_effective);
+            }
+        }
+        rows.sort_by(|v1, v2| v2.codified_date.cmp(&v1.codified_date));
+        Ok(rows)
+    }
+}
+
+#[async_trait]
+impl library_change::Manager for DatabaseConnection {
+    /// Find one library materialized path by url.
+    ///
+    /// # Errors
+    /// Errors if can't establish a connection to the database.
+    async fn find_lib_mpath_by_url(&self, url: &str) -> anyhow::Result<Option<String>> {
+        let statement = "
+            SELECT library_mpath
+            FROM library_change
+            WHERE url = $1
+            LIMIT 1
+        ";
+        let row = match self.kind {
+            DatabaseKind::Postgres | DatabaseKind::Sqlite => {
+                let mut connection = self.pool.acquire().await?;
+                sqlx::query_as::<_, (String,)>(statement)
+                    .bind(url)
+                    .fetch_one(&mut *connection)
+                    .await
+                    .ok()
+            }
+        };
+        Ok(row.map(|(library_mpath,)| library_mpath))
+    }
+    /// All dates on which documents from this collection changed.
+    ///
+    /// # Errors
+    /// Errors if can't establish a connection to the database.
+    async fn find_all_collection_versions_by_mpath_and_publication(
+        &self,
+        mpath: &str,
+        publication: &str,
+    ) -> anyhow::Result<Vec<Version>> {
+        let mut statement = "
+            SELECT DISTINCT phpv.referenced_version as codified_date
+            FROM changed_library_document cld
+            LEFT JOIN publication_has_publication_versions phpv
+                ON cld.publication = phpv.referenced_publication
+                AND cld.version = phpv.referenced_version
+            WHERE cld.library_mpath LIKE $1 AND phpv.publication = $2
+        ";
+        let mut rows = match self.kind {
+            DatabaseKind::Postgres | DatabaseKind::Sqlite => {
+                let mut connection = self.pool.acquire().await?;
+                sqlx::query_as::<_, Version>(statement)
+                    .bind(format!("{mpath}%"))
+                    .bind(publication)
+                    .fetch_all(&mut *connection)
+                    .await?
+            }
+        };
+        statement = "
+            SELECT DISTINCT phpv.referenced_version as codified_date
+            FROM library_change lc
+            LEFT JOIN publication_has_publication_versions phpv
+                ON lc.publication = phpv.referenced_publication
+                AND lc.version = phpv.referenced_version
+            WHERE lc.library_mpath LIKE $1 AND lc.status = 'Element added' AND phpv.publication = $2
+            LIMIT 1
+            ";
+        let element_added = match self.kind {
+            DatabaseKind::Postgres | DatabaseKind::Sqlite => {
+                let mut connection = self.pool.acquire().await?;
+                sqlx::query_as::<_, Version>(statement)
+                    .bind(format!("{mpath}%"))
+                    .bind(publication)
+                    .fetch_one(&mut *connection)
+                    .await
+                    .ok()
+            }
+        };
+
+        if let Some(el_added) = element_added {
+            if !rows.contains(&el_added) {
+                rows.push(el_added);
+            }
+        }
+        rows.sort_by(|v1, v2| v2.codified_date.cmp(&v1.codified_date));
+        Ok(rows)
+    }
+}
+
+#[async_trait]
+impl publication::Manager for DatabaseConnection {
+    /// Find all publications which are not revoked for a given stele.
+    ///
+    /// # Errors
+    /// Errors if can't establish a connection to the database.
+    async fn find_all_non_revoked_publications(
+        &self,
+        stele: &str,
+    ) -> anyhow::Result<Vec<Publication>> {
+        let statement = "
+            SELECT *
+            FROM publication
+            WHERE revoked = 0 AND stele = $1
+            ORDER BY name DESC
+        ";
+        let rows = match self.kind {
+            DatabaseKind::Postgres | DatabaseKind::Sqlite => {
+                let mut connection = self.pool.acquire().await?;
+                sqlx::query_as::<_, Publication>(statement)
+                    .bind(stele)
+                    .fetch_all(&mut *connection)
+                    .await?
+            }
+        };
+        Ok(rows)
+    }
 }

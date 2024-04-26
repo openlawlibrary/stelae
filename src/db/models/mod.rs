@@ -18,3 +18,5 @@ pub mod publication_has_publication_versions;
 pub mod publication_version;
 /// sqlx structs for `stele` table.
 pub mod stele;
+/// sqlx structs for `version` table.
+pub mod version;

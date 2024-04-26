@@ -4,8 +4,8 @@
 #![allow(clippy::exit)]
 
 use crate::history::changes;
+use crate::server::app::serve_archive;
 use crate::server::git::serve_git;
-use crate::server::publish::serve_archive;
 use crate::utils::archive::find_archive_path;
 use clap::Parser;
 use std::env;
