@@ -1,4 +1,20 @@
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+
+use super::version::Version;
+
+/// Trait for managing document changes.
+#[async_trait]
+pub trait Manager {
+    /// Find one document materialized path by url.
+    async fn find_doc_mpath_by_url(&self, url: &str) -> anyhow::Result<Option<String>>;
+    /// All dates on which given document changed.
+    async fn find_all_document_versions_by_mpath_and_publication(
+        &self,
+        mpath: &str,
+        publication: &str,
+    ) -> anyhow::Result<Vec<Version>>;
+}
 
 #[derive(sqlx::FromRow, Deserialize, Serialize)]
 /// Model for document change events.

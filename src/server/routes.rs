@@ -1,7 +1,7 @@
 //! A central place to register App routes.
 use actix_web::web;
 
-use super::{history::versions, publish::GlobalState};
+use super::{api::versions::versions, app::GlobalState};
 
 /// Central place to register _api/ routes.
 pub fn register_api<T: GlobalState + Clone + 'static>(cfg: &mut web::ServiceConfig, state: &T) {

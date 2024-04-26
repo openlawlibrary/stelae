@@ -9,13 +9,13 @@ use actix_web::{
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::sync::Once;
-use stelae::{db, server::publish::GlobalState};
+use stelae::{db, server::app::GlobalState};
 use tempfile::Builder;
 static INIT: Once = Once::new();
 
 use actix_http::body::MessageBody;
 
-use stelae::server::publish::init_app;
+use stelae::server::app::init_app;
 use stelae::stelae::archive::Archive;
 
 pub const BASIC_MODULE_NAME: &str = "basic";
