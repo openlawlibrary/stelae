@@ -3,7 +3,6 @@
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use chrono::NaiveDate;
 use std::convert::Into;
-use std::time::Instant;
 
 use crate::{
     db::{
@@ -50,6 +49,7 @@ mod response {
     use crate::db::models;
 
     use super::format_date;
+    use super::CURRENT_PUBLICATION_NAME;
 
     /// Response for the versions endpoint.
     #[derive(Serialize, Debug)]
@@ -124,12 +124,14 @@ mod response {
 
     impl Versions {
         /// Build and returns an HTTP versions response converted into json.
+        #[allow(clippy::too_many_arguments)]
         pub fn build(
             active_publication_name: &str,
             active_version: String,
             active_compare_to: Option<String>,
             url: &str,
             publications: &[models::publication::Publication],
+            current_publication_name: &str,
             versions: &[Version],
             messages: HistoricalMessages,
         ) -> Self {
@@ -145,21 +147,43 @@ mod response {
                 publications: {
                     let mut sorted_publications = BTreeMap::new();
                     for pb in publications {
-                        let mut response_pub = Publication {
-                            active: pb.name == active_publication_name,
-                            date: pb.date.clone(),
-                            display: format_date(&pb.date),
-                            name: pb.name.clone(),
-                            versions: vec![],
-                        };
-                        if pb.name == active_publication_name {
-                            response_pub.versions = versions.to_vec();
-                        }
-                        sorted_publications.insert(Reverse(pb.name.clone()), response_pub);
+                        sorted_publications.insert(
+                            Reverse(pb.name.clone()),
+                            Publication {
+                                active: pb.name == active_publication_name,
+                                date: pb.date.clone(),
+                                display: Self::format_display_date(
+                                    &pb.name,
+                                    current_publication_name,
+                                ),
+                                name: pb.name.clone(),
+                                versions: {
+                                    if pb.name == active_publication_name {
+                                        versions.to_vec()
+                                    } else {
+                                        vec![]
+                                    }
+                                },
+                            },
+                        );
                     }
                     sorted_publications
                 },
                 messages,
+            }
+        }
+
+        /// Returns a formatted display date.
+        /// If the `date` is current, returns the date with `(current)` appended.
+        fn format_display_date(date: &str, current_date: &str) -> String {
+            if date == CURRENT_PUBLICATION_NAME {
+                CURRENT_PUBLICATION_NAME.to_owned()
+            } else {
+                let mut formatted_date = format_date(date);
+                if date == current_date {
+                    formatted_date.push_str(" (current)");
+                }
+                formatted_date
             }
         }
     }
@@ -238,7 +262,6 @@ pub async fn versions(
     data: web::Data<AppState>,
     params: web::Path<request::Version>,
 ) -> impl Responder {
-    let first = Instant::now();
     let stele = match get_stele_from_request(&req, data.archive()) {
         Ok(stele) => stele,
         Err(err) => return HttpResponse::BadRequest().body(format!("Error: {err}")),
@@ -264,13 +287,11 @@ pub async fn versions(
     let mut url = String::from("/");
     url.push_str(params.path.clone().unwrap_or_default().as_str());
 
-    let before = Instant::now();
     let mut versions = if let Some(publication) = active_publication {
         publication_versions(db, publication, url.clone()).await
     } else {
         vec![]
     };
-    println!("Versions query elapsed time: {:.2?}", before.elapsed());
 
     // latest date in active publication
     let current_date = versions
@@ -280,26 +301,17 @@ pub async fn versions(
     let mut active_version =
         NaiveDate::parse_from_str(params.date.as_deref().unwrap_or_default(), "%Y-%m-%d")
             .map_or(current_date.clone(), |date| date.clone().to_string());
-    let active_compare_to = params.compare_date.clone().map_or_else(
-        || {
-            NaiveDate::parse_from_str(&current_date, "%Y-%m-%d")
-                .map(|date| date.to_string())
-                .ok()
-        },
-        |date_str| {
-            NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
-                .map(|date| date.to_string())
-                .ok()
-        },
-    );
+    let active_compare_to = params.compare_date.clone().map(|date| {
+        NaiveDate::parse_from_str(&date, "%Y-%m-%d").map_or_else(
+            |_| current_date.clone(),
+            |active_date| active_date.to_string(),
+        )
+    });
 
     if active_version == current_date {
         active_version = CURRENT_VERSION_DATE.to_owned();
     }
 
-    if active_publication_name == current_publication.name.clone() {
-        active_publication_name = CURRENT_PUBLICATION_NAME.to_owned();
-    }
     let messages = historical_messages(
         &versions,
         current_publication,
@@ -307,6 +319,10 @@ pub async fn versions(
         &params.date,
         &active_compare_to,
     );
+
+    if active_publication_name == current_publication.name.clone() {
+        active_publication_name = CURRENT_PUBLICATION_NAME.to_owned();
+    }
 
     response::Version::insert_if_not_present(&mut versions, params.date.clone());
     response::Version::insert_if_not_present(&mut versions, active_compare_to.clone());
@@ -328,6 +344,7 @@ pub async fn versions(
 
     versions.insert(versions_size - current_version.index, current_version);
 
+    let current_publication_name = current_publication.name.clone();
     // duplicate current publication with current label
     publications.insert(
         0,
@@ -338,13 +355,13 @@ pub async fn versions(
         ),
     );
 
-    println!("Total elapsed time: {:.2?}", first.elapsed());
     HttpResponse::Ok().json(response::Versions::build(
         &active_publication_name,
         active_version,
         active_compare_to,
         &url,
         &publications,
+        &current_publication_name,
         &versions,
         messages,
     ))
@@ -357,11 +374,9 @@ async fn publication_versions(
     url: String,
 ) -> Vec<response::Version> {
     let mut versions = vec![];
-    let before_url = Instant::now();
     let doc_mpath = document_change::Manager::find_doc_mpath_by_url(db, &url)
         .await
         .unwrap_or_default();
-    println!("URL query elapsed time: {:.2?}", before_url.elapsed());
     if let Some(mpath) = doc_mpath {
         let doc_versions =
             document_change::Manager::find_all_document_versions_by_mpath_and_publication(
