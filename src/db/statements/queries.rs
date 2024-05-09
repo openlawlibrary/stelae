@@ -398,9 +398,11 @@ impl document_change::Manager for DatabaseConnection {
         };
 
         if let (Some(doc_effective), Some(el_added)) = (document_effective, element_added) {
-            if NaiveDate::parse_from_str(&doc_effective.codified_date, "%Y-%m-%d")
-                .unwrap_or_default()
-                > NaiveDate::parse_from_str(&el_added.codified_date, "%Y-%m-%d").unwrap_or_default()
+            if !rows.contains(&doc_effective)
+                && NaiveDate::parse_from_str(&doc_effective.codified_date, "%Y-%m-%d")
+                    .unwrap_or_default()
+                    > NaiveDate::parse_from_str(&el_added.codified_date, "%Y-%m-%d")
+                        .unwrap_or_default()
             {
                 rows.push(doc_effective);
             }
