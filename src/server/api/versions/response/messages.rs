@@ -1,0 +1,193 @@
+use chrono::NaiveDate;
+use serde::Serialize;
+
+use super::format_date;
+use crate::server::api::versions::response::Version;
+
+/// Messages for the versions endpoint.
+#[derive(Serialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Historical {
+    /// Message for an outdated publication.
+    pub publication: Option<String>,
+    /// Message for an outdated version.
+    pub version: Option<String>,
+    /// Message for a comparison between two versions.
+    pub comparison: Option<String>,
+}
+
+/// Returns historical messages for the versions endpoint.
+/// The historical messages currently include:
+/// - A message for an outdated publication.
+/// - A message for an outdated version.
+/// - A message for a comparison between two versions.
+#[must_use]
+pub fn historical(
+    versions: &[Version],
+    current_publication_name: &str,
+    active_publication_name: &str,
+    version_date: &Option<String>,
+    compare_to_date: &Option<String>,
+) -> Historical {
+    let current_version: &str = versions
+        .first()
+        .map(|lmv| lmv.date.as_str())
+        .unwrap_or_default();
+
+    let publication = publication_message(
+        active_publication_name,
+        current_publication_name,
+        current_version,
+    );
+    let version = version_date.as_ref().and_then(|found_version_date| {
+        version_message(
+            current_version,
+            found_version_date,
+            versions,
+            compare_to_date,
+        )
+    });
+    let comparison = compare_to_date.as_ref().and_then(|found_compare_to_date| {
+        version_date.as_ref().map(|found_version_date| {
+            comparison_message(
+                found_compare_to_date,
+                found_version_date,
+                current_version,
+                versions,
+            )
+        })
+    });
+    Historical {
+        publication,
+        version,
+        comparison,
+    }
+}
+
+/// Returns a historical message for an outdated publication.
+fn publication_message(
+    active_publication_name: &str,
+    current_publication_name: &str,
+    current_version: &str,
+) -> Option<String> {
+    if active_publication_name == current_publication_name {
+        return None;
+    }
+    Some(publication_message_template(current_version))
+}
+
+/// Formats the response for an outdated publication.
+fn publication_message_template(date: &str) -> String {
+    format!(
+        "You are viewing a historical publication that was last updated on {current_date} and is no longer being updated.",
+        current_date = format_date(date)
+    )
+}
+
+/// Returns a historical message for an outdated version.
+/// Version is outdated if `version_date` is in the past.
+fn version_message(
+    current_version: &str,
+    version_date: &str,
+    versions: &[Version],
+    compare_to_date: &Option<String>,
+) -> Option<String> {
+    let is_current_version = {
+        let current_date =
+            NaiveDate::parse_from_str(current_version, "%Y-%m-%d").unwrap_or_default();
+        let Ok(parsed_version_date) = NaiveDate::parse_from_str(version_date, "%Y-%m-%d") else {
+            return None;
+        };
+        current_date <= parsed_version_date
+    };
+    if compare_to_date.is_some() || is_current_version {
+        return None;
+    }
+    let version_date_idx = versions
+        .iter()
+        .position(|ver| ver.date.as_str() == version_date);
+    let (start_date, end_date) = version_date_idx.map_or_else(
+        || {
+            let end_date = versions
+                .iter()
+                .filter(|ver| ver.date.as_str() > version_date)
+                .map(|ver| ver.date.as_str())
+                .min();
+            let found_idx = versions
+                .iter()
+                .position(|ver| ver.date.as_str() == end_date.unwrap_or_default())
+                .unwrap_or_default();
+            let start_date = versions
+                .get(found_idx + 1)
+                .map_or_else(|| versions.last(), Some)
+                .map(|ver| ver.date.as_str());
+            (start_date.unwrap_or_default(), end_date.unwrap_or_default())
+        },
+        |idx| {
+            let start_date = version_date;
+            let end_date = versions
+                .get(idx - 1)
+                .map_or_else(|| versions.first(), Some)
+                .map(|ver| ver.date.as_str())
+                .unwrap_or_default();
+            (start_date, end_date)
+        },
+    );
+    Some(version_message_template(version_date, start_date, end_date))
+}
+
+/// Formats the response for an outdated version.
+fn version_message_template(version_date: &str, start_date: &str, end_date: &str) -> String {
+    format!(
+        "You are viewing this document as it appeared on {version_date}. This version was valid between {start_date} and {end_date}.",
+        version_date = format_date(version_date),
+        start_date = format_date(start_date),
+        end_date = format_date(end_date)
+    )
+}
+
+/// Returns a historical message for a comparison between two versions.
+fn comparison_message(
+    compare_to_date: &str,
+    version_date: &str,
+    current_date: &str,
+    versions: &[Version],
+) -> String {
+    let (compare_start_date, compare_end_date) = if version_date > compare_to_date {
+        (compare_to_date, version_date)
+    } else {
+        (version_date, compare_to_date)
+    };
+    let start_idx = Version::find_index_or_closest(versions, compare_start_date);
+    let end_idx = Version::find_index_or_closest(versions, compare_end_date);
+    let num_of_changes = start_idx - end_idx;
+    let start_date = format_date(compare_start_date);
+    let end_date = if compare_end_date == current_date {
+        None
+    } else {
+        Some(format_date(compare_end_date))
+    };
+    messages_between_template(num_of_changes, &start_date, end_date)
+}
+
+/// Formats and returns a message for the number of changes between two dates.
+fn messages_between_template(
+    num_of_changes: usize,
+    start_date: &str,
+    end_date: Option<String>,
+) -> String {
+    let changes = match num_of_changes {
+        0 => "no updates".to_owned(),
+        1 => "1 update".to_owned(),
+        _ => format!("{num_of_changes} updates"),
+    };
+
+    end_date.map_or_else(
+        || format!("There have been <strong>{changes}</strong> since {start_date}."),
+        |found_end_date| {
+            format!(
+                "There have been <strong>{changes}</strong> between {start_date} and {found_end_date}."
+            )
+        },
+    )
+}
