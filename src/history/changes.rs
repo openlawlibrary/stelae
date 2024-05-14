@@ -175,7 +175,7 @@ async fn load_delta_from_publications(
         let blob = rdf_repo.repo.find_blob(index_rdf.id())?;
         let data = blob.content();
         let reader = io::BufReader::new(data);
-        parser::parse_bufread(reader).add_to_graph(&mut pub_graph.g)?;
+        parser::parse_bufread(reader).add_to_graph(&mut pub_graph.fast_graph)?;
         let pub_label = pub_graph.literal_from_triple_matching(None, Some(rdfs::label), None)?;
         let pub_name = pub_label
             .strip_prefix("Publication ")
@@ -209,7 +209,7 @@ async fn load_delta_from_publications(
                 let current_blob = rdf_repo.repo.find_blob(entry.id()).unwrap();
                 let current_content = current_blob.content();
                 parser::parse_bufread(BufReader::new(current_content))
-                    .add_to_graph(&mut pub_graph.g)
+                    .add_to_graph(&mut pub_graph.fast_graph)
                     .unwrap();
             }
             TreeWalkResult::Ok

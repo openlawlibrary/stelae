@@ -13,8 +13,8 @@ use sophia::inmem::graph::FastGraph;
 use std::iter;
 /// Stelae representation of an RDF graph.
 pub struct StelaeGraph {
-    /// The underlying graph.
-    pub g: FastGraph,
+    /// The underlying `sophia` graph.
+    pub fast_graph: FastGraph,
 }
 
 impl Default for StelaeGraph {
@@ -28,7 +28,7 @@ impl StelaeGraph {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            g: FastGraph::new(),
+            fast_graph: FastGraph::new(),
         }
     }
     /// Extract a literal from a triple matching.
@@ -127,13 +127,13 @@ impl StelaeGraph {
         object: Option<NsTerm<'graph>>,
     ) -> GTripleSource<'graph, FastGraph> {
         let triple = match (subject, predicate, object) {
-            (Some(s), None, None) => self.g.triples_matching([s], Any, Any),
-            (None, Some(p), None) => self.g.triples_matching(Any, [p], Any),
-            (None, None, Some(o)) => self.g.triples_matching(Any, Any, [o]),
-            (Some(s), Some(p), None) => self.g.triples_matching([s], [p], Any),
-            (Some(s), None, Some(o)) => self.g.triples_matching([s], Any, [o]),
-            (None, Some(p), Some(o)) => self.g.triples_matching(Any, [p], [o]),
-            (Some(s), Some(p), Some(o)) => self.g.triples_matching([s], [p], [o]),
+            (Some(s), None, None) => self.fast_graph.triples_matching([s], Any, Any),
+            (None, Some(p), None) => self.fast_graph.triples_matching(Any, [p], Any),
+            (None, None, Some(o)) => self.fast_graph.triples_matching(Any, Any, [o]),
+            (Some(s), Some(p), None) => self.fast_graph.triples_matching([s], [p], Any),
+            (Some(s), None, Some(o)) => self.fast_graph.triples_matching([s], Any, [o]),
+            (None, Some(p), Some(o)) => self.fast_graph.triples_matching(Any, [p], [o]),
+            (Some(s), Some(p), Some(o)) => self.fast_graph.triples_matching([s], [p], [o]),
             (None, None, None) => Box::new(iter::empty()),
         };
         triple
@@ -186,32 +186,26 @@ impl Bag<'_> {
     pub fn items(&self) -> anyhow::Result<Vec<SimpleTerm>> {
         let container = &self.uri;
         let mut i = 1_u32;
-        let mut l_ = vec![];
+        let mut items = vec![];
         loop {
             let el_uri = format!("http://www.w3.org/1999/02/22-rdf-syntax-ns#_{i}");
             let elem_iri = SimpleTerm::Iri(IriRef::new_unchecked(MownStr::from_str(&el_uri)));
-            if self
+            let item_response = self
                 .graph
-                .g
-                .triples_matching([container], Some(elem_iri.clone()), Any)
-                .next()
-                .is_some()
-            {
+                .fast_graph
+                .triples_matching([container], Some(elem_iri), Any)
+                .next();
+            if let Some(found_item) = item_response {
                 i += 1;
-                let item = self
-                    .graph
-                    .g
-                    .triples_matching([container], Some(elem_iri), Any)
-                    .next()
+                let item = found_item
                     .context(format!("Expected to find item in {container:?}"))?
-                    .context("Expected to find item in container")?
                     .o()
                     .clone();
-                l_.push(item);
+                items.push(item);
             } else {
                 break;
             }
         }
-        Ok(l_)
+        Ok(items)
     }
 }
