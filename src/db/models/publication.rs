@@ -26,13 +26,12 @@ pub struct Publication {
 }
 
 impl FromRow<'_, AnyRow> for Publication {
-    #[allow(clippy::unwrap_in_result, clippy::unwrap_used)]
-    fn from_row(row: &AnyRow) -> Result<Self, sqlx::Error> {
+    fn from_row(row: &AnyRow) -> anyhow::Result<Self, sqlx::Error> {
         Ok(Self {
-            name: row.try_get("name").unwrap(),
-            date: row.try_get("date").unwrap(),
-            stele: row.try_get("stele").unwrap(),
-            revoked: row.try_get("revoked").unwrap(),
+            name: row.try_get("name")?,
+            date: row.try_get("date")?,
+            stele: row.try_get("stele")?,
+            revoked: row.try_get("revoked")?,
             last_valid_publication_name: row.try_get("last_valid_publication_name").ok(),
             last_valid_version: row.try_get("last_valid_version").ok(),
         })
