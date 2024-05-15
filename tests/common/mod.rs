@@ -9,7 +9,8 @@ use actix_web::{
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::sync::Once;
-use stelae::{db, server::app::GlobalState};
+use stelae::db;
+use stelae::server::api::state::Global;
 use tempfile::Builder;
 static INIT: Once = Once::new();
 
@@ -36,7 +37,7 @@ pub struct TestAppState {
     archive: Archive,
 }
 
-impl GlobalState for TestAppState {
+impl Global for TestAppState {
     fn archive(&self) -> &Archive {
         &self.archive
     }

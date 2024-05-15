@@ -12,11 +12,12 @@ use crate::{
         },
         DatabaseConnection,
     },
-    server::app::{AppState, GlobalState},
     stelae::archive::Archive,
 };
 
 use self::response::messages;
+
+use super::state::{App as AppState, Global as GlobalState};
 
 /// Name of the current publication.
 pub const CURRENT_PUBLICATION_NAME: &str = "Current";

@@ -6,5 +6,4 @@ pub mod api;
 pub mod app;
 pub mod errors;
 pub mod git;
-pub mod routes;
 pub mod tracing;
