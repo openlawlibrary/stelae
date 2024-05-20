@@ -17,10 +17,7 @@ use crate::db::DatabaseKind;
 ///
 /// # Errors
 /// Errors if can't establish a connection to the database.
-pub async fn find_stele_by_name(
-    conn: &DatabaseConnection,
-    name: &str,
-) -> anyhow::Result<Option<Stele>> {
+pub async fn find_stele_by_name(conn: &DatabaseConnection, name: &str) -> anyhow::Result<Stele> {
     let statement = "
         SELECT *
         FROM stele
@@ -32,8 +29,7 @@ pub async fn find_stele_by_name(
             sqlx::query_as::<_, Stele>(statement)
                 .bind(name)
                 .fetch_one(&mut *connection)
-                .await
-                .ok()
+                .await?
         }
     };
     Ok(row)
@@ -272,7 +268,7 @@ pub async fn find_last_inserted_publication_version_by_publication_and_stele(
         LIMIT 1
     ";
     let row = match conn.kind {
-        DatabaseKind::Sqlite => {
+        DatabaseKind::Sqlite | DatabaseKind::Postgres => {
             let mut connection = conn.pool.acquire().await?;
             sqlx::query_as::<_, PublicationVersion>(statement)
                 .bind(publication)
@@ -280,9 +276,6 @@ pub async fn find_last_inserted_publication_version_by_publication_and_stele(
                 .fetch_one(&mut *connection)
                 .await
                 .ok()
-        }
-        DatabaseKind::Postgres => {
-            unimplemented!();
         }
     };
     Ok(row)
@@ -294,7 +287,7 @@ impl document_change::Manager for DatabaseConnection {
     ///
     /// # Errors
     /// Errors if can't establish a connection to the database.
-    async fn find_doc_mpath_by_url(&self, url: &str) -> anyhow::Result<Option<String>> {
+    async fn find_doc_mpath_by_url(&self, url: &str) -> anyhow::Result<String> {
         let statement = "
             SELECT doc_mpath
             FROM document_change
@@ -307,11 +300,10 @@ impl document_change::Manager for DatabaseConnection {
                 sqlx::query_as::<_, (String,)>(statement)
                     .bind(url)
                     .fetch_one(&mut *connection)
-                    .await
-                    .ok()
+                    .await?
             }
         };
-        Ok(row.map(|(doc_mpath,)| doc_mpath))
+        Ok(row.0)
     }
 
     /// All dates on which given document changed.
@@ -418,7 +410,7 @@ impl library_change::Manager for DatabaseConnection {
     ///
     /// # Errors
     /// Errors if can't establish a connection to the database.
-    async fn find_lib_mpath_by_url(&self, url: &str) -> anyhow::Result<Option<String>> {
+    async fn find_lib_mpath_by_url(&self, url: &str) -> anyhow::Result<String> {
         let statement = "
             SELECT library_mpath
             FROM library_change
@@ -431,11 +423,10 @@ impl library_change::Manager for DatabaseConnection {
                 sqlx::query_as::<_, (String,)>(statement)
                     .bind(url)
                     .fetch_one(&mut *connection)
-                    .await
-                    .ok()
+                    .await?
             }
         };
-        Ok(row.map(|(library_mpath,)| library_mpath))
+        Ok(row.0)
     }
     /// All dates on which documents from this collection changed.
     ///

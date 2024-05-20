@@ -7,7 +7,7 @@ use super::version::Version;
 #[async_trait]
 pub trait Manager {
     /// Find one document materialized path by url.
-    async fn find_doc_mpath_by_url(&self, url: &str) -> anyhow::Result<Option<String>>;
+    async fn find_doc_mpath_by_url(&self, url: &str) -> anyhow::Result<String>;
     /// All dates on which given document changed.
     async fn find_all_document_versions_by_mpath_and_publication(
         &self,
