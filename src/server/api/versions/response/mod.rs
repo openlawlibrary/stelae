@@ -24,7 +24,7 @@ pub struct Versions {
     /// Resolves to "current" if the latest version is selected.
     pub active_version: String,
     /// Currently selected version to compare against.
-    /// If compare_date is specified, this will be the date to compare against.
+    /// If `compare_date` is specified, this will be the date to compare against.
     pub active_compare_to: Option<String>,
     /// Features for the versions endpoint.
     pub features: Features,

@@ -77,7 +77,7 @@ pub struct Custom {
     /// Routing to use when locating current blobs from the data repository.
     /// Example:
     ///
-    /// Given a `["_underscore/.*"] glob pattern, the following urls are expected to be routed to the current data repository:
+    /// Given a `["_underscore/.*"]` glob pattern, the following urls are expected to be routed to the current data repository:
     ///
     /// - `/_underscore/`
     /// - `/_underscore/any/path`

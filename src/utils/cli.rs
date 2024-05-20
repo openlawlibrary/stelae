@@ -56,7 +56,7 @@ enum Subcommands {
     },
 }
 
-///
+/// Place to initialize tracing
 fn init_tracing() {
     fmt::init();
     if env::var("RUST_LOG").is_err() {
