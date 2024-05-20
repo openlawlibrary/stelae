@@ -40,17 +40,7 @@ pub fn register_app<
 >(
     mut app: App<V>,
     state: &T,
-) -> anyhow::Result<
-    App<
-        impl ServiceFactory<
-            ServiceRequest,
-            Response = ServiceResponse<U>,
-            Config = (),
-            InitError = (),
-            Error = Error,
-        >,
-    >,
-> {
+) -> anyhow::Result<App<V>> {
     app = app
         .service(
             web::scope("/_api").service(
@@ -73,8 +63,8 @@ pub fn register_app<
         )
         .app_data(web::Data::new(state.clone()));
 
-    let initialized_app = register_dynamic_routes(app, state)?;
-    Ok(initialized_app)
+    app = register_dynamic_routes(app, state)?;
+    Ok(app)
 }
 
 /// Initialize all dynamic routes for the given Archive.
@@ -84,92 +74,131 @@ pub fn register_app<
 ///
 /// # Errors
 /// Errors if unable to register dynamic routes (e.g. if git repository cannot be opened)
-fn register_dynamic_routes<T: MessageBody>(
-    mut app: App<
-        impl ServiceFactory<
-            ServiceRequest,
-            Response = ServiceResponse<T>,
-            Config = (),
-            InitError = (),
-            Error = Error,
-        >,
+fn register_dynamic_routes<
+    T: MessageBody,
+    U: ServiceFactory<
+        ServiceRequest,
+        Response = ServiceResponse<T>,
+        Config = (),
+        InitError = (),
+        Error = Error,
     >,
+>(
+    mut app: App<U>,
     state: &impl Global,
-) -> anyhow::Result<
-    App<
-        impl ServiceFactory<
-            ServiceRequest,
-            Response = ServiceResponse<T>,
-            Config = (),
-            InitError = (),
-            Error = Error,
-        >,
-    >,
-> {
+) -> anyhow::Result<App<U>> {
     let config = state.archive().get_config()?;
     let stelae_guard = config
         .headers
         .and_then(|headers| headers.current_documents_guard);
 
     if let Some(guard) = stelae_guard {
-        tracing::info!(
-            "Initializing guarded current documents with header: {}",
-            guard
-        );
-        HEADER_NAME.get_or_init(|| guard);
-        HEADER_VALUES.get_or_init(|| {
-            state
-                .archive()
-                .stelae
-                .keys()
-                .map(ToString::to_string)
-                .collect()
-        });
+        app = initialize_guarded_dynamic_routes(guard, app, state)?;
+    } else {
+        app = initialize_dynamic_routes(app, state)?;
+    };
+    Ok(app)
+}
 
-        if let (Some(guard_name), Some(guard_values)) = (HEADER_NAME.get(), HEADER_VALUES.get()) {
-            for guard_value in guard_values {
-                let stele = state.archive().stelae.get(guard_value);
-                if let Some(guarded_stele) = stele {
-                    let shared_state = state::init_shared(guarded_stele)?;
-                    let mut stelae_scope = web::scope("");
-                    stelae_scope = stelae_scope.guard(guard::Header(guard_name, guard_value));
-                    app = app.service(
-                        stelae_scope
-                            .app_data(web::Data::new(shared_state))
-                            .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
-                            .configure(|cfg| {
-                                register_root_routes(cfg, guarded_stele).unwrap_or_else(|_| {
-                                    tracing::error!(
-                                        "Failed to initialize routes for Stele: {}",
-                                        guarded_stele.get_qualified_name()
-                                    );
-                                    process::exit(1);
-                                });
-                            }),
-                    );
-                }
+/// Initialize all guarded dynamic routes for the given Archive.
+/// Routes are guarded by a header value specified in the config.toml file.
+///
+/// # Errors
+/// Errors if unable to register dynamic routes (e.g. if git repository cannot be opened)
+fn initialize_guarded_dynamic_routes<
+    T: MessageBody,
+    U: ServiceFactory<
+        ServiceRequest,
+        Response = ServiceResponse<T>,
+        Config = (),
+        InitError = (),
+        Error = Error,
+    >,
+>(
+    guard: String,
+    mut app: App<U>,
+    state: &impl Global,
+) -> anyhow::Result<App<U>> {
+    tracing::info!(
+        "Initializing guarded current documents with header: {}",
+        guard
+    );
+    HEADER_NAME.get_or_init(|| guard);
+    HEADER_VALUES.get_or_init(|| {
+        state
+            .archive()
+            .stelae
+            .keys()
+            .map(ToString::to_string)
+            .collect()
+    });
+
+    if let (Some(guard_name), Some(guard_values)) = (HEADER_NAME.get(), HEADER_VALUES.get()) {
+        for guard_value in guard_values {
+            let stele = state.archive().stelae.get(guard_value);
+            if let Some(guarded_stele) = stele {
+                let shared_state = state::init_shared(guarded_stele)?;
+                let mut stelae_scope = web::scope("");
+                stelae_scope = stelae_scope.guard(guard::Header(guard_name, guard_value));
+                app = app.service(
+                    stelae_scope
+                        .app_data(web::Data::new(shared_state))
+                        .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
+                        .configure(|cfg| {
+                            register_root_routes(cfg, guarded_stele).unwrap_or_else(|_| {
+                                tracing::error!(
+                                    "Failed to initialize routes for Stele: {}",
+                                    guarded_stele.get_qualified_name()
+                                );
+                                process::exit(1);
+                            });
+                        }),
+                );
             }
         }
     } else {
-        tracing::info!("Initializing app");
-        let root = state.archive().get_root()?;
-        let shared_state = state::init_shared(root)?;
-        app = app.service(
-            web::scope("")
-                .app_data(web::Data::new(shared_state))
-                .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
-                .configure(|cfg| {
-                    register_routes(cfg, state).unwrap_or_else(|_| {
-                        tracing::error!(
-                            // TODO: error handling
-                            "Failed to initialize routes for root Stele: {}",
-                            root.get_qualified_name()
-                        );
-                        process::exit(1);
-                    });
-                }),
-        );
-    };
+        let err_msg = "Failed to initialize guarded routes. Header name or values not found.";
+        tracing::error!(err_msg);
+        anyhow::bail!(err_msg);
+    }
+    Ok(app)
+}
+
+/// Initialize all dynamic routes for the given Archive.
+///
+/// # Errors
+/// Errors if unable to register dynamic routes (e.g. if git repository cannot be opened)
+fn initialize_dynamic_routes<
+    T: MessageBody,
+    U: ServiceFactory<
+        ServiceRequest,
+        Response = ServiceResponse<T>,
+        Config = (),
+        InitError = (),
+        Error = Error,
+    >,
+>(
+    mut app: App<U>,
+    state: &impl Global,
+) -> anyhow::Result<App<U>> {
+    tracing::info!("Initializing app");
+    let root = state.archive().get_root()?;
+    let shared_state = state::init_shared(root)?;
+    app = app.service(
+        web::scope("")
+            .app_data(web::Data::new(shared_state))
+            .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
+            .configure(|cfg| {
+                register_routes(cfg, state).unwrap_or_else(|_| {
+                    tracing::error!(
+                        // TODO: error handling
+                        "Failed to initialize routes for root Stele: {}",
+                        root.get_qualified_name()
+                    );
+                    process::exit(1);
+                });
+            }),
+    );
     Ok(app)
 }
 
