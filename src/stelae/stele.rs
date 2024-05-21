@@ -21,7 +21,6 @@ pub struct Stele {
     /// Stele's repositories (as specified in repositories.json).
     pub repositories: Option<Repositories>,
     /// Indicates whether or not the Stele is the root Stele.
-    /// TODO: this does not seem correct
     pub root: bool,
     /// Stele's authentication repo.
     pub auth_repo: Repo,

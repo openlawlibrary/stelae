@@ -1,11 +1,11 @@
 //! A Stele's data repositories.
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, string::String};
 
 use serde::{
     de::{self, MapAccess, Visitor},
     Deserialize, Deserializer,
 };
-use serde_derive::{Deserialize, Serialize};
+use serde_derive::Serialize;
 use serde_json::Value;
 
 /// Repositories object
@@ -99,21 +99,30 @@ impl Repositories {
     ///
     /// This is needed for serving current documents because Actix routes are matched in the order they are added.
     #[must_use]
+    #[allow(clippy::iter_over_hash_type)]
     pub fn get_sorted_repositories(&self) -> Vec<&Repository> {
         let mut result = Vec::new();
         for repository in self.repositories.values() {
             result.push(repository);
         }
         result.sort_by(|repo1, repo2| {
-            let routes1 = repo1.custom.routes.as_ref().map_or(0, |r| {
-                r.iter().map(std::string::String::len).max().unwrap_or(0)
+            let routes1 = repo1.custom.routes.as_ref().map_or(0, |routes| {
+                routes.iter().map(String::len).max().unwrap_or(0)
             });
-            let routes2 = repo2.custom.routes.as_ref().map_or(0, |r| {
-                r.iter().map(std::string::String::len).max().unwrap_or(0)
+            let routes2 = repo2.custom.routes.as_ref().map_or(0, |routes| {
+                routes.iter().map(String::len).max().unwrap_or(0)
             });
             routes2.cmp(&routes1)
         });
         result
+    }
+
+    /// Get the RDF repository from repositories.
+    #[must_use]
+    pub fn get_rdf_repository(&self) -> Option<&Repository> {
+        self.repositories
+            .values()
+            .find(|repository| repository.custom.repository_type.as_deref() == Some("rdf"))
     }
 }
 
@@ -176,20 +185,24 @@ impl<'de> Deserialize<'de> for Repositories {
                 V: MapAccess<'de>,
             {
                 let repositories_json: HashMap<String, Value> = map.next_value()?;
+                let mut keys = repositories_json.keys().clone().collect::<Vec<_>>();
+                keys.sort();
                 let mut repositories = HashMap::new();
-                for (map_key, value) in repositories_json {
-                    let custom_value = value
+                for key in keys {
+                    let custom_value = repositories_json
+                        .get(key)
+                        .ok_or_else(|| de::Error::custom(format!("Missing {key} in JSON")))?
                         .get("custom")
-                        .ok_or_else(|| serde::de::Error::custom("Missing 'custom' field"))?;
+                        .ok_or_else(|| de::Error::custom("Missing 'custom' field"))?;
                     let custom: Custom =
-                        serde_json::from_value(custom_value.clone()).map_err(|e| {
-                            serde::de::Error::custom(format!("Failed to deserialize 'custom': {e}"))
+                        serde_json::from_value(custom_value.clone()).map_err(|err| {
+                            de::Error::custom(format!("Failed to deserialize 'custom': {err}"))
                         })?;
                     let repo = Repository {
-                        name: map_key.clone(),
+                        name: key.clone(),
                         custom,
                     };
-                    repositories.insert(map_key, repo);
+                    repositories.insert(key.clone(), repo);
                 }
                 Ok(repositories)
             }

@@ -83,8 +83,15 @@
     clippy::exhaustive_enums,
     clippy::question_mark_used,
     clippy::semicolon_outside_block,
+    // We tend to break up long functions into smaller ones, so this lint is not useful
+    clippy::single_call_fn,
+    clippy::arithmetic_side_effects,
+    // We'll allow unimplemented! in code, but disallow todo!
+    clippy::unimplemented,
 )]
 
+pub mod db;
+pub mod history;
 pub mod server;
 pub mod stelae;
 pub mod utils;

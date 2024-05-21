@@ -27,9 +27,9 @@ pub struct Repo {
 }
 
 impl fmt::Debug for Repo {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         write!(
-            f,
+            formatter,
             "Repo for {}/{} in the archive at {}",
             self.org, self.name, self.archive_path
         )
