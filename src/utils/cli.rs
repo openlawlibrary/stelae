@@ -13,7 +13,7 @@ use std::io;
 use std::path::Path;
 use std::process;
 use tracing;
-use tracing_subscriber::fmt;
+use tracing_subscriber;
 
 /// Stelae is currently just a simple git server.
 /// run from the library directory or pass
@@ -58,7 +58,7 @@ enum Subcommands {
 
 /// Place to initialize tracing
 fn init_tracing() {
-    fmt::init();
+    tracing_subscriber::fmt().init();
     if env::var("RUST_LOG").is_err() {
         env::set_var("RUST_LOG", "info");
     }
