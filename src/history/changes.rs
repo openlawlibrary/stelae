@@ -62,6 +62,7 @@ pub async fn insert(
             process::exit(1);
         }
     };
+    tracing::info!("Inserting history into archive");
     if let Some(_stele) = stele {
         insert_changes_single_stele()?;
     } else {
