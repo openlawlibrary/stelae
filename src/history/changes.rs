@@ -19,6 +19,7 @@ use crate::db::statements::queries::{
 };
 use crate::history::rdf::graph::StelaeGraph;
 use crate::history::rdf::namespaces::{dcterms, oll};
+use crate::stelae::stele::Stele;
 use crate::utils::archive::get_name_parts;
 use crate::utils::git::Repo;
 use crate::{
@@ -61,6 +62,7 @@ pub async fn insert(
             process::exit(1);
         }
     };
+    tracing::info!("Inserting history into archive");
     if let Some(_stele) = stele {
         insert_changes_single_stele()?;
     } else {
@@ -91,22 +93,52 @@ async fn insert_changes_archive(
         false,
     )?;
 
+    let mut errors = Vec::new();
     for (name, mut stele) in archive.get_stelae() {
-        if let Some(repositories) = stele.get_repositories()? {
-            let Some(rdf_data) = repositories.get_rdf_repository() else {
-                continue;
-            };
-            let rdf_repo_path = archive_path.to_path_buf().join(&rdf_data.name);
-            if !rdf_repo_path.exists() {
-                anyhow::bail!(
-                    "RDF repository should exist on disk but not found: {}",
-                    rdf_repo_path.display()
-                );
-            }
-            let (rdf_org, rdf_name) = get_name_parts(&rdf_data.name)?;
-            let rdf_repo = Repo::new(archive_path, &rdf_org, &rdf_name)?;
-            insert_changes_from_rdf_repository(conn, rdf_repo, &name).await?;
+        match process_stele(conn, &name, &mut stele, archive_path).await {
+            Ok(()) => (),
+            Err(err) => errors.push(err),
         }
+    }
+    if !errors.is_empty() {
+        let error_msg = errors
+            .into_iter()
+            .map(|err| err.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        return Err(anyhow::anyhow!(
+            "Errors occurred while inserting changes:\n{error_msg}"
+        ));
+    }
+    Ok(())
+}
+
+/// Process the stele and insert changes into the database
+async fn process_stele(
+    conn: &DatabaseConnection,
+    name: &str,
+    stele: &mut Stele,
+    archive_path: &Path,
+) -> anyhow::Result<()> {
+    let Ok(found_repositories) = stele.get_repositories() else {
+        tracing::warn!("No repositories found for stele: {name}");
+        return Ok(());
+    };
+    if let Some(repositories) = found_repositories {
+        let Some(rdf_repo) = repositories.get_rdf_repository() else {
+            tracing::warn!("No RDF repository found for stele: {name}");
+            return Ok(());
+        };
+        let rdf_repo_path = archive_path.to_path_buf().join(&rdf_repo.name);
+        if !rdf_repo_path.exists() {
+            return Err(anyhow::anyhow!(
+                "RDF repository should exist on disk but not found: {}",
+                rdf_repo_path.display()
+            ));
+        }
+        let (rdf_org, rdf_name) = get_name_parts(&rdf_repo.name)?;
+        let rdf = Repo::new(archive_path, &rdf_org, &rdf_name)?;
+        insert_changes_from_rdf_repository(conn, rdf, name).await?;
     }
     Ok(())
 }

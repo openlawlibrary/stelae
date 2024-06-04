@@ -85,7 +85,7 @@ pub async fn versions(
     });
 
     if active_version == current_date {
-        active_version = CURRENT_VERSION_DATE.to_owned();
+        CURRENT_VERSION_DATE.clone_into(&mut active_version);
     }
 
     let messages = messages::historical(
@@ -97,7 +97,7 @@ pub async fn versions(
     );
 
     if active_publication_name == current_publication.name.clone() {
-        active_publication_name = CURRENT_PUBLICATION_NAME.to_owned();
+        CURRENT_PUBLICATION_NAME.clone_into(&mut active_publication_name);
     }
 
     response::Version::insert_if_not_present(&mut versions, params.date.clone());

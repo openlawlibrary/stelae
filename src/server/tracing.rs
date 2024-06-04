@@ -3,6 +3,7 @@
 use std::time::Instant;
 
 use actix_web::{
+    body::MessageBody,
     dev::{ServiceRequest, ServiceResponse},
     HttpMessage,
 };
@@ -45,7 +46,7 @@ impl RootSpanBuilder for StelaeRootSpanBuilder {
         )
     }
 
-    fn on_request_end<B>(
+    fn on_request_end<B: MessageBody>(
         span: tracing::Span,
         outcome: &Result<ServiceResponse<B>, actix_web::Error>,
     ) {
