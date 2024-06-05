@@ -13,6 +13,7 @@ use crate::{
         DatabaseConnection,
     },
     stelae::archive::Archive,
+    utils::paths::clean_path,
 };
 
 use self::response::messages;
@@ -60,8 +61,7 @@ pub async fn versions(
         .iter()
         .find(|pb| pb.name == active_publication_name);
 
-    let mut url = String::from("/");
-    url.push_str(params.path.clone().unwrap_or_default().as_str());
+    let url = clean_url_path(&params.path.clone().unwrap_or_default());
 
     let mut versions = if let Some(publication) = active_publication {
         publication_versions(db, publication, url.clone()).await
@@ -201,4 +201,12 @@ fn format_date(date: &str) -> String {
     NaiveDate::parse_from_str(date, "%Y-%m-%d").map_or(date.to_owned(), |found_date| {
         found_date.format("%B %d, %Y").to_string()
     })
+}
+
+/// Clean the url path by removing the trailing slash.
+fn clean_url_path(path: &str) -> String {
+    let mut url = String::from('/');
+    let url_parts = clean_path(path);
+    url.push_str(&url_parts);
+    url
 }

@@ -1,23 +1,12 @@
 //! API endpoint for serving current documents from Stele repositories.
 #![allow(clippy::infinite_loop)]
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
-use lazy_static::lazy_static;
-use regex::Regex;
 
-use crate::utils::{git::Repo, http::get_contenttype};
+use crate::utils::{git::Repo, http::get_contenttype, paths::clean_path};
 
 use super::state::{RepoData as RepoState, Shared as SharedState};
 /// Most-recent git commit
 const HEAD_COMMIT: &str = "HEAD";
-
-#[allow(clippy::expect_used)]
-/// Remove leading and trailing `/`s from the `path` string.
-fn clean_path(path: &str) -> String {
-    lazy_static! {
-        static ref RE: Regex = Regex::new("(?:^/*|/*$)").expect("Failed to compile regex!?!");
-    }
-    RE.replace_all(path, "").to_string()
-}
 
 /// Serve current document
 #[allow(clippy::future_not_send)]

@@ -58,7 +58,8 @@ pub fn register_app<
                         web::resource("/_compare/{date}/{compare_date}/{path:.*}").to(versions),
                     )
                     .service(web::resource("/_date/{date}/{path:.*}").to(versions))
-                    .service(web::resource("/{path:.*}").to(versions)),
+                    .service(web::resource("/{path:.*}").to(versions))
+                    .service(web::resource("").to(versions)),
             ),
         )
         .app_data(web::Data::new(state.clone()));
