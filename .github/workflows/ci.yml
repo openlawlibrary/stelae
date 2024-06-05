@@ -39,7 +39,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@1.77 # Pin based on current `rust-version` in Cargo.toml. IMPORTANT: Upgrade version when `rust-version` changes.
+        uses: dtolnay/rust-toolchain@1.78 # Pin based on current `rust-version` in Cargo.toml. IMPORTANT: Upgrade version when `rust-version` changes.
         with:
           components: rustfmt, clippy
 

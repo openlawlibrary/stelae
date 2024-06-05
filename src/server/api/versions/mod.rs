@@ -34,6 +34,7 @@ pub mod request;
 pub mod response;
 
 /// Handler for the versions endpoint.
+#[tracing::instrument(skip(req, data))]
 pub async fn versions(
     req: HttpRequest,
     data: web::Data<AppState>,
@@ -41,7 +42,10 @@ pub async fn versions(
 ) -> impl Responder {
     let stele = match get_stele_from_request(&req, data.archive()) {
         Ok(stele) => stele,
-        Err(err) => return HttpResponse::BadRequest().body(format!("Error: {err}")),
+        Err(err) => {
+            tracing::error!("Error getting stele from request: {err}");
+            return HttpResponse::BadRequest().body(format!("Error: {err}"));
+        }
     };
     let db = data.db();
     let mut publications = publication::Manager::find_all_non_revoked_publications(db, &stele)
@@ -49,6 +53,7 @@ pub async fn versions(
         .unwrap_or_default();
 
     let Some(current_publication) = publications.first() else {
+        tracing::warn!("No publications found for stele: {stele}");
         return HttpResponse::NotFound().body("No publications found.");
     };
 
@@ -149,6 +154,7 @@ async fn publication_versions(
     publication: &Publication,
     url: String,
 ) -> Vec<response::Version> {
+    tracing::debug!("Fetching publication versions for '{url}'");
     let mut versions = vec![];
     let doc_mpath = document_change::Manager::find_doc_mpath_by_url(db, &url).await;
     if let Ok(mpath) = doc_mpath {
@@ -175,6 +181,7 @@ async fn publication_versions(
             versions = coll_versions.into_iter().map(Into::into).collect();
         }
     }
+    tracing::debug!("Found {} versions", versions.len());
     versions
 }
 
