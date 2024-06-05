@@ -20,7 +20,7 @@ mime = "0.3.17"
 mime_guess = "2.0.4"
 anyhow = "1.0"
 clap = { version = "4.0.27", features = ["derive"] }
-git2 = "0.17"
+git2 = "0.18"
 lazy_static = "1.4.0"
 regex = "1"
 serde = "1.0"
@@ -46,6 +46,7 @@ sophia = { version = "0.8.0", features = ["xml"] }
 [dev-dependencies]
 criterion = "0.3"
 tempfile = "3"
+just = "1.27"
 
 [[bench]]
 name = "git_benchmark"

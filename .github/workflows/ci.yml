@@ -44,7 +44,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Install Just
-        uses: extractions/setup-just@v1
+        uses: extractions/setup-just@v2
         env:
           GITHUB_TOKEN: ${{ secrets.STELAE_GITHUB_TOKEN }}
 
