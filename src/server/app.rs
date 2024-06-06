@@ -10,6 +10,7 @@ use crate::server::api::state::App as AppState;
 use crate::stelae::archive::Archive;
 use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::{App, Error, HttpServer};
+use tracing_actix_web::TracingLogger;
 
 use std::{io, path::PathBuf, process};
 
@@ -17,10 +18,12 @@ use actix_http::body::MessageBody;
 use actix_service::ServiceFactory;
 
 use super::api::state::Global;
+use super::tracing::StelaeRootSpanBuilder;
 use crate::server::api::routes;
 
 /// Serve documents in a Stelae archive.
 #[actix_web::main]
+#[tracing::instrument(skip(raw_archive_path, archive_path, port, individual))]
 pub async fn serve_archive(
     raw_archive_path: &str,
     archive_path: PathBuf,
@@ -81,6 +84,7 @@ pub fn init_app<T: Global + Clone + 'static>(
         >,
     >,
 > {
-    let app = routes::register_app(App::new(), state)?;
-    Ok(app)
+    let app = App::new().wrap(TracingLogger::<StelaeRootSpanBuilder>::new());
+    let registered_app = routes::register_app(app, state)?;
+    Ok(registered_app)
 }

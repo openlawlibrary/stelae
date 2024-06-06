@@ -2,16 +2,14 @@
 #![allow(clippy::exit)]
 use std::{process, sync::OnceLock};
 
+use crate::server::api::state;
+use crate::stelae::{stele::Stele, types::repositories::Repositories};
 use actix_service::ServiceFactory;
 use actix_web::{
     body::MessageBody,
     dev::{ServiceRequest, ServiceResponse},
     guard, web, App, Error, Scope,
 };
-use tracing_actix_web::TracingLogger;
-
-use crate::server::{api::state, tracing::StelaeRootSpanBuilder};
-use crate::stelae::{stele::Stele, types::repositories::Repositories};
 
 use super::{serve::serve, state::Global, versions::versions};
 
@@ -27,6 +25,7 @@ static HEADER_VALUES: OnceLock<Vec<String>> = OnceLock::new();
 ///
 /// # Errors
 /// Errors if unable to register dynamic routes (e.g. if git repository cannot be opened)
+#[tracing::instrument(skip(app, state))]
 pub fn register_app<
     T: Global + Clone + 'static,
     U: MessageBody,
@@ -58,7 +57,8 @@ pub fn register_app<
                         web::resource("/_compare/{date}/{compare_date}/{path:.*}").to(versions),
                     )
                     .service(web::resource("/_date/{date}/{path:.*}").to(versions))
-                    .service(web::resource("/{path:.*}").to(versions)),
+                    .service(web::resource("/{path:.*}").to(versions))
+                    .service(web::resource("").to(versions)),
             ),
         )
         .app_data(web::Data::new(state.clone()));
@@ -143,7 +143,6 @@ fn initialize_guarded_dynamic_routes<
                 app = app.service(
                     stelae_scope
                         .app_data(web::Data::new(shared_state))
-                        .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
                         .configure(|cfg| {
                             register_root_routes(cfg, guarded_stele).unwrap_or_else(|_| {
                                 tracing::error!(
@@ -187,7 +186,6 @@ fn initialize_dynamic_routes<
     app = app.service(
         web::scope("")
             .app_data(web::Data::new(shared_state))
-            .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
             .configure(|cfg| {
                 register_routes(cfg, state).unwrap_or_else(|_| {
                     tracing::error!(

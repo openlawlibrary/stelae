@@ -59,7 +59,7 @@ impl Repo {
     /// in archive, or if there is something wrong with the git repository.
     pub fn new(archive_path: &Path, org: &str, name: &str) -> anyhow::Result<Self> {
         let archive_path_str = archive_path.to_string_lossy();
-        tracing::debug!(org, name, "Creating new Repo at {archive_path_str}");
+        tracing::trace!(org, name, "Creating new Repo at {archive_path_str}");
         let repo_path = format!("{archive_path_str}/{org}/{name}");
         Ok(Self {
             archive_path: archive_path_str.into(),

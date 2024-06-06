@@ -13,6 +13,7 @@ use crate::{
         DatabaseConnection,
     },
     stelae::archive::Archive,
+    utils::paths::clean_path,
 };
 
 use self::response::messages;
@@ -33,6 +34,7 @@ pub mod request;
 pub mod response;
 
 /// Handler for the versions endpoint.
+#[tracing::instrument(skip(req, data))]
 pub async fn versions(
     req: HttpRequest,
     data: web::Data<AppState>,
@@ -40,7 +42,10 @@ pub async fn versions(
 ) -> impl Responder {
     let stele = match get_stele_from_request(&req, data.archive()) {
         Ok(stele) => stele,
-        Err(err) => return HttpResponse::BadRequest().body(format!("Error: {err}")),
+        Err(err) => {
+            tracing::error!("Error getting stele from request: {err}");
+            return HttpResponse::BadRequest().body(format!("Error: {err}"));
+        }
     };
     let db = data.db();
     let mut publications = publication::Manager::find_all_non_revoked_publications(db, &stele)
@@ -48,6 +53,7 @@ pub async fn versions(
         .unwrap_or_default();
 
     let Some(current_publication) = publications.first() else {
+        tracing::warn!("No publications found for stele: {stele}");
         return HttpResponse::NotFound().body("No publications found.");
     };
 
@@ -60,8 +66,7 @@ pub async fn versions(
         .iter()
         .find(|pb| pb.name == active_publication_name);
 
-    let mut url = String::from("/");
-    url.push_str(params.path.clone().unwrap_or_default().as_str());
+    let url = clean_url_path(&params.path.clone().unwrap_or_default());
 
     let mut versions = if let Some(publication) = active_publication {
         publication_versions(db, publication, url.clone()).await
@@ -149,6 +154,7 @@ async fn publication_versions(
     publication: &Publication,
     url: String,
 ) -> Vec<response::Version> {
+    tracing::debug!("Fetching publication versions for '{url}'");
     let mut versions = vec![];
     let doc_mpath = document_change::Manager::find_doc_mpath_by_url(db, &url).await;
     if let Ok(mpath) = doc_mpath {
@@ -175,6 +181,7 @@ async fn publication_versions(
             versions = coll_versions.into_iter().map(Into::into).collect();
         }
     }
+    tracing::debug!("Found {} versions", versions.len());
     versions
 }
 
@@ -201,4 +208,12 @@ fn format_date(date: &str) -> String {
     NaiveDate::parse_from_str(date, "%Y-%m-%d").map_or(date.to_owned(), |found_date| {
         found_date.format("%B %d, %Y").to_string()
     })
+}
+
+/// Clean the url path by removing the trailing slash.
+fn clean_url_path(path: &str) -> String {
+    let mut url = String::from('/');
+    let url_parts = clean_path(path);
+    url.push_str(&url_parts);
+    url
 }

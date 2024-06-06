@@ -11,8 +11,6 @@
 
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use git2::{self, ErrorCode};
-use lazy_static::lazy_static;
-use regex::Regex;
 use std::{
     io,
     path::{Path, PathBuf},
@@ -20,23 +18,14 @@ use std::{
 use tracing_actix_web::TracingLogger;
 
 use super::errors::StelaeError;
-use crate::server::tracing::StelaeRootSpanBuilder;
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use crate::utils::http::get_contenttype;
+use crate::{server::tracing::StelaeRootSpanBuilder, utils::paths::clean_path};
 
 /// Global, read-only state passed into the actix app
 struct AppState {
     /// path to the Stelae archive
     archive_path: PathBuf,
-}
-
-#[allow(clippy::expect_used)]
-/// Remove leading and trailing `/`s from the `path` string.
-fn clean_path(path: &str) -> String {
-    lazy_static! {
-        static ref RE: Regex = Regex::new("(?:^/*|/*$)").expect("Failed to compile regex!?!");
-    }
-    RE.replace_all(path, "").to_string()
 }
 
 /// Root index path
@@ -75,7 +64,7 @@ async fn get_blob(
 }
 
 /// Do the work of looking for the requested Git object.
-// TODO: This, and `clean_path`, look like they could live in `utils::git::Repo`
+// TODO: This looks like it could live in `utils::git::Repo`
 fn find_blob(
     archive_path: &Path,
     namespace: &str,
