@@ -1,6 +1,7 @@
 //! Database related module.
 #![allow(clippy::unreachable)]
 use async_trait::async_trait;
+use sqlx::Transaction;
 use std::str::FromStr;
 
 use sqlx::any::{self, AnyPoolOptions};
@@ -12,8 +13,6 @@ use tracing::instrument;
 pub mod init;
 /// Models for the database.
 pub mod models;
-/// Statements for the database.
-pub mod statements;
 
 #[async_trait]
 /// Generic Database
@@ -23,6 +22,17 @@ pub trait Db {
     /// # Errors
     /// Errors if connection to database fails.
     async fn connect(url: &str) -> anyhow::Result<DatabaseConnection>;
+}
+
+#[async_trait]
+/// Generic transaction
+pub trait Tx {
+    /// Begin a transaction.
+    async fn begin(pool: AnyPool) -> anyhow::Result<DatabaseTransaction>;
+    /// Commit a transaction.
+    async fn commit(self) -> anyhow::Result<()>;
+    /// Rollback a transaction.
+    async fn rollback(self) -> anyhow::Result<()>;
 }
 
 /// Type of database connection.
@@ -41,6 +51,12 @@ pub struct DatabaseConnection {
     pub pool: AnyPool,
     /// Type of database connection.
     pub kind: DatabaseKind,
+}
+
+/// Database transaction.
+pub struct DatabaseTransaction {
+    /// Database transaction.
+    pub tx: Transaction<'static, sqlx::Any>,
 }
 
 #[async_trait]
@@ -70,5 +86,25 @@ impl Db for DatabaseConnection {
         };
 
         Ok(connection)
+    }
+}
+
+#[async_trait]
+impl Tx for DatabaseTransaction {
+    /// Begin a transaction.
+    async fn begin(pool: AnyPool) -> anyhow::Result<Self> {
+        let tx = pool.begin().await?;
+        Ok(Self { tx })
+    }
+    /// Commit a transaction.
+    async fn commit(self) -> anyhow::Result<()> {
+        self.tx.commit().await?;
+        Ok(())
+    }
+
+    /// Rollback a transaction.
+    async fn rollback(self) -> anyhow::Result<()> {
+        self.tx.rollback().await?;
+        Ok(())
     }
 }

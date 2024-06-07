@@ -1,22 +1,17 @@
 //! Module for inserting changes into the database
 #![allow(clippy::exit, clippy::shadow_reuse, clippy::future_not_send)]
-use crate::db::models::changed_library_document::ChangedLibraryDocument;
-use crate::db::models::document_change::DocumentChange;
-use crate::db::models::library::Library;
-use crate::db::models::library_change::LibraryChange;
-use crate::db::models::publication::Publication;
-use crate::db::models::publication_has_publication_versions::PublicationHasPublicationVersions;
-use crate::db::statements::inserts::{
-    create_document, create_publication, create_publication_version, create_stele, create_version,
-    insert_changed_library_document_bulk, insert_document_changes_bulk, insert_library_bulk,
-    insert_library_changes_bulk, insert_publication_has_publication_versions_bulk,
-    update_publication_by_name_and_stele_set_revoked_true,
+use crate::db::models::changed_library_document::{self, ChangedLibraryDocument};
+use crate::db::models::document;
+use crate::db::models::document_change::{self, DocumentChange};
+use crate::db::models::library::{self, Library};
+use crate::db::models::library_change::{self, LibraryChange};
+use crate::db::models::publication::{self, Publication};
+use crate::db::models::publication_has_publication_versions::{
+    self, PublicationHasPublicationVersions,
 };
-use crate::db::statements::queries::{
-    find_all_publications_by_date_and_stele_order_by_name_desc, find_last_inserted_publication,
-    find_last_inserted_publication_version_by_publication_and_stele,
-    find_publication_by_name_and_stele, find_publication_versions_for_publication,
-};
+use crate::db::models::publication_version;
+use crate::db::models::{stele, version};
+use crate::db::{DatabaseTransaction, Tx};
 use crate::history::rdf::graph::StelaeGraph;
 use crate::history::rdf::namespaces::{dcterms, oll};
 use crate::stelae::stele::Stele;
@@ -47,11 +42,7 @@ use super::rdf::graph::Bag;
 /// # Errors
 /// Errors if the changes cannot be inserted into the archive
 #[actix_web::main]
-pub async fn insert(
-    raw_archive_path: &str,
-    archive_path: PathBuf,
-    stele: Option<String>,
-) -> io::Result<()> {
+pub async fn insert(raw_archive_path: &str, archive_path: PathBuf) -> io::Result<()> {
     let conn = match db::init::connect(&archive_path).await {
         Ok(conn) => conn,
         Err(err) => {
@@ -63,22 +54,13 @@ pub async fn insert(
         }
     };
     tracing::info!("Inserting history into archive");
-    if let Some(_stele) = stele {
-        insert_changes_single_stele()?;
-    } else {
-        insert_changes_archive(&conn, raw_archive_path, &archive_path)
-            .await
-            .unwrap_or_else(|err| {
-                tracing::error!("Failed to insert changes into archive");
-                tracing::error!("{:?}", err);
-            });
-    }
+    insert_changes_archive(&conn, raw_archive_path, &archive_path)
+        .await
+        .unwrap_or_else(|err| {
+            tracing::error!("Failed to insert changes into archive");
+            tracing::error!("{:?}", err);
+        });
     Ok(())
-}
-
-/// Insert changes for a single stele instead of an entire archive
-fn insert_changes_single_stele() -> io::Result<()> {
-    unimplemented!()
 }
 
 /// Insert changes from the archive into the database
@@ -151,13 +133,17 @@ async fn insert_changes_from_rdf_repository(
 ) -> anyhow::Result<()> {
     tracing::info!("Inserting changes from RDF repository: {}", stele_id);
     tracing::info!("RDF repository path: {}", rdf_repo.path.display());
-    let tx = conn.pool.begin().await?;
-    match load_delta_for_stele(conn, &rdf_repo, stele_id).await {
+    let mut tx = DatabaseTransaction {
+        tx: conn.pool.begin().await?,
+    };
+    match load_delta_for_stele(&mut tx, &rdf_repo, stele_id).await {
         Ok(()) => {
+            tracing::debug!("Applying transaction for stele: {stele_id}");
             tx.commit().await?;
             Ok(())
         }
         Err(err) => {
+            tracing::error!("Rolling back transaction for stele: {stele_id}");
             tx.rollback().await?;
             Err(err)
         }
@@ -166,17 +152,17 @@ async fn insert_changes_from_rdf_repository(
 
 /// Load deltas from the publications
 async fn load_delta_for_stele(
-    conn: &DatabaseConnection,
+    tx: &mut DatabaseTransaction,
     rdf_repo: &Repo,
     stele: &str,
 ) -> anyhow::Result<()> {
-    create_stele(conn, stele).await?;
-    if let Some(publication) = find_last_inserted_publication(conn, stele).await? {
+    stele::TxManager::create(tx, stele).await?;
+    if let Some(publication) = publication::TxManager::find_last_inserted(tx, stele).await? {
         tracing::info!("Inserting changes from last inserted publication");
-        load_delta_from_publications(conn, rdf_repo, stele, Some(publication)).await?;
+        load_delta_from_publications(tx, rdf_repo, stele, Some(publication)).await?;
     } else {
         tracing::info!("Inserting changes from beginning for stele: {}", stele);
-        load_delta_from_publications(conn, rdf_repo, stele, None).await?;
+        load_delta_from_publications(tx, rdf_repo, stele, None).await?;
     }
     Ok(())
 }
@@ -187,7 +173,7 @@ async fn load_delta_for_stele(
 /// Errors if the delta cannot be loaded from the publications
 #[allow(clippy::unwrap_used)]
 async fn load_delta_from_publications(
-    conn: &DatabaseConnection,
+    tx: &mut DatabaseTransaction,
     rdf_repo: &Repo,
     stele: &str,
     last_inserted_publication: Option<Publication>,
@@ -225,32 +211,43 @@ async fn load_delta_from_publications(
                 // skip past publications since they are already in db
                 continue;
             }
-            last_inserted_date = find_last_inserted_publication_version_by_publication_and_stele(
-                conn, &pub_name, stele,
-            )
-            .await?
-            .map(|pv| {
-                NaiveDate::parse_from_str(&pv.version, "%Y-%m-%d").context("Could not parse date")
-            })
-            .and_then(Result::ok);
+            last_inserted_date =
+                publication_version::TxManager::find_last_inserted_by_publication_and_stele(
+                    tx, &pub_name, stele,
+                )
+                .await?
+                .map(|pv| {
+                    NaiveDate::parse_from_str(&pv.version, "%Y-%m-%d")
+                        .context("Could not parse date")
+                })
+                .and_then(Result::ok);
         }
         tracing::info!("[{stele}] | Publication: {pub_name}");
         publication_tree.walk(TreeWalkMode::PreOrder, |_, entry| {
             let path_name = entry.name().unwrap_or_default();
             if path_name.contains(".rdf") {
-                let current_blob = rdf_repo.repo.find_blob(entry.id()).unwrap();
-                let current_content = current_blob.content();
-                parser::parse_bufread(BufReader::new(current_content))
-                    .add_to_graph(&mut pub_graph.fast_graph)
-                    .unwrap();
+                match rdf_repo.repo.find_blob(entry.id()) {
+                    Ok(current_blob) => {
+                        let current_content = current_blob.content();
+                        if let Err(err) = parser::parse_bufread(BufReader::new(current_content))
+                            .add_to_graph(&mut pub_graph.fast_graph)
+                        {
+                            tracing::error!(
+                                "Error adding content to graph for entry {path_name}: {err:?}"
+                            );
+                        }
+                    }
+                    Err(err) => {
+                        tracing::error!("Error finding blob for entry {path_name}: {err:?}");
+                    }
+                }
             }
             TreeWalkResult::Ok
         })?;
-
         let (last_valid_pub_name, last_valid_codified_date) =
             referenced_publication_information(&pub_graph);
-        create_publication(
-            conn,
+        publication::TxManager::create(
+            tx,
             &pub_name,
             &pub_date,
             stele,
@@ -258,8 +255,9 @@ async fn load_delta_from_publications(
             last_valid_codified_date,
         )
         .await?;
-        let publication = find_publication_by_name_and_stele(conn, &pub_name, stele).await?;
-        load_delta_for_publication(conn, publication, &pub_graph, last_inserted_date).await?;
+        let publication =
+            publication::TxManager::find_by_name_and_stele(tx, &pub_name, stele).await?;
+        load_delta_for_publication(tx, publication, &pub_graph, last_inserted_date).await?;
     }
     Ok(())
 }
@@ -269,7 +267,7 @@ async fn load_delta_from_publications(
 /// # Errors
 /// Errors if database connection fails or if delta cannot be loaded for the publication
 async fn load_delta_for_publication(
-    conn: &DatabaseConnection,
+    tx: &mut DatabaseTransaction,
     publication: Publication,
     pub_graph: &StelaeGraph,
     last_inserted_date: Option<NaiveDate>,
@@ -280,7 +278,7 @@ async fn load_delta_for_publication(
         pub_graph.all_iris_from_triple_matching(None, None, Some(oll::CollectionVersion))?;
 
     insert_document_changes(
-        conn,
+        tx,
         &last_inserted_date,
         pub_document_versions,
         pub_graph,
@@ -289,22 +287,22 @@ async fn load_delta_for_publication(
     .await?;
 
     insert_library_changes(
-        conn,
+        tx,
         &last_inserted_date,
         pub_collection_versions,
         pub_graph,
         &publication,
     )
     .await?;
-    insert_shared_publication_versions_for_publication(conn, &publication).await?;
+    insert_shared_publication_versions_for_publication(tx, &publication).await?;
 
-    revoke_same_date_publications(conn, publication).await?;
+    revoke_same_date_publications(tx, publication).await?;
     Ok(())
 }
 
 /// Insert document changes into the database
 async fn insert_document_changes(
-    conn: &DatabaseConnection,
+    tx: &mut DatabaseTransaction,
     last_inserted_date: &Option<NaiveDate>,
     pub_document_versions: Vec<&SimpleTerm<'_>>,
     pub_graph: &StelaeGraph,
@@ -321,12 +319,17 @@ async fn insert_document_changes(
                 continue;
             }
         }
-        create_version(conn, &codified_date).await?;
-        create_publication_version(conn, &publication.name, &codified_date, &publication.stele)
-            .await?;
+        version::TxManager::create(tx, &codified_date).await?;
+        publication_version::TxManager::create(
+            tx,
+            &publication.name,
+            &codified_date,
+            &publication.stele,
+        )
+        .await?;
         let doc_id =
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::docId), None)?;
-        create_document(conn, &doc_id).await?;
+        document::TxManager::create(tx, &doc_id).await?;
 
         let changes_uri =
             pub_graph.iri_from_triple_matching(Some(version), Some(oll::hasChanges), None)?;
@@ -361,13 +364,13 @@ async fn insert_document_changes(
             }
         }
     }
-    insert_document_changes_bulk(conn, document_changes_bulk).await?;
+    document_change::TxManager::insert_bulk(tx, document_changes_bulk).await?;
     Ok(())
 }
 
 /// Insert library changes into the database
 async fn insert_library_changes(
-    conn: &DatabaseConnection,
+    tx: &mut DatabaseTransaction,
     last_inserted_date: &Option<NaiveDate>,
     pub_collection_versions: Vec<&SimpleTerm<'_>>,
     pub_graph: &StelaeGraph,
@@ -432,9 +435,9 @@ async fn insert_library_changes(
             });
         }
     }
-    insert_library_bulk(conn, library_bulk).await?;
-    insert_library_changes_bulk(conn, library_changes_bulk).await?;
-    insert_changed_library_document_bulk(conn, changed_library_document_bulk).await?;
+    library::TxManager::insert_bulk(tx, library_bulk).await?;
+    library_change::TxManager::insert_bulk(tx, library_changes_bulk).await?;
+    changed_library_document::TxManager::insert_bulk(tx, changed_library_document_bulk).await?;
     Ok(())
 }
 
@@ -442,27 +445,29 @@ async fn insert_library_changes(
 /// Support for lightweight publications.
 /// Populate the many-to-many mapping between change objects and publications
 async fn insert_shared_publication_versions_for_publication(
-    conn: &DatabaseConnection,
+    tx: &mut DatabaseTransaction,
     publication: &Publication,
 ) -> anyhow::Result<()> {
     let mut publication_has_publication_versions_bulk: Vec<PublicationHasPublicationVersions> =
         vec![];
-    let mut publication_versions = find_publication_versions_for_publication(
-        conn,
-        publication.name.clone(),
-        publication.stele.clone(),
-    )
-    .await?;
+    let mut publication_versions =
+        publication_version::TxManager::find_all_recursive_for_publication(
+            tx,
+            publication.name.clone(),
+            publication.stele.clone(),
+        )
+        .await?;
     if let (Some(last_valid_pub_name), Some(_)) = (
         publication.last_valid_publication_name.as_ref(),
         publication.last_valid_version.as_ref(),
     ) {
-        let publication_versions_last_valid = find_publication_versions_for_publication(
-            conn,
-            last_valid_pub_name.clone(),
-            publication.stele.clone(),
-        )
-        .await?;
+        let publication_versions_last_valid =
+            publication_version::TxManager::find_all_recursive_for_publication(
+                tx,
+                last_valid_pub_name.clone(),
+                publication.stele.clone(),
+            )
+            .await?;
         publication_versions.extend(publication_versions_last_valid);
     }
     publication_has_publication_versions_bulk.extend(publication_versions.iter().map(|pv| {
@@ -473,8 +478,8 @@ async fn insert_shared_publication_versions_for_publication(
             stele: publication.stele.clone(),
         }
     }));
-    insert_publication_has_publication_versions_bulk(
-        conn,
+    publication_has_publication_versions::TxManager::insert_bulk(
+        tx,
         publication_has_publication_versions_bulk,
     )
     .await?;
@@ -499,19 +504,20 @@ fn referenced_publication_information(pub_graph: &StelaeGraph) -> (Option<String
 /// # Errors
 /// Errors if db operations fail
 async fn revoke_same_date_publications(
-    conn: &DatabaseConnection,
+    tx: &mut DatabaseTransaction,
     publication: Publication,
 ) -> anyhow::Result<()> {
-    let duplicate_publications = find_all_publications_by_date_and_stele_order_by_name_desc(
-        conn,
-        publication.date,
-        publication.stele,
-    )
-    .await?;
+    let duplicate_publications =
+        publication::TxManager::find_all_by_date_and_stele_order_by_name_desc(
+            tx,
+            publication.date,
+            publication.stele,
+        )
+        .await?;
     if let Some(duplicate_publications_slice) = duplicate_publications.get(1..) {
         for duplicate_pub in duplicate_publications_slice {
-            update_publication_by_name_and_stele_set_revoked_true(
-                conn,
+            publication::TxManager::update_by_name_and_stele_set_revoked_true(
+                tx,
                 &duplicate_pub.name,
                 &duplicate_pub.stele,
             )

@@ -1,6 +1,9 @@
 use async_trait::async_trait;
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use sqlx::{any::AnyRow, FromRow, Row};
+
+pub mod manager;
 
 /// Trait for managing publications.
 #[async_trait]
@@ -9,6 +12,41 @@ pub trait Manager {
     async fn find_all_non_revoked_publications(
         &self,
         stele: &str,
+    ) -> anyhow::Result<Vec<Publication>>;
+}
+
+/// Trait for managing transactions on publications.
+#[async_trait]
+pub trait TxManager {
+    /// Create a new publication.
+    async fn create(
+        &mut self,
+        name: &str,
+        date: &NaiveDate,
+        stele: &str,
+        last_valid_publication_name: Option<String>,
+        last_valid_version: Option<String>,
+    ) -> anyhow::Result<Option<i64>>;
+    /// Update a publication by name and set revoked to true.
+    async fn update_by_name_and_stele_set_revoked_true(
+        &mut self,
+        name: &str,
+        stele: &str,
+    ) -> anyhow::Result<()>;
+    /// Find the last inserted publication for a given stele.
+    async fn find_last_inserted(&mut self, stele: &str) -> anyhow::Result<Option<Publication>>;
+    /// Find a publication by name and stele.
+    async fn find_by_name_and_stele(
+        &mut self,
+        name: &str,
+        stele: &str,
+    ) -> anyhow::Result<Publication>;
+    /// Find all by date and stele and sort by name in descending order.
+    /// Used in revocation logic to find the latest publication.
+    async fn find_all_by_date_and_stele_order_by_name_desc(
+        &mut self,
+        date: String,
+        stele: String,
     ) -> anyhow::Result<Vec<Publication>>;
 }
 

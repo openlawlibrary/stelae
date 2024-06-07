@@ -1,7 +1,8 @@
+use super::version::Version;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use super::version::Version;
+pub mod manager;
 
 /// Trait for managing document changes.
 #[async_trait]
@@ -14,6 +15,13 @@ pub trait Manager {
         mpath: &str,
         publication: &str,
     ) -> anyhow::Result<Vec<Version>>;
+}
+
+/// Trait for managing transactional document changes.
+#[async_trait]
+pub trait TxManager {
+    /// Insert a bulk of document changes.
+    async fn insert_bulk(&mut self, document_changes: Vec<DocumentChange>) -> anyhow::Result<()>;
 }
 
 #[derive(sqlx::FromRow, Deserialize, Serialize)]

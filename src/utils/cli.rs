@@ -56,10 +56,7 @@ enum Subcommands {
     /// Insert historical information about the Steles in the archive.
     /// Populates the database with change objects loaded in from RDF repository
     /// By default inserts historical information for the root Stele (and all referenced stele) in the archive
-    InsertHistory {
-        /// Optionally insert historical information for this Stele only.
-        stele: Option<String>,
-    },
+    InsertHistory,
 }
 
 /// Place to initialize tracing
@@ -125,8 +122,6 @@ pub fn run() -> io::Result<()> {
         Subcommands::Serve { port, individual } => {
             serve_archive(&cli.archive_path, archive_path, port, individual)
         }
-        Subcommands::InsertHistory { stele } => {
-            changes::insert(&cli.archive_path, archive_path, stele)
-        }
+        Subcommands::InsertHistory => changes::insert(&cli.archive_path, archive_path),
     }
 }
