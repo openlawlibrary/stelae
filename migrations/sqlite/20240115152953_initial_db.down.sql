@@ -12,8 +12,8 @@ DROP TABLE IF EXISTS publication_has_publication_versions;
 DROP TABLE IF EXISTS publication_version;
 DROP TABLE IF EXISTS publication;
 DROP TABLE IF EXISTS version;
-DROP TABLE IF EXISTS library_document;
 DROP TABLE IF EXISTS library;
+DROP TABLE IF EXISTS document_element;
 DROP TABLE IF EXISTS document;
 DROP TABLE IF EXISTS stele;
 

@@ -42,21 +42,23 @@ impl super::TxManager for DatabaseTransaction {
     /// Errors if the publication cannot be inserted into the database.
     async fn create(
         &mut self,
+        hash_id: &str,
         name: &str,
         date: &NaiveDate,
         stele: &str,
-        last_valid_publication_name: Option<String>,
+        last_valid_publication_id: Option<String>,
         last_valid_version: Option<String>,
     ) -> anyhow::Result<Option<i64>> {
         let statement = "
-            INSERT OR IGNORE INTO publication ( name, date, stele, revoked, last_valid_publication_name, last_valid_version )
-            VALUES ( $1, $2, $3, FALSE, $4, $5 )
+            INSERT OR IGNORE INTO publication ( id, name, date, stele, revoked, last_valid_publication_id, last_valid_version )
+            VALUES ( $1, $2, $3, $4, FALSE, $5, $6)
         ";
         let id = sqlx::query(statement)
+            .bind(hash_id)
             .bind(name)
             .bind(date.to_string())
             .bind(stele)
-            .bind(last_valid_publication_name)
+            .bind(last_valid_publication_id)
             .bind(last_valid_version)
             .execute(&mut *self.tx)
             .await?

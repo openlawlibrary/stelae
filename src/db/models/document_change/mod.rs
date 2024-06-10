@@ -7,8 +7,6 @@ pub mod manager;
 /// Trait for managing document changes.
 #[async_trait]
 pub trait Manager {
-    /// Find one document materialized path by url.
-    async fn find_doc_mpath_by_url(&self, url: &str) -> anyhow::Result<String>;
     /// All dates on which given document changed.
     async fn find_all_document_versions_by_mpath_and_publication(
         &self,
@@ -27,21 +25,16 @@ pub trait TxManager {
 #[derive(sqlx::FromRow, Deserialize, Serialize)]
 /// Model for document change events.
 pub struct DocumentChange {
-    /// Materialized path to the document
-    pub doc_mpath: String,
+    /// A hashed identifier for the document change.
+    /// The hash is generated from the `publication_version` id, `doc_mpath`, and `status` (as integer) field.
+    pub id: String,
     /// Change status of the document.
-    /// Currently could be 'Element added', 'Element effective', 'Element changed' or 'Element removed'.
-    pub status: String,
-    /// Url to the document that was changed.
-    pub url: String,
+    /// Currently could be 'Element added' = 0, 'Element effective' = 1, 'Element changed' = 2 or 'Element removed' = 3.
+    pub status: i64,
     /// Optional reason for the change event.
     pub change_reason: Option<String>,
-    /// Foreign key reference to the publication name.
-    pub publication: String,
-    /// Foreign key reference to codified date in a publication in %Y-%m-%d format
-    pub version: String,
-    /// Foreign key reference to stele identifier in <org>/<name> format.
-    pub stele: String,
-    /// Foreign key reference to document id.
-    pub doc_id: String,
+    /// Foreign key reference to the `publication_version` id.
+    pub publication_version_id: String,
+    /// Materialized path to the document
+    pub doc_mpath: String,
 }

@@ -7,8 +7,6 @@ pub mod manager;
 /// Trait for managing collection changes.
 #[async_trait]
 pub trait Manager {
-    /// Find one library materialized path by url.
-    async fn find_lib_mpath_by_url(&self, url: &str) -> anyhow::Result<String>;
     /// All dates on which given documents within a collection changed.
     async fn find_all_collection_versions_by_mpath_and_publication(
         &self,
@@ -27,17 +25,11 @@ pub trait TxManager {
 #[derive(sqlx::FromRow, Deserialize, Serialize, Debug)]
 /// Model for library (collection) change events.
 pub struct LibraryChange {
-    /// Foreign key reference to publication name
-    pub publication: String,
-    /// Foreign key reference to codified date in a publication in %Y-%m-%d format
-    pub version: String,
-    /// Foreign key reference to stele identifier in <org>/<name> format.
-    pub stele: String,
+    /// Foreign key reference to `publication_version` id.
+    pub publication_version_id: String,
     /// Change status of the document.
-    /// Currently could be 'Element added', 'Element effective', 'Element changed' or 'Element removed'.
-    pub status: String,
-    /// Url to the library that was changed.
-    pub url: String,
+    /// Currently could be 'Element added' = 0, 'Element effective' = 1, 'Element changed' = 2 or 'Element removed' = 3.
+    pub status: i64,
     /// Materialized path to the library
     pub library_mpath: String,
 }

@@ -1,8 +1,14 @@
 //! Module for inserting changes into the database
-#![allow(clippy::exit, clippy::shadow_reuse, clippy::future_not_send)]
+#![allow(
+    clippy::exit,
+    clippy::shadow_reuse,
+    clippy::future_not_send,
+    clippy::string_add
+)]
+use super::rdf::graph::Bag;
 use crate::db::models::changed_library_document::{self, ChangedLibraryDocument};
-use crate::db::models::document;
 use crate::db::models::document_change::{self, DocumentChange};
+use crate::db::models::document_element::DocumentElement;
 use crate::db::models::library::{self, Library};
 use crate::db::models::library_change::{self, LibraryChange};
 use crate::db::models::publication::{self, Publication};
@@ -10,6 +16,8 @@ use crate::db::models::publication_has_publication_versions::{
     self, PublicationHasPublicationVersions,
 };
 use crate::db::models::publication_version;
+use crate::db::models::status::Status;
+use crate::db::models::{document, document_element};
 use crate::db::models::{stele, version};
 use crate::db::{DatabaseTransaction, Tx};
 use crate::history::rdf::graph::StelaeGraph;
@@ -17,6 +25,7 @@ use crate::history::rdf::namespaces::{dcterms, oll};
 use crate::stelae::stele::Stele;
 use crate::utils::archive::get_name_parts;
 use crate::utils::git::Repo;
+use crate::utils::md5;
 use crate::{
     db::{self, DatabaseConnection},
     stelae::archive::Archive,
@@ -34,8 +43,6 @@ use std::{
     process,
     result::Result,
 };
-
-use super::rdf::graph::Bag;
 
 /// Inserts changes from the archive into the database
 ///
@@ -143,7 +150,7 @@ async fn insert_changes_from_rdf_repository(
             Ok(())
         }
         Err(err) => {
-            tracing::error!("Rolling back transaction for stele: {stele_id}");
+            tracing::error!("Rolling back transaction for stele: {stele_id} due to error: {err:?}");
             tx.rollback().await?;
             Err(err)
         }
@@ -212,8 +219,9 @@ async fn load_delta_from_publications(
                 continue;
             }
             last_inserted_date =
-                publication_version::TxManager::find_last_inserted_by_publication_and_stele(
-                    tx, &pub_name, stele,
+                publication_version::TxManager::find_last_inserted_date_by_publication_id(
+                    tx,
+                    &last_inserted_pub.id,
                 )
                 .await?
                 .map(|pv| {
@@ -246,12 +254,21 @@ async fn load_delta_from_publications(
         })?;
         let (last_valid_pub_name, last_valid_codified_date) =
             referenced_publication_information(&pub_graph);
+        let publication_hash = md5::compute(pub_name.clone() + stele);
+        let last_inserted_pub_id = if let Some(valid_pub_name) = last_valid_pub_name {
+            let last_inserted_pub =
+                publication::TxManager::find_by_name_and_stele(tx, &valid_pub_name, stele).await?;
+            Some(last_inserted_pub.id)
+        } else {
+            None
+        };
         publication::TxManager::create(
             tx,
+            &publication_hash,
             &pub_name,
             &pub_date,
             stele,
-            last_valid_pub_name,
+            last_inserted_pub_id,
             last_valid_codified_date,
         )
         .await?;
@@ -294,9 +311,11 @@ async fn load_delta_for_publication(
         &publication,
     )
     .await?;
+
     insert_shared_publication_versions_for_publication(tx, &publication).await?;
 
     revoke_same_date_publications(tx, publication).await?;
+
     Ok(())
 }
 
@@ -308,6 +327,7 @@ async fn insert_document_changes(
     pub_graph: &StelaeGraph,
     publication: &Publication,
 ) -> anyhow::Result<()> {
+    let mut document_elements_bulk: Vec<DocumentElement> = vec![];
     let mut document_changes_bulk: Vec<DocumentChange> = vec![];
     for version in pub_document_versions {
         let codified_date =
@@ -320,17 +340,18 @@ async fn insert_document_changes(
             }
         }
         version::TxManager::create(tx, &codified_date).await?;
+        let pub_version_hash =
+            md5::compute(publication.name.clone() + &codified_date + &publication.stele);
         publication_version::TxManager::create(
             tx,
-            &publication.name,
+            &pub_version_hash,
+            &publication.id,
             &codified_date,
-            &publication.stele,
         )
         .await?;
         let doc_id =
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::docId), None)?;
         document::TxManager::create(tx, &doc_id).await?;
-
         let changes_uri =
             pub_graph.iri_from_triple_matching(Some(version), Some(oll::hasChanges), None)?;
         let changes = Bag::new(pub_graph, changes_uri);
@@ -342,6 +363,11 @@ async fn insert_document_changes(
             )?;
             let url =
                 pub_graph.literal_from_triple_matching(Some(&change), Some(oll::url), None)?;
+            document_elements_bulk.push(DocumentElement {
+                doc_mpath: doc_mpath.clone(),
+                url: url.clone(),
+                doc_id: doc_id.clone(),
+            });
             let reason = pub_graph
                 .literal_from_triple_matching(Some(&change), Some(oll::reason), None)
                 .ok();
@@ -350,20 +376,22 @@ async fn insert_document_changes(
                 Some(oll::status),
                 None,
             )?;
-            for status in statuses {
+            for el_status in statuses {
+                let status = Status::from_string(&el_status)?;
+                let document_change_hash = md5::compute(
+                    pub_version_hash.clone() + &doc_mpath.clone() + &status.to_int().to_string(),
+                );
                 document_changes_bulk.push(DocumentChange {
+                    id: document_change_hash,
                     doc_mpath: doc_mpath.clone(),
-                    status: status.clone(),
-                    url: url.clone(),
+                    status: status.to_int(),
                     change_reason: reason.clone(),
-                    publication: publication.name.clone(),
-                    version: codified_date.clone(),
-                    stele: publication.stele.clone(),
-                    doc_id: doc_id.clone(),
+                    publication_version_id: pub_version_hash.clone(),
                 });
             }
         }
     }
+    document_element::TxManager::insert_bulk(tx, document_elements_bulk).await?;
     document_change::TxManager::insert_bulk(tx, document_changes_bulk).await?;
     Ok(())
 }
@@ -395,24 +423,25 @@ async fn insert_library_changes(
             None,
         )?;
         let url = pub_graph.literal_from_triple_matching(Some(version), Some(oll::url), None)?;
-        let status =
+        let el_status =
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::status), None)?;
+        let library_status = Status::from_string(&el_status)?;
         library_bulk.push(Library {
             mpath: library_mpath.clone(),
-        });
-        library_changes_bulk.push(LibraryChange {
-            library_mpath: library_mpath.clone(),
-            publication: publication.name.clone(),
-            version: codified_date.clone(),
-            stele: publication.stele.clone(),
-            status: status.clone(),
             url: url.clone(),
+        });
+        let pub_version_hash =
+            md5::compute(publication.name.clone() + &codified_date + &publication.stele);
+        library_changes_bulk.push(LibraryChange {
+            publication_version_id: pub_version_hash.clone(),
+            status: library_status.to_int(),
+            library_mpath: library_mpath.clone(),
         });
         let changes_uri =
             pub_graph.iri_from_triple_matching(Some(version), Some(oll::hasChanges), None)?;
         let changes = Bag::new(pub_graph, changes_uri);
         for change in changes.items()? {
-            let Ok(el_status) =
+            let Ok(found_status) =
                 pub_graph.literal_from_triple_matching(Some(&change), Some(oll::status), None)
             else {
                 continue;
@@ -424,14 +453,13 @@ async fn insert_library_changes(
             ) else {
                 continue;
             };
+            let status = Status::from_string(&found_status)?;
+            let document_change_hash = md5::compute(
+                pub_version_hash.clone() + &doc_mpath.clone() + &status.to_int().to_string(),
+            );
             changed_library_document_bulk.push(ChangedLibraryDocument {
-                publication: publication.name.clone(),
-                version: codified_date.clone(),
-                stele: publication.stele.clone(),
-                doc_mpath: doc_mpath.clone(),
-                status: el_status.clone(),
                 library_mpath: library_mpath.clone(),
-                url: url.clone(),
+                document_change_id: document_change_hash,
             });
         }
     }
@@ -450,32 +478,28 @@ async fn insert_shared_publication_versions_for_publication(
 ) -> anyhow::Result<()> {
     let mut publication_has_publication_versions_bulk: Vec<PublicationHasPublicationVersions> =
         vec![];
-    let mut publication_versions =
+    let mut publication_version_ids =
         publication_version::TxManager::find_all_recursive_for_publication(
             tx,
-            publication.name.clone(),
-            publication.stele.clone(),
+            publication.id.clone(),
         )
         .await?;
-    if let (Some(last_valid_pub_name), Some(_)) = (
-        publication.last_valid_publication_name.as_ref(),
+    if let (Some(last_valid_pub_id), Some(_)) = (
+        publication.last_valid_publication_id.as_ref(),
         publication.last_valid_version.as_ref(),
     ) {
-        let publication_versions_last_valid =
+        let publication_version_ids_last_valid =
             publication_version::TxManager::find_all_recursive_for_publication(
                 tx,
-                last_valid_pub_name.clone(),
-                publication.stele.clone(),
+                last_valid_pub_id.clone(),
             )
             .await?;
-        publication_versions.extend(publication_versions_last_valid);
+        publication_version_ids.extend(publication_version_ids_last_valid);
     }
-    publication_has_publication_versions_bulk.extend(publication_versions.iter().map(|pv| {
+    publication_has_publication_versions_bulk.extend(publication_version_ids.iter().map(|pv| {
         PublicationHasPublicationVersions {
-            publication: publication.name.clone(),
-            referenced_publication: pv.publication.clone(),
-            referenced_version: pv.version.clone(),
-            stele: publication.stele.clone(),
+            publication_id: publication.id.clone(),
+            publication_version_id: pv.id.clone(),
         }
     }));
     publication_has_publication_versions::TxManager::insert_bulk(

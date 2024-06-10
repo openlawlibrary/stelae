@@ -3124,6 +3124,7 @@ dependencies = [
  "git2",
  "just",
  "lazy_static",
+ "md-5",
  "mime",
  "mime_guess",
  "regex",

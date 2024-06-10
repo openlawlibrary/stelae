@@ -1,38 +1,15 @@
 //! Manager for the document change model.
 use super::DocumentChange;
-use crate::db::{models::version::Version, DatabaseConnection, DatabaseKind, DatabaseTransaction};
+use crate::db::{
+    models::{status::Status, version::Version, BATCH_SIZE},
+    DatabaseConnection, DatabaseKind, DatabaseTransaction,
+};
 use async_trait::async_trait;
 use chrono::NaiveDate;
 use sqlx::QueryBuilder;
 
-/// Size of the batch for bulk inserts.
-const BATCH_SIZE: usize = 1000;
-
 #[async_trait]
 impl super::Manager for DatabaseConnection {
-    /// Find one document materialized path by url.
-    ///
-    /// # Errors
-    /// Errors if can't establish a connection to the database.
-    async fn find_doc_mpath_by_url(&self, url: &str) -> anyhow::Result<String> {
-        let statement = "
-            SELECT doc_mpath
-            FROM document_change
-            WHERE url = $1
-            LIMIT 1
-        ";
-        let row = match self.kind {
-            DatabaseKind::Postgres | DatabaseKind::Sqlite => {
-                let mut connection = self.pool.acquire().await?;
-                sqlx::query_as::<_, (String,)>(statement)
-                    .bind(url)
-                    .fetch_one(&mut *connection)
-                    .await?
-            }
-        };
-        Ok(row.0)
-    }
-
     /// All dates on which given document changed.
     ///
     /// # Errors
@@ -40,35 +17,31 @@ impl super::Manager for DatabaseConnection {
     async fn find_all_document_versions_by_mpath_and_publication(
         &self,
         mpath: &str,
-        publication: &str,
+        publication_id: &str,
     ) -> anyhow::Result<Vec<Version>> {
         let mut statement = "
-            SELECT DISTINCT phpv.referenced_version as codified_date
+            SELECT DISTINCT pv.version AS codified_date
             FROM document_change dc
-            LEFT JOIN publication_has_publication_versions phpv
-                ON dc.publication = phpv.referenced_publication
-                AND dc.version = phpv.referenced_version
-            WHERE dc.doc_mpath LIKE $1 AND phpv.publication = $2
+            LEFT JOIN publication_has_publication_versions phpv ON dc.publication_version_id = phpv.publication_version_id
+            LEFT JOIN publication_version pv ON phpv.publication_version_id = pv.id
+            WHERE dc.doc_mpath LIKE $1 AND phpv.publication_id = $2
         ";
         let mut rows = match self.kind {
             DatabaseKind::Postgres | DatabaseKind::Sqlite => {
                 let mut connection = self.pool.acquire().await?;
                 sqlx::query_as::<_, Version>(statement)
                     .bind(format!("{mpath}%"))
-                    .bind(publication)
+                    .bind(publication_id)
                     .fetch_all(&mut *connection)
                     .await?
             }
         };
         statement = "
-            SELECT phpv.referenced_version as codified_date
+            SELECT pv.version AS codified_date
             FROM document_change dc
-            LEFT JOIN publication_has_publication_versions phpv
-                ON dc.publication = phpv.referenced_publication
-                AND dc.version = phpv.referenced_version
-            WHERE dc.doc_mpath = $1
-            AND phpv.publication = $2
-            AND dc.status = 'Element added'
+            LEFT JOIN publication_has_publication_versions phpv ON dc.publication_version_id = phpv.publication_version_id
+            LEFT JOIN publication_version pv ON phpv.publication_version_id = pv.id
+            WHERE dc.doc_mpath = $1 AND phpv.publication_id = $2 AND dc.status = $3
             LIMIT 1
         ";
         let element_added = match self.kind {
@@ -76,7 +49,8 @@ impl super::Manager for DatabaseConnection {
                 let mut connection = self.pool.acquire().await?;
                 sqlx::query_as::<_, Version>(statement)
                     .bind(mpath)
-                    .bind(publication)
+                    .bind(publication_id)
+                    .bind(Status::ElementAdded.to_int())
                     .fetch_one(&mut *connection)
                     .await
                     .ok()
@@ -91,14 +65,11 @@ impl super::Manager for DatabaseConnection {
         }
 
         statement = "
-            SELECT phpv.referenced_version as codified_date
+            SELECT pv.version AS codified_date
             FROM document_change dc
-            LEFT JOIN publication_has_publication_versions phpv
-                ON dc.publication = phpv.referenced_publication
-                AND dc.version = phpv.referenced_version
-            WHERE dc.doc_mpath = $1
-            AND phpv.publication = $2
-            AND dc.status = 'Element effective'
+            LEFT JOIN publication_has_publication_versions phpv ON dc.publication_version_id = phpv.publication_version_id
+            LEFT JOIN publication_version pv ON phpv.publication_version_id = pv.id
+            WHERE dc.doc_mpath = $1 AND phpv.publication_id = $2 AND dc.status = $3
             LIMIT 1
         ";
         let mut doc = mpath.split('|').next().unwrap_or("").to_owned();
@@ -109,7 +80,8 @@ impl super::Manager for DatabaseConnection {
                 let mut connection = self.pool.acquire().await?;
                 sqlx::query_as::<_, Version>(statement)
                     .bind(doc)
-                    .bind(publication)
+                    .bind(publication_id)
+                    .bind(Status::ElementEffective.to_int())
                     .fetch_one(&mut *connection)
                     .await
                     .ok()
@@ -138,18 +110,15 @@ impl super::TxManager for DatabaseTransaction {
     /// # Errors
     /// Errors if the document changes cannot be inserted into the database.
     async fn insert_bulk(&mut self, document_changes: Vec<DocumentChange>) -> anyhow::Result<()> {
-        let mut query_builder = QueryBuilder::new("INSERT OR IGNORE INTO document_change (doc_mpath, status, url, change_reason, publication, version, stele, doc_id) ");
+        let mut query_builder = QueryBuilder::new("INSERT OR IGNORE INTO document_change ( id, status, change_reason, publication_version_id, doc_mpath ) ");
         for chunk in document_changes.chunks(BATCH_SIZE) {
             query_builder.push_values(chunk, |mut bindings, dc| {
                 bindings
-                    .push_bind(&dc.doc_mpath)
-                    .push_bind(&dc.status)
-                    .push_bind(&dc.url)
+                    .push_bind(&dc.id)
+                    .push_bind(dc.status)
                     .push_bind(&dc.change_reason)
-                    .push_bind(&dc.publication)
-                    .push_bind(&dc.version)
-                    .push_bind(&dc.stele)
-                    .push_bind(&dc.doc_id);
+                    .push_bind(&dc.publication_version_id)
+                    .push_bind(&dc.doc_mpath);
             });
             let query = query_builder.build();
             query.execute(&mut *self.tx).await?;

@@ -16,13 +16,9 @@ pub trait TxManager {
 #[derive(sqlx::FromRow, Deserialize, Serialize, Clone, Debug)]
 /// Model for publication which contain publication versions.
 pub struct PublicationHasPublicationVersions {
-    /// Foreign key reference to publication name.
-    pub publication: String,
+    /// Foreign key reference to publication id.
+    pub publication_id: String,
     /// Publication can reference another publication.
-    /// Foreign key reference to the referenced publication name.
-    pub referenced_publication: String,
-    /// Date in a publication in %Y-%m-%d format
-    pub referenced_version: String,
-    /// Foreign key reference to stele.
-    pub stele: String,
+    /// Foreign key reference to the referenced publication version id.
+    pub publication_version_id: String,
 }

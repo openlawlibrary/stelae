@@ -12,18 +12,18 @@ impl super::TxManager for DatabaseTransaction {
     /// Errors if the publication version cannot be inserted into the database.
     async fn create(
         &mut self,
-        publication: &str,
+        hash_id: &str,
+        publication_id: &str,
         codified_date: &str,
-        stele: &str,
     ) -> anyhow::Result<Option<i64>> {
         let statement = "
-            INSERT OR IGNORE INTO publication_version ( publication, version, stele )
+            INSERT OR IGNORE INTO publication_version ( id, publication_id, version )
             VALUES ( $1, $2, $3 )
         ";
         let id = sqlx::query(statement)
-            .bind(publication)
+            .bind(hash_id)
+            .bind(publication_id)
             .bind(codified_date)
-            .bind(stele)
             .execute(&mut *self.tx)
             .await?
             .last_insert_id();
@@ -34,73 +34,68 @@ impl super::TxManager for DatabaseTransaction {
     ///
     /// # Errors
     /// Errors if can't establish a connection to the database.
-    async fn find_last_inserted_by_publication_and_stele(
+    async fn find_last_inserted_date_by_publication_id(
         &mut self,
-        publication: &str,
-        stele: &str,
+        publication_id: &str,
     ) -> anyhow::Result<Option<PublicationVersion>> {
         let statement = "
             SELECT *
             FROM publication_version
-            WHERE publication = $1 AND stele = $2
+            WHERE publication_id = $1
             ORDER BY version DESC
             LIMIT 1
         ";
         let row = sqlx::query_as::<_, PublicationVersion>(statement)
-            .bind(publication)
-            .bind(stele)
+            .bind(publication_id)
             .fetch_one(&mut *self.tx)
             .await
             .ok();
         Ok(row)
     }
 
-    /// Find a publication version by `publication_id` and `version`.
+    /// Find a publication version by `publication_id`.
     ///
     /// # Errors
     /// Errors if can't establish a connection to the database.
-    async fn find_all_by_publication_name_and_stele(
+    async fn find_all_by_publication_id(
         &mut self,
-        publication: &str,
-        stele: &str,
+        publication_id: &str,
     ) -> anyhow::Result<Vec<PublicationVersion>> {
         let statement = "
             SELECT *
             FROM publication_version
-            WHERE publication = $1 AND stele = $2
+            WHERE publication_id = $1
         ";
         let rows = sqlx::query_as::<_, PublicationVersion>(statement)
-            .bind(publication)
-            .bind(stele)
+            .bind(publication_id)
             .fetch_all(&mut *self.tx)
             .await?;
         Ok(rows)
     }
 
-    /// Find all publication versions in `publications`.
+    /// Find all publication versions that contain the in `publication_has_publication_versions` table.
     async fn find_all_in_publication_has_publication_versions(
         &mut self,
-        publications: Vec<String>,
-        stele: &str,
+        publication_ids: Vec<String>,
     ) -> anyhow::Result<Vec<PublicationVersion>> {
-        let parameters = publications
+        let parameters = publication_ids
             .iter()
             .map(|_| "?")
             .collect::<Vec<&str>>()
             .join(", ");
-        let statement = format!("
-            SELECT DISTINCT pv.publication, pv.version
-            FROM publication_version pv
-            LEFT JOIN publication_has_publication_versions phpv ON pv.publication = phpv.referenced_publication AND pv.version = phpv.referenced_version
-            WHERE phpv.publication IN ({parameters} AND pv.stele = ?)
-        ");
+        let statement = format!(
+            "
+            SELECT DISTINCT *
+            FROM publication_has_publication_versions phpv
+            JOIN publication_version pv ON pv.id = phpv.publication_version_id
+            WHERE phpv.publication_id IN ({parameters})
+        "
+        );
         let mut query = sqlx::query_as::<_, PublicationVersion>(&statement);
-        for publication in publications {
-            query = query.bind(publication);
+        for id in publication_ids {
+            query = query.bind(id);
         }
-        query = query.bind(stele);
         let rows = query.fetch_all(&mut *self.tx).await?;
-
         Ok(rows)
     }
 
@@ -116,39 +111,35 @@ impl super::TxManager for DatabaseTransaction {
     /// Errors if can't establish a connection to the database.
     async fn find_all_recursive_for_publication(
         &mut self,
-        publication_name: String,
-        stele: String,
+        publication_id: String,
     ) -> anyhow::Result<Vec<PublicationVersion>> {
         let mut versions: HashSet<PublicationVersion> = self
-            .find_all_by_publication_name_and_stele(&publication_name, &stele)
+            .find_all_by_publication_id(&publication_id)
             .await?
             .into_iter()
             .collect();
+        let mut checked_publication_ids = HashSet::new();
+        checked_publication_ids.insert(publication_id.clone());
 
-        let mut checked_publication_names = HashSet::new();
-        checked_publication_names.insert(publication_name.clone());
+        let mut publication_ids_to_check = HashSet::new();
+        publication_ids_to_check.insert(publication_id);
 
-        let mut publication_names_to_check = HashSet::new();
-        publication_names_to_check.insert(publication_name);
-
-        while !publication_names_to_check.is_empty() {
+        while !publication_ids_to_check.is_empty() {
             let new_versions: HashSet<PublicationVersion> = self
                 .find_all_in_publication_has_publication_versions(
-                    publication_names_to_check.clone().into_iter().collect(),
-                    &stele,
+                    publication_ids_to_check.clone().into_iter().collect(),
                 )
                 .await?
                 .into_iter()
                 .collect();
             versions.extend(new_versions.clone());
+            checked_publication_ids.extend(publication_ids_to_check.clone());
 
-            checked_publication_names.extend(publication_names_to_check.clone());
-
-            publication_names_to_check = new_versions
+            publication_ids_to_check = new_versions
                 .clone()
                 .into_iter()
-                .filter(|pv| !checked_publication_names.contains(&pv.publication.clone()))
-                .map(|pv| pv.publication)
+                .filter(|pv| !checked_publication_ids.contains(&pv.publication_id.clone()))
+                .map(|pv| pv.publication_id)
                 .collect();
         }
         Ok(versions.into_iter().collect())
