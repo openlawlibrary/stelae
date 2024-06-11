@@ -7,12 +7,13 @@
 )]
 use crate::db;
 use crate::server::api::state::App as AppState;
+use crate::server::errors::CliError;
 use crate::stelae::archive::Archive;
 use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::{App, Error, HttpServer};
 use tracing_actix_web::TracingLogger;
 
-use std::{io, path::PathBuf, process};
+use std::{path::PathBuf, process};
 
 use actix_http::body::MessageBody;
 use actix_service::ServiceFactory;
@@ -29,7 +30,7 @@ pub async fn serve_archive(
     archive_path: PathBuf,
     port: u16,
     individual: bool,
-) -> io::Result<()> {
+) -> Result<(), CliError> {
     let bind = "127.0.0.1";
     let message = "Running Publish Server on a Stelae archive at";
     tracing::info!("{message} '{raw_archive_path}' on http://{bind}:{port}.",);
@@ -41,28 +42,40 @@ pub async fn serve_archive(
                 "error: could not connect to database. Confirm that DATABASE_URL env var is set correctly."
             );
             tracing::error!("Error: {:?}", err);
-            process::exit(1);
+            return Err(CliError::DatabaseConnectionError);
         }
     };
 
-    let archive = Archive::parse(archive_path, &PathBuf::from(raw_archive_path), individual)
-        .unwrap_or_else(|err| {
+    let archive = match Archive::parse(archive_path, &PathBuf::from(raw_archive_path), individual) {
+        Ok(archive) => archive,
+        Err(err) => {
             tracing::error!("Unable to parse archive at '{raw_archive_path}'.");
-            tracing::error!("Error: {:?}", err);
-            process::exit(1);
-        });
+            tracing::error!("Error: {err:?}");
+            return Err(CliError::ArchiveParseError);
+        }
+    };
+
     let state = AppState { archive, db };
 
     HttpServer::new(move || {
         init_app(&state).unwrap_or_else(|err| {
             tracing::error!("Unable to initialize app.");
-            tracing::error!("Error: {:?}", err);
-            process::exit(1);
+            tracing::error!("Error: {err:?}");
+            // NOTE: We should not need to exit code 1 here (or in any of the closures in `routes.rs`).
+            // We should be able to return an error and let the caller handle it.
+            // However, Actix does not allow us to instantiate the app outside of the closure,
+            // because the opaque type `App` does not implement `Clone`.
+            // Figure out a way to handle this without exiting the process.
+            process::exit(1)
         })
     })
     .bind((bind, port))?
     .run()
     .await
+    .map_err(|err| {
+        tracing::error!("Error running server: {err:?}");
+        CliError::GenericError
+    })
 }
 
 /// Initialize the application and all possible routing at start-up time.

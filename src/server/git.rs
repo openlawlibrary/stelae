@@ -11,13 +11,10 @@
 
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use git2::{self, ErrorCode};
-use std::{
-    io,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use tracing_actix_web::TracingLogger;
 
-use super::errors::StelaeError;
+use super::errors::{CliError, StelaeError};
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use crate::utils::http::get_contenttype;
 use crate::{server::tracing::StelaeRootSpanBuilder, utils::paths::clean_path};
@@ -103,7 +100,11 @@ fn blob_error_response(error: &anyhow::Error, namespace: &str, name: &str) -> Ht
 
 /// Serve git repositories in the Stelae archive.
 #[actix_web::main] // or #[tokio::main]
-pub async fn serve_git(raw_archive_path: &str, archive_path: PathBuf, port: u16) -> io::Result<()> {
+pub async fn serve_git(
+    raw_archive_path: &str,
+    archive_path: PathBuf,
+    port: u16,
+) -> Result<(), CliError> {
     let bind = "127.0.0.1";
     let message = "Serving content from the Stelae archive at";
     tracing::info!("{message} '{raw_archive_path}' on http://{bind}:{port}.",);
@@ -121,4 +122,8 @@ pub async fn serve_git(raw_archive_path: &str, archive_path: PathBuf, port: u16)
     .bind((bind, port))?
     .run()
     .await
+    .map_err(|err| {
+        tracing::error!("Error running Git server: {err:?}");
+        CliError::GenericError
+    })
 }

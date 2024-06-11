@@ -8,6 +8,6 @@
 
 use stelae::utils::cli::run;
 
-fn main() -> std::io::Result<()> {
+fn main() {
     run()
 }

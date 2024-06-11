@@ -5,11 +5,11 @@
 
 use crate::history::changes;
 use crate::server::app::serve_archive;
+use crate::server::errors::CliError;
 use crate::server::git::serve_git;
 use crate::utils::archive::find_archive_path;
 use clap::Parser;
 use std::env;
-use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process;
@@ -103,11 +103,24 @@ fn init_tracing(archive_path: &Path) {
     }
 }
 
-/// Main entrypoint to application
+/// Central place to execute commands
 ///
 /// # Errors
-/// TODO: This function should not return errors
-pub fn run() -> io::Result<()> {
+/// This function returns the generic `CliError`, based on which we exit with a known exit code.
+fn execute_command(cli: &Cli, archive_path: PathBuf) -> Result<(), CliError> {
+    match cli.subcommands {
+        Subcommands::Git { port } => serve_git(&cli.archive_path, archive_path, port),
+        Subcommands::Serve { port, individual } => {
+            serve_archive(&cli.archive_path, archive_path, port, individual)
+        }
+        Subcommands::Update => changes::insert(&cli.archive_path, archive_path),
+    }
+}
+
+/// Main entrypoint to application
+///
+/// Exits with 1 if we encounter an error
+pub fn run() {
     tracing::debug!("Starting application");
     let cli = Cli::parse();
     let archive_path_wd = Path::new(&cli.archive_path);
@@ -121,11 +134,12 @@ pub fn run() -> io::Result<()> {
 
     init_tracing(&archive_path);
 
-    match cli.subcommands {
-        Subcommands::Git { port } => serve_git(&cli.archive_path, archive_path, port),
-        Subcommands::Serve { port, individual } => {
-            serve_archive(&cli.archive_path, archive_path, port, individual)
+    match execute_command(&cli, archive_path) {
+        Ok(()) => process::exit(0),
+        Err(err) => {
+            // Exit with 1 if we encounter an error
+            tracing::error!("Application error: {err:?}");
+            process::exit(1);
         }
-        Subcommands::Update => changes::insert(&cli.archive_path, archive_path),
     }
 }

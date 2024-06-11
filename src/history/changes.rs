@@ -22,6 +22,7 @@ use crate::db::models::{stele, version};
 use crate::db::{DatabaseTransaction, Tx};
 use crate::history::rdf::graph::StelaeGraph;
 use crate::history::rdf::namespaces::{dcterms, oll};
+use crate::server::errors::CliError;
 use crate::stelae::stele::Stele;
 use crate::utils::archive::get_name_parts;
 use crate::utils::git::Repo;
@@ -40,7 +41,6 @@ use std::{
     borrow::ToOwned,
     io::{self, BufReader},
     path::{Path, PathBuf},
-    process,
     result::Result,
 };
 
@@ -50,7 +50,7 @@ use std::{
 /// Errors if the changes cannot be inserted into the archive
 #[actix_web::main]
 #[tracing::instrument(name = "Stelae update", skip(raw_archive_path, archive_path))]
-pub async fn insert(raw_archive_path: &str, archive_path: PathBuf) -> io::Result<()> {
+pub async fn insert(raw_archive_path: &str, archive_path: PathBuf) -> Result<(), CliError> {
     let conn = match db::init::connect(&archive_path).await {
         Ok(conn) => conn,
         Err(err) => {
@@ -59,17 +59,16 @@ pub async fn insert(raw_archive_path: &str, archive_path: PathBuf) -> io::Result
                 Confirm that `db.sqlite3` exists in `.stelae` dir or that DATABASE_URL env var is set correctly."
             );
             tracing::error!("Error: {err:?}");
-            process::exit(1);
+            return Err(CliError::DatabaseConnectionError);
         }
     };
-    tracing::info!("Inserting history into archive");
     insert_changes_archive(&conn, raw_archive_path, &archive_path)
         .await
-        .unwrap_or_else(|err| {
+        .map_err(|err| {
             tracing::error!("Failed to insert changes into archive");
             tracing::error!("{err:?}");
-        });
-    Ok(())
+            CliError::GenericError
+        })
 }
 
 /// Insert changes from the archive into the database
@@ -78,6 +77,8 @@ async fn insert_changes_archive(
     raw_archive_path: &str,
     archive_path: &Path,
 ) -> anyhow::Result<()> {
+    tracing::debug!("Inserting history into archive");
+
     let archive = Archive::parse(
         archive_path.to_path_buf(),
         &PathBuf::from(raw_archive_path),
