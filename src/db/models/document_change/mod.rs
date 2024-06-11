@@ -38,3 +38,23 @@ pub struct DocumentChange {
     /// Materialized path to the document
     pub doc_mpath: String,
 }
+
+impl DocumentChange {
+    /// Create a new document change.
+    #[must_use]
+    pub const fn new(
+        id: String,
+        status: i64,
+        change_reason: Option<String>,
+        publication_version_id: String,
+        doc_mpath: String,
+    ) -> Self {
+        Self {
+            id,
+            status,
+            change_reason,
+            publication_version_id,
+            doc_mpath,
+        }
+    }
+}

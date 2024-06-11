@@ -25,3 +25,11 @@ pub struct Library {
     /// Url to the collection.
     pub url: String,
 }
+
+impl Library {
+    /// Create a new library.
+    #[must_use]
+    pub const fn new(mpath: String, url: String) -> Self {
+        Self { mpath, url }
+    }
+}

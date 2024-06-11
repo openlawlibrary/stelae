@@ -363,11 +363,11 @@ async fn insert_document_changes(
             )?;
             let url =
                 pub_graph.literal_from_triple_matching(Some(&change), Some(oll::url), None)?;
-            document_elements_bulk.push(DocumentElement {
-                doc_mpath: doc_mpath.clone(),
-                url: url.clone(),
-                doc_id: doc_id.clone(),
-            });
+            document_elements_bulk.push(DocumentElement::new(
+                doc_mpath.clone(),
+                url.clone(),
+                doc_id.clone(),
+            ));
             let reason = pub_graph
                 .literal_from_triple_matching(Some(&change), Some(oll::reason), None)
                 .ok();
@@ -381,13 +381,13 @@ async fn insert_document_changes(
                 let document_change_hash = md5::compute(
                     pub_version_hash.clone() + &doc_mpath.clone() + &status.to_int().to_string(),
                 );
-                document_changes_bulk.push(DocumentChange {
-                    id: document_change_hash,
-                    doc_mpath: doc_mpath.clone(),
-                    status: status.to_int(),
-                    change_reason: reason.clone(),
-                    publication_version_id: pub_version_hash.clone(),
-                });
+                document_changes_bulk.push(DocumentChange::new(
+                    document_change_hash,
+                    status.to_int(),
+                    reason.clone(),
+                    pub_version_hash.clone(),
+                    doc_mpath.clone(),
+                ));
             }
         }
     }
@@ -426,17 +426,14 @@ async fn insert_library_changes(
         let el_status =
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::status), None)?;
         let library_status = Status::from_string(&el_status)?;
-        library_bulk.push(Library {
-            mpath: library_mpath.clone(),
-            url: url.clone(),
-        });
+        library_bulk.push(Library::new(library_mpath.clone(), url.clone()));
         let pub_version_hash =
             md5::compute(publication.name.clone() + &codified_date + &publication.stele);
-        library_changes_bulk.push(LibraryChange {
-            publication_version_id: pub_version_hash.clone(),
-            status: library_status.to_int(),
-            library_mpath: library_mpath.clone(),
-        });
+        library_changes_bulk.push(LibraryChange::new(
+            pub_version_hash.clone(),
+            library_status.to_int(),
+            library_mpath.clone(),
+        ));
         let changes_uri =
             pub_graph.iri_from_triple_matching(Some(version), Some(oll::hasChanges), None)?;
         let changes = Bag::new(pub_graph, changes_uri);
@@ -457,10 +454,10 @@ async fn insert_library_changes(
             let document_change_hash = md5::compute(
                 pub_version_hash.clone() + &doc_mpath.clone() + &status.to_int().to_string(),
             );
-            changed_library_document_bulk.push(ChangedLibraryDocument {
-                library_mpath: library_mpath.clone(),
-                document_change_id: document_change_hash,
-            });
+            changed_library_document_bulk.push(ChangedLibraryDocument::new(
+                document_change_hash,
+                library_mpath.clone(),
+            ));
         }
     }
     library::TxManager::insert_bulk(tx, library_bulk).await?;

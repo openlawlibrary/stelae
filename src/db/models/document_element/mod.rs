@@ -27,3 +27,15 @@ pub struct DocumentElement {
     /// Unique document identifier.
     pub doc_id: String,
 }
+
+impl DocumentElement {
+    /// Create a new document element.
+    #[must_use]
+    pub const fn new(doc_mpath: String, url: String, doc_id: String) -> Self {
+        Self {
+            doc_mpath,
+            url,
+            doc_id,
+        }
+    }
+}

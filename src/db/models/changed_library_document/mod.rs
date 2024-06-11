@@ -21,3 +21,14 @@ pub struct ChangedLibraryDocument {
     /// Materialized path to the library
     pub library_mpath: String,
 }
+
+impl ChangedLibraryDocument {
+    /// Create a new library change.
+    #[must_use]
+    pub const fn new(document_change_id: String, library_mpath: String) -> Self {
+        Self {
+            document_change_id,
+            library_mpath,
+        }
+    }
+}
