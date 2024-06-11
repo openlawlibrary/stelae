@@ -49,14 +49,16 @@ use std::{
 /// # Errors
 /// Errors if the changes cannot be inserted into the archive
 #[actix_web::main]
+#[tracing::instrument(name = "Stelae update", skip(raw_archive_path, archive_path))]
 pub async fn insert(raw_archive_path: &str, archive_path: PathBuf) -> io::Result<()> {
     let conn = match db::init::connect(&archive_path).await {
         Ok(conn) => conn,
         Err(err) => {
             tracing::error!(
-                "error: could not connect to database. Confirm that DATABASE_URL env var is set correctly."
+                "error: could not connect to database.
+                Confirm that `db.sqlite3` exists in `.stelae` dir or that DATABASE_URL env var is set correctly."
             );
-            tracing::error!("Error: {:?}", err);
+            tracing::error!("Error: {err:?}");
             process::exit(1);
         }
     };
@@ -65,7 +67,7 @@ pub async fn insert(raw_archive_path: &str, archive_path: PathBuf) -> io::Result
         .await
         .unwrap_or_else(|err| {
             tracing::error!("Failed to insert changes into archive");
-            tracing::error!("{:?}", err);
+            tracing::error!("{err:?}");
         });
     Ok(())
 }
@@ -86,15 +88,11 @@ async fn insert_changes_archive(
     for (name, mut stele) in archive.get_stelae() {
         match process_stele(conn, &name, &mut stele, archive_path).await {
             Ok(()) => (),
-            Err(err) => errors.push(err),
+            Err(err) => errors.push(format!("{name}: {err}")),
         }
     }
     if !errors.is_empty() {
-        let error_msg = errors
-            .into_iter()
-            .map(|err| err.to_string())
-            .collect::<Vec<_>>()
-            .join("\n");
+        let error_msg = errors.into_iter().collect::<Vec<_>>().join("\n");
         return Err(anyhow::anyhow!(
             "Errors occurred while inserting changes:\n{error_msg}"
         ));
