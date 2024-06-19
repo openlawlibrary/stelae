@@ -7,7 +7,7 @@ use std::convert::Into;
 use crate::{
     db::{
         models::{
-            document_change, library_change,
+            document_change, document_element, library, library_change,
             publication::{self, Publication},
         },
         DatabaseConnection,
@@ -130,6 +130,7 @@ pub async fn versions(
     publications.insert(
         0,
         Publication::new(
+            current_publication.id.clone(),
             CURRENT_PUBLICATION_NAME.to_owned(),
             current_publication.date.clone(),
             current_publication.stele.clone(),
@@ -156,25 +157,25 @@ async fn publication_versions(
 ) -> Vec<response::Version> {
     tracing::debug!("Fetching publication versions for '{url}'");
     let mut versions = vec![];
-    let doc_mpath = document_change::Manager::find_doc_mpath_by_url(db, &url).await;
+    let doc_mpath = document_element::Manager::find_doc_mpath_by_url(db, &url).await;
     if let Ok(mpath) = doc_mpath {
         let doc_versions =
             document_change::Manager::find_all_document_versions_by_mpath_and_publication(
                 db,
                 &mpath,
-                &publication.name,
+                &publication.id,
             )
             .await
             .unwrap_or_default();
         versions = doc_versions.into_iter().map(Into::into).collect();
     } else {
-        let lib_mpath = library_change::Manager::find_lib_mpath_by_url(db, &url).await;
+        let lib_mpath = library::Manager::find_lib_mpath_by_url(db, &url).await;
         if let Ok(mpath) = lib_mpath {
             let coll_versions =
                 library_change::Manager::find_all_collection_versions_by_mpath_and_publication(
                     db,
                     &mpath,
-                    &publication.name,
+                    &publication.id,
                 )
                 .await
                 .unwrap_or_default();
