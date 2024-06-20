@@ -85,6 +85,7 @@ impl super::TxManager for DatabaseTransaction {
             });
             let query = query_builder.build();
             query.execute(&mut *self.tx).await?;
+            query_builder.reset();
         }
         Ok(())
     }
