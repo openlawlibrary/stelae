@@ -351,8 +351,11 @@ async fn insert_document_changes(
         let doc_id =
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::docId), None)?;
         document::TxManager::create(tx, &doc_id).await?;
-        let changes_uri =
-            pub_graph.iri_from_triple_matching(Some(version), Some(oll::hasChanges), None)?;
+        let Ok(changes_uri) =
+            pub_graph.iri_from_triple_matching(Some(version), Some(oll::hasChanges), None)
+        else {
+            continue;
+        };
         let changes = Bag::new(pub_graph, changes_uri);
         for change in changes.items()? {
             let doc_mpath = pub_graph.literal_from_triple_matching(
