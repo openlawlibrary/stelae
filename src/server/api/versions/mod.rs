@@ -169,7 +169,7 @@ async fn publication_versions(
             .unwrap_or_default();
         versions = doc_versions.into_iter().map(Into::into).collect();
     } else {
-        let lib_mpath = library::Manager::find_lib_mpath_by_url(db, &url).await;
+        let lib_mpath = library::Manager::find_lib_mpath_by_url(db, &url, &publication.stele).await;
         if let Ok(mpath) = lib_mpath {
             let coll_versions =
                 library_change::Manager::find_all_collection_versions_by_mpath_and_publication(

@@ -18,7 +18,9 @@ CREATE TABLE document_element (
 );
 CREATE TABLE library (
     mpath TEXT PRIMARY KEY,
-    url TEXT
+    url TEXT,
+    stele TEXT,
+    CONSTRAINT fk_stele FOREIGN KEY (stele) REFERENCES stele(name) ON DELETE CASCADE
 );
 CREATE TABLE publication (
     id TEXT,

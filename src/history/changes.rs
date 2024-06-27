@@ -425,7 +425,11 @@ async fn insert_library_changes(
         let el_status =
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::status), None)?;
         let library_status = Status::from_string(&el_status)?;
-        library_bulk.push(Library::new(library_mpath.clone(), url.clone()));
+        library_bulk.push(Library::new(
+            library_mpath.clone(),
+            url.clone(),
+            publication.stele.clone(),
+        ));
         let pub_version_hash =
             md5::compute(publication.name.clone() + &codified_date + &publication.stele);
         library_changes_bulk.push(LibraryChange::new(
