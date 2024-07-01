@@ -157,7 +157,8 @@ async fn publication_versions(
 ) -> Vec<response::Version> {
     tracing::debug!("Fetching publication versions for '{url}'");
     let mut versions = vec![];
-    let doc_mpath = document_element::Manager::find_doc_mpath_by_url(db, &url).await;
+    let doc_mpath =
+        document_element::Manager::find_doc_mpath_by_url(db, &url, &publication.stele).await;
     if let Ok(mpath) = doc_mpath {
         let doc_versions =
             document_change::Manager::find_all_document_versions_by_mpath_and_publication(

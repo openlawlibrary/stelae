@@ -369,6 +369,7 @@ async fn insert_document_changes(
                 doc_mpath.clone(),
                 url.clone(),
                 doc_id.clone(),
+                publication.stele.clone(),
             ));
             let reason = pub_graph
                 .literal_from_triple_matching(Some(&change), Some(oll::reason), None)

@@ -7,7 +7,7 @@ pub mod manager;
 #[async_trait]
 pub trait Manager {
     /// Find one document materialized path by url.
-    async fn find_doc_mpath_by_url(&self, url: &str) -> anyhow::Result<String>;
+    async fn find_doc_mpath_by_url(&self, url: &str, stele: &str) -> anyhow::Result<String>;
 }
 
 /// Trait for managing transactional document elements.
@@ -26,16 +26,19 @@ pub struct DocumentElement {
     pub url: String,
     /// Unique document identifier.
     pub doc_id: String,
+    /// Reference to the stele.
+    pub stele: String,
 }
 
 impl DocumentElement {
     /// Create a new document element.
     #[must_use]
-    pub const fn new(doc_mpath: String, url: String, doc_id: String) -> Self {
+    pub const fn new(doc_mpath: String, url: String, doc_id: String, stele: String) -> Self {
         Self {
             doc_mpath,
             url,
             doc_id,
+            stele,
         }
     }
 }

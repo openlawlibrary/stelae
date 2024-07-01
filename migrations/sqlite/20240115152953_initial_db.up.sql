@@ -11,10 +11,12 @@ CREATE TABLE document_element (
     doc_mpath TEXT,
     url TEXT,
     doc_id TEXT,
+    stele TEXT,
     CONSTRAINT fk_doc_id
         FOREIGN KEY (doc_id)
         REFERENCES document(doc_id),
-    PRIMARY KEY (doc_mpath)
+    PRIMARY KEY (doc_mpath),
+    CONSTRAINT fk_stele FOREIGN KEY (stele) REFERENCES stele(name) ON DELETE CASCADE
 );
 CREATE TABLE library (
     mpath TEXT PRIMARY KEY,
