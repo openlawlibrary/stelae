@@ -351,8 +351,11 @@ async fn insert_document_changes(
         let doc_id =
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::docId), None)?;
         document::TxManager::create(tx, &doc_id).await?;
-        let changes_uri =
-            pub_graph.iri_from_triple_matching(Some(version), Some(oll::hasChanges), None)?;
+        let Ok(changes_uri) =
+            pub_graph.iri_from_triple_matching(Some(version), Some(oll::hasChanges), None)
+        else {
+            continue;
+        };
         let changes = Bag::new(pub_graph, changes_uri);
         for change in changes.items()? {
             let doc_mpath = pub_graph.literal_from_triple_matching(
@@ -366,6 +369,7 @@ async fn insert_document_changes(
                 doc_mpath.clone(),
                 url.clone(),
                 doc_id.clone(),
+                publication.stele.clone(),
             ));
             let reason = pub_graph
                 .literal_from_triple_matching(Some(&change), Some(oll::reason), None)
@@ -425,7 +429,11 @@ async fn insert_library_changes(
         let el_status =
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::status), None)?;
         let library_status = Status::from_string(&el_status)?;
-        library_bulk.push(Library::new(library_mpath.clone(), url.clone()));
+        library_bulk.push(Library::new(
+            library_mpath.clone(),
+            url.clone(),
+            publication.stele.clone(),
+        ));
         let pub_version_hash =
             md5::compute(publication.name.clone() + &codified_date + &publication.stele);
         library_changes_bulk.push(LibraryChange::new(

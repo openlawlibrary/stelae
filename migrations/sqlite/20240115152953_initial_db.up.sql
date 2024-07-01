@@ -11,14 +11,18 @@ CREATE TABLE document_element (
     doc_mpath TEXT,
     url TEXT,
     doc_id TEXT,
+    stele TEXT,
     CONSTRAINT fk_doc_id
         FOREIGN KEY (doc_id)
         REFERENCES document(doc_id),
-    PRIMARY KEY (doc_mpath)
+    PRIMARY KEY (doc_mpath),
+    CONSTRAINT fk_stele FOREIGN KEY (stele) REFERENCES stele(name) ON DELETE CASCADE
 );
 CREATE TABLE library (
     mpath TEXT PRIMARY KEY,
-    url TEXT
+    url TEXT,
+    stele TEXT,
+    CONSTRAINT fk_stele FOREIGN KEY (stele) REFERENCES stele(name) ON DELETE CASCADE
 );
 CREATE TABLE publication (
     id TEXT,
@@ -80,7 +84,16 @@ CREATE TABLE document_change (
         ON DELETE CASCADE,
     PRIMARY KEY (id)
 );
+
 CREATE INDEX document_change_doc_mpath_idx ON document_change(doc_mpath COLLATE NOCASE);
+CREATE INDEX document_change_publication_version_idx ON document_change(publication_version_id);
+CREATE INDEX document_change_doc_mpath_pub_id_status_idx ON document_change(doc_mpath COLLATE NOCASE, status);
+
+CREATE INDEX publication_has_publication_versions_publication_id_idx ON publication_has_publication_versions(publication_id);
+CREATE INDEX publication_has_publication_versions_publication_version_id_idx ON publication_has_publication_versions(publication_version_id);
+
+CREATE INDEX publication_version_id_idx ON publication_version(id);
+
 CREATE TABLE library_change (
     publication_version_id TEXT,
     status TEXT,
@@ -101,6 +114,9 @@ CREATE TABLE changed_library_document (
     PRIMARY KEY (document_change_id, library_mpath)
 );
 CREATE INDEX library_change_library_mpath_idx ON library_change(library_mpath COLLATE NOCASE);
+CREATE INDEX library_change_publication_version_idx ON library_change(publication_version_id);
+CREATE INDEX library_change_status_idx ON library_change(library_mpath COLLATE NOCASE, status);
+
 CREATE INDEX changed_library_document_library_mpath_idx ON changed_library_document(library_mpath COLLATE NOCASE);
 
 PRAGMA optimize;

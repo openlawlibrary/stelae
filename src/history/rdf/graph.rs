@@ -115,7 +115,9 @@ impl StelaeGraph {
         let triple = self
             .triples_matching_inner(subject, predicate, object)
             .next()
-            .context("Expected to find triple matching")?;
+            .context(format!(
+                "Expected to find triple matching s={subject:?}, p={predicate:?}, o={object:?}"
+            ))?;
         Ok(triple?)
     }
 

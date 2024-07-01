@@ -7,7 +7,7 @@ pub mod manager;
 #[async_trait]
 pub trait Manager {
     /// Find one library materialized path by url.
-    async fn find_lib_mpath_by_url(&self, url: &str) -> anyhow::Result<String>;
+    async fn find_lib_mpath_by_url(&self, url: &str, stele: &str) -> anyhow::Result<String>;
 }
 
 /// Trait for managing transactions on publication versions.
@@ -24,12 +24,14 @@ pub struct Library {
     pub mpath: String,
     /// Url to the collection.
     pub url: String,
+    /// Reference to the stele.
+    pub stele: String,
 }
 
 impl Library {
     /// Create a new library.
     #[must_use]
-    pub const fn new(mpath: String, url: String) -> Self {
-        Self { mpath, url }
+    pub const fn new(mpath: String, url: String, stele: String) -> Self {
+        Self { mpath, url, stele }
     }
 }
