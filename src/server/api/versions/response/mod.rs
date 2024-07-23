@@ -1,5 +1,6 @@
 use std::{cmp::Reverse, collections::BTreeMap};
 
+use chrono::NaiveDate;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -166,13 +167,18 @@ impl Version {
 
     /// Insert a new version if it is not present in the list of versions.
     /// If the date is not in the list of versions, add it
+    /// Do nothing if the date is already in the list of versions.
     /// This for compatibility purposes with the previous implementation of historical versions
     pub fn insert_if_not_present(versions: &mut Vec<Self>, date: Option<String>) {
-        if let Some(version_date) = date {
-            if versions.iter().all(|ver| ver.date != version_date) {
-                let version = Self::new(version_date.clone(), version_date, 0);
-                Self::insert_version_sorted(versions, version);
-            }
+        let Some(version_date) = date else {
+            return;
+        };
+        if NaiveDate::parse_from_str(&version_date, "%Y-%m-%d").is_err() {
+            return;
+        }
+        if versions.iter().all(|ver| ver.date != version_date) {
+            let version = Self::new(version_date.clone(), version_date, 0);
+            Self::insert_version_sorted(versions, version);
         }
     }
 
