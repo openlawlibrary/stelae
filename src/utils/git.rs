@@ -1,5 +1,6 @@
 //! The git module contains structs for interacting with git repositories
 //! in the Stelae Archive.
+use crate::utils::paths::clean_path;
 use anyhow::Context;
 use git2::Repository;
 use std::{
@@ -68,6 +69,24 @@ impl Repo {
             path: PathBuf::from(repo_path.clone()),
             repo: Repository::open(repo_path)?,
         })
+    }
+
+    /// Do the work of looking for the requested Git object.
+    ///
+    ///
+    /// # Errors
+    /// Will error if the Repo couldn't be found, or if there was a problem with the Git object.
+    pub fn find_blob(
+        archive_path: &Path,
+        namespace: &str,
+        name: &str,
+        remainder: &str,
+        commitish: &str,
+    ) -> anyhow::Result<Vec<u8>> {
+        let repo = Self::new(archive_path, namespace, name)?;
+        let blob_path = clean_path(remainder);
+        let blob = repo.get_bytes_at_path(commitish, &blob_path)?;
+        Ok(blob)
     }
 
     /// Returns bytes of blob found in the commit `commitish` at path `path`

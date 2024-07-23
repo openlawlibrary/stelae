@@ -4,9 +4,8 @@ use std::{fmt, path::PathBuf};
 use crate::{
     db,
     stelae::{archive::Archive, stele::Stele, types::repositories::Repository},
-    utils::{archive::get_name_parts, git},
+    utils::archive::get_name_parts,
 };
-use git2::Repository as GitRepository;
 
 /// Global, read-only state
 pub trait Global {
@@ -37,10 +36,34 @@ impl Global for App {
 
 /// Repository to serve
 pub struct RepoData {
-    /// git2 wrapper repository pointing to the repo in the archive.
-    pub repo: git::Repo,
+    /// Path to the archive
+    pub archive_path: PathBuf,
+    /// Path to the Stele
+    pub path: PathBuf,
+    /// Repo organization
+    pub org: String,
+    /// Repo name
+    pub name: String,
+    // /// path to the git repository
+    // pub repo_path: PathBuf;
     ///Latest or historical
     pub serve: String,
+}
+
+impl RepoData {
+    /// Create a new Repo state object
+    #[must_use]
+    pub fn new(archive_path: &str, org: &str, name: &str, serve: &str) -> Self {
+        let mut repo_path = archive_path.to_owned();
+        repo_path = format!("{repo_path}/{org}/{name}");
+        Self {
+            archive_path: PathBuf::from(archive_path),
+            path: PathBuf::from(&repo_path),
+            org: org.to_owned(),
+            name: name.to_owned(),
+            serve: serve.to_owned(),
+        }
+    }
 }
 
 /// Shared, read-only app state
@@ -54,8 +77,8 @@ impl fmt::Debug for RepoData {
         write!(
             formatter,
             "Repo for {} in the archive at {}",
-            self.repo.name,
-            self.repo.path.display()
+            self.name,
+            self.path.display()
         )
     }
 }
@@ -67,8 +90,8 @@ impl fmt::Debug for Shared {
             Some(fallback) => write!(
                 formatter,
                 "Repo for {} in the archive at {}",
-                fallback.repo.name,
-                fallback.repo.path.display()
+                fallback.name,
+                fallback.path.display()
             ),
             None => write!(formatter, "No fallback repo"),
         }
@@ -79,7 +102,10 @@ impl fmt::Debug for Shared {
 impl Clone for RepoData {
     fn clone(&self) -> Self {
         Self {
-            repo: self.repo.clone(),
+            archive_path: self.archive_path.clone(),
+            path: self.path.clone(),
+            org: self.org.clone(),
+            name: self.name.clone(),
             serve: self.serve.clone(),
         }
     }
@@ -102,18 +128,12 @@ impl Clone for Shared {
 pub fn init_repo(repo: &Repository, stele: &Stele) -> anyhow::Result<RepoData> {
     let custom = &repo.custom;
     let (org, name) = get_name_parts(&repo.name)?;
-    let mut repo_path = stele.archive_path.to_string_lossy().into_owned();
-    repo_path = format!("{repo_path}/{org}/{name}");
-    Ok(RepoData {
-        repo: git::Repo {
-            archive_path: stele.archive_path.to_string_lossy().to_string(),
-            path: PathBuf::from(&repo_path),
-            org,
-            name,
-            repo: GitRepository::open(&repo_path)?,
-        },
-        serve: custom.serve.clone(),
-    })
+    Ok(RepoData::new(
+        &stele.archive_path.to_string_lossy(),
+        &org,
+        &name,
+        &custom.serve,
+    ))
 }
 
 /// Initialize the shared application state
@@ -128,10 +148,12 @@ pub fn init_shared(stele: &Stele) -> anyhow::Result<Shared> {
         .get_fallback_repo()
         .map(|repo| {
             let (org, name) = get_name_parts(&repo.name)?;
-            Ok::<RepoData, anyhow::Error>(RepoData {
-                repo: git::Repo::new(&stele.archive_path, &org, &name)?,
-                serve: repo.custom.serve.clone(),
-            })
+            Ok::<RepoData, anyhow::Error>(RepoData::new(
+                &stele.archive_path.to_string_lossy(),
+                &org,
+                &name,
+                &repo.custom.serve,
+            ))
         })
         .transpose()?;
     Ok(Shared { fallback })

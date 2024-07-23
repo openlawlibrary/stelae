@@ -11,7 +11,7 @@
 
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use git2::{self, ErrorCode};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tracing_actix_web::TracingLogger;
 
 use super::errors::{CliError, StelaeError};
@@ -51,28 +51,13 @@ async fn get_blob(
 ) -> impl Responder {
     let (namespace, name, commitish, remainder) = path.into_inner();
     let archive_path = &data.archive_path;
-    let blob = find_blob(archive_path, &namespace, &name, &remainder, &commitish);
+    let blob = Repo::find_blob(archive_path, &namespace, &name, &remainder, &commitish);
     let blob_path = clean_path(&remainder);
     let contenttype = get_contenttype(&blob_path);
     match blob {
         Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
         Err(error) => blob_error_response(&error, &namespace, &name),
     }
-}
-
-/// Do the work of looking for the requested Git object.
-// TODO: This looks like it could live in `utils::git::Repo`
-fn find_blob(
-    archive_path: &Path,
-    namespace: &str,
-    name: &str,
-    remainder: &str,
-    commitish: &str,
-) -> anyhow::Result<Vec<u8>> {
-    let repo = Repo::new(archive_path, namespace, name)?;
-    let blob_path = clean_path(remainder);
-    let blob = repo.get_bytes_at_path(commitish, &blob_path)?;
-    Ok(blob)
 }
 
 /// A centralised place to match potentially unsafe internal errors to safe user-facing error responses
