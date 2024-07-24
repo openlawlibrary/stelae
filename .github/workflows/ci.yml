@@ -29,7 +29,7 @@ jobs:
         with:
           tool: nextest
       - name: Run tests (nextest)
-        run: just nextest
+        run: just test
 
   lints:
     name: Lints

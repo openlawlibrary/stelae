@@ -3110,7 +3110,7 @@ dependencies = [
 
 [[package]]
 name = "stelae"
-version = "0.3.0-alpha.5"
+version = "0.3.0-alpha.6"
 dependencies = [
  "actix-http",
  "actix-service",

@@ -24,7 +24,7 @@ pub async fn serve(
     let mut path = format!("{prefix}/{tail}");
     path = clean_path(&path);
     let contenttype = get_contenttype(&path);
-    let blob = find_current_blob(&data.repo, &shared, &path);
+    let blob = find_current_blob(&data, &shared, &path);
     match blob {
         Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
         Err(error) => {
@@ -38,13 +38,23 @@ pub async fn serve(
 /// Latest blob is found by looking at the HEAD commit
 #[allow(clippy::panic_in_result_fn, clippy::unreachable)]
 #[tracing::instrument(name = "Finding document", skip(repo, shared))]
-fn find_current_blob(repo: &Repo, shared: &SharedState, path: &str) -> anyhow::Result<Vec<u8>> {
-    let blob = repo.get_bytes_at_path(HEAD_COMMIT, path);
+fn find_current_blob(
+    repo: &RepoState,
+    shared: &SharedState,
+    path: &str,
+) -> anyhow::Result<Vec<u8>> {
+    let blob = Repo::find_blob(&repo.archive_path, &repo.org, &repo.name, path, HEAD_COMMIT);
     match blob {
         Ok(content) => Ok(content),
         Err(error) => {
             if let Some(fallback) = shared.fallback.as_ref() {
-                let fallback_blob = fallback.repo.get_bytes_at_path(HEAD_COMMIT, path);
+                let fallback_blob = Repo::find_blob(
+                    &fallback.archive_path,
+                    &fallback.org,
+                    &fallback.name,
+                    path,
+                    HEAD_COMMIT,
+                );
                 return fallback_blob.map_or_else(
                     |err| anyhow::bail!("No fallback blob found - {}", err.to_string()),
                     Ok,
