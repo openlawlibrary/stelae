@@ -2,7 +2,10 @@
 #![allow(clippy::infinite_loop)]
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 
-use crate::utils::{git::Repo, http::get_contenttype, paths::clean_path};
+use crate::{
+    server::errors::HTTPError,
+    utils::{git::Repo, http::get_contenttype, paths::clean_path},
+};
 
 use super::state::{RepoData as RepoState, Shared as SharedState};
 /// Most-recent git commit
@@ -29,7 +32,7 @@ pub async fn serve(
         Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
         Err(error) => {
             tracing::debug!("{path}: {error}",);
-            HttpResponse::BadRequest().into()
+            HttpResponse::NotFound().body(HTTPError::NotFound.to_string())
         }
     }
 }

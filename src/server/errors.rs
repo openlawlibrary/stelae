@@ -10,6 +10,17 @@ use actix_web::{error, http::StatusCode, HttpResponse};
 use derive_more::{Display, Error};
 use std::io;
 
+/// Collection of possible HTTP errors
+#[derive(Debug, Display, Error)]
+pub enum HTTPError {
+    #[display(fmt = "404 Not Found")]
+    /// 404
+    NotFound,
+    #[display(fmt = "Unexpected server error")]
+    /// 500
+    InternalServerError,
+}
+
 /// Collection of possible CLI errors
 #[derive(Debug, Display, Error)]
 pub enum CliError {
