@@ -14,7 +14,7 @@ use git2::{self, ErrorCode};
 use std::path::PathBuf;
 use tracing_actix_web::TracingLogger;
 
-use super::errors::{CliError, StelaeError};
+use super::errors::{CliError, HTTPError, StelaeError};
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use crate::utils::http::get_contenttype;
 use crate::{server::tracing::StelaeRootSpanBuilder, utils::paths::clean_path};
@@ -77,9 +77,9 @@ fn blob_error_response(error: &anyhow::Error, namespace: &str, name: &str) -> Ht
     match error {
         // TODO: Obviously it's better to use custom `Error` types
         _ if error.to_string() == GIT_REQUEST_NOT_FOUND => {
-            HttpResponse::NotFound().body(GIT_REQUEST_NOT_FOUND)
+            HttpResponse::NotFound().body(HTTPError::NotFound.to_string())
         }
-        _ => HttpResponse::InternalServerError().body("Unexpected server error"),
+        _ => HttpResponse::InternalServerError().body(HTTPError::InternalServerError.to_string()),
     }
 }
 
