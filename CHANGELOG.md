@@ -10,6 +10,16 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.3.0]
+
+### Added
+
 - Add filesystem logging ([42])
 - Add command to insert history into database from RDF ([33], [42], [44], [46])
 - Add versions endpoint to view dates on which documents and/or collections have changed ([33])
@@ -86,11 +96,12 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.2.1...HEAD
-[0.2.1]: https://github.com/openlawlibrary/stelae/tree/v0.2.1
-[0.2.0]: https://github.com/openlawlibrary/stelae/tree/v0.2.0
-[0.1.1]: https://github.com/openlawlibrary/stelae/tree/v0.1.1
-[0.1.0]: https://github.com/openlawlibrary/stelae/tree/v0.1.0
+[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/openlawlibrary/stelae/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/openlawlibrary/stelae/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/openlawlibrary/stelae/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/openlawlibrary/stelae/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/openlawlibrary/stelae/compare/2b01423c06369f5f0f168ae4c4698371d713ede7...v0.1.0
 
 [keepachangelog]: https://keepachangelog.com/en/1.0.0/
 [semver]: https://semver.org/spec/v2.0.0.html
