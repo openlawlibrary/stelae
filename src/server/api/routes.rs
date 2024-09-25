@@ -45,6 +45,10 @@ pub fn register_app<
             web::scope("/_api").service(
                 web::scope("/versions")
                     .service(
+                        web::resource("/_publication/{publication}/_compare/{date}/{compare_date}")
+                            .to(versions),
+                    )
+                    .service(
                         web::resource(
                             "/_publication/{publication}/_compare/{date}/{compare_date}/{path:.*}",
                         )
@@ -53,9 +57,11 @@ pub fn register_app<
                     .service(web::resource("/_publication/{publication}/_date/{date}").to(versions))
                     .service(web::resource("/_publication/{publication}").to(versions))
                     .service(web::resource("/_publication/{publication}/{path:.*}").to(versions))
+                    .service(web::resource("/_compare/{date}/{compare_date}").to(versions))
                     .service(
                         web::resource("/_compare/{date}/{compare_date}/{path:.*}").to(versions),
                     )
+                    .service(web::resource("/_date/{date}").to(versions))
                     .service(web::resource("/_date/{date}/{path:.*}").to(versions))
                     .service(web::resource("/{path:.*}").to(versions))
                     .service(web::resource("").to(versions)),
