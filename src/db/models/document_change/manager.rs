@@ -27,7 +27,7 @@ impl super::Manager for DatabaseConnection {
             WHERE dc.doc_mpath LIKE $1 AND phpv.publication_id = $2
         ";
         let mut rows = match self.kind {
-            DatabaseKind::Postgres | DatabaseKind::Sqlite => {
+            DatabaseKind::Sqlite => {
                 let mut connection = self.pool.acquire().await?;
                 sqlx::query_as::<_, Version>(statement)
                     .bind(format!("{mpath}%"))
@@ -45,7 +45,7 @@ impl super::Manager for DatabaseConnection {
             LIMIT 1
         ";
         let element_added = match self.kind {
-            DatabaseKind::Postgres | DatabaseKind::Sqlite => {
+            DatabaseKind::Sqlite => {
                 let mut connection = self.pool.acquire().await?;
                 sqlx::query_as::<_, Version>(statement)
                     .bind(mpath)
@@ -76,7 +76,7 @@ impl super::Manager for DatabaseConnection {
         doc.push('|');
 
         let document_effective = match self.kind {
-            DatabaseKind::Postgres | DatabaseKind::Sqlite => {
+            DatabaseKind::Sqlite => {
                 let mut connection = self.pool.acquire().await?;
                 sqlx::query_as::<_, Version>(statement)
                     .bind(doc)

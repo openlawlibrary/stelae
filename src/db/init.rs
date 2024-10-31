@@ -20,11 +20,6 @@ pub async fn connect(archive_path: &Path) -> anyhow::Result<DatabaseConnection> 
                 .run(&connection.pool)
                 .await?;
         }
-        DatabaseKind::Postgres => {
-            sqlx::migrate!("./migrations/postgres")
-                .run(&connection.pool)
-                .await?;
-        }
     }
     Ok(connection)
 }

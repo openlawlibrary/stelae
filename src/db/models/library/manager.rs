@@ -18,7 +18,7 @@ impl super::Manager for DatabaseConnection {
             LIMIT 1
         ";
         let row = match self.kind {
-            DatabaseKind::Postgres | DatabaseKind::Sqlite => {
+            DatabaseKind::Sqlite => {
                 let mut connection = self.pool.acquire().await?;
                 sqlx::query_as::<_, (String,)>(statement)
                     .bind(url)
