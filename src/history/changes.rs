@@ -189,6 +189,25 @@ async fn load_delta_from_publications(
     let publications_dir_entry = tree.get_path(&PathBuf::from("_publication"))?;
     let publications_subtree = rdf_repo.repo.find_tree(publications_dir_entry.id())?;
     let mut last_inserted_date: Option<NaiveDate> = None;
+    let last_inserted_pub_date = if let Some(last_inserted_pub) = last_inserted_publication.as_ref()
+    {
+        last_inserted_date =
+            publication_version::TxManager::find_last_inserted_date_by_publication_id(
+                tx,
+                &last_inserted_pub.id,
+            )
+            .await?
+            .map(|pv| {
+                NaiveDate::parse_from_str(&pv.version, "%Y-%m-%d").context("Could not parse date")
+            })
+            .and_then(Result::ok);
+        Some(NaiveDate::parse_from_str(
+            &last_inserted_pub.date,
+            "%Y-%m-%d",
+        )?)
+    } else {
+        None
+    };
     for publication_entry in &publications_subtree {
         let mut pub_graph = StelaeGraph::new();
         let object = publication_entry.to_object(&rdf_repo.repo)?;
@@ -208,26 +227,13 @@ async fn load_delta_from_publications(
         let pub_date =
             pub_graph.literal_from_triple_matching(None, Some(dcterms::available), None)?;
         let pub_date = NaiveDate::parse_from_str(pub_date.as_str(), "%Y-%m-%d")?;
-        if let Some(last_inserted_pub) = last_inserted_publication.as_ref() {
-            let last_inserted_pub_date =
-                NaiveDate::parse_from_str(&last_inserted_pub.date, "%Y-%m-%d")?;
-            // continue from last inserted publication, since that publication can contain
-            // new changes (versions) that are not in db
-            if pub_date < last_inserted_pub_date {
+        // continue from last inserted publication, since that publication can contain
+        // new changes (versions) that are not in db
+        if let Some(last_inserted_publication_date) = last_inserted_pub_date {
+            if pub_date < last_inserted_publication_date {
                 // skip past publications since they are already in db
                 continue;
             }
-            last_inserted_date =
-                publication_version::TxManager::find_last_inserted_date_by_publication_id(
-                    tx,
-                    &last_inserted_pub.id,
-                )
-                .await?
-                .map(|pv| {
-                    NaiveDate::parse_from_str(&pv.version, "%Y-%m-%d")
-                        .context("Could not parse date")
-                })
-                .and_then(Result::ok);
         }
         tracing::info!("[{stele}] | Publication: {pub_name}");
         publication_tree.walk(TreeWalkMode::PreOrder, |_, entry| {
@@ -274,6 +280,8 @@ async fn load_delta_from_publications(
         let publication =
             publication::TxManager::find_by_name_and_stele(tx, &pub_name, stele).await?;
         load_delta_for_publication(tx, publication, &pub_graph, last_inserted_date).await?;
+        // reset last inserted date for next publication
+        last_inserted_date = None;
     }
     Ok(())
 }

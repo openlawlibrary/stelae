@@ -22,7 +22,7 @@ impl super::Manager for DatabaseConnection {
             ORDER BY name DESC
         ";
         let rows = match self.kind {
-            DatabaseKind::Postgres | DatabaseKind::Sqlite => {
+            DatabaseKind::Sqlite => {
                 let mut connection = self.pool.acquire().await?;
                 sqlx::query_as::<_, Publication>(statement)
                     .bind(stele)

@@ -101,7 +101,7 @@ impl super::TxManager for DatabaseTransaction {
 
     /// Recursively find all publication versions starting from a given publication ID.
 
-    /// This is necessary publication versions can be the same across publications.
+    /// This is necessary because publication versions can be the same across publications.
     /// To make versions query simpler, we walk the publication hierarchy starting from
     /// `publication_name` looking for related publications.
     /// The function returns all the `publication_version` IDs, even in simple cases where a publication

@@ -40,8 +40,6 @@ pub trait Tx {
 pub enum DatabaseKind {
     /// Sqlite database.
     Sqlite,
-    /// Postgres database.
-    Postgres,
 }
 
 /// Database connection.
@@ -77,10 +75,6 @@ impl Db for DatabaseConnection {
             url if url.starts_with("sqlite:///") => Self {
                 pool,
                 kind: DatabaseKind::Sqlite,
-            },
-            url if url.starts_with("postgres://") => Self {
-                pool,
-                kind: DatabaseKind::Postgres,
             },
             _ => anyhow::bail!("Unsupported database URL: {}", db_url),
         };
