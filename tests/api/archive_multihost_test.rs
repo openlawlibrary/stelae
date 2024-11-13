@@ -92,7 +92,46 @@ async fn test_resolve_guarded_stele_law_rdf_request_content_expect_rdf_document_
 async fn test_law_other_data_request_content_expect_other_document_retrieved() {
     let archive_path = common::initialize_archive(ArchiveType::Multihost).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
-    for guard_value in ["stele_1/law", "stele_2/law"] {
+    for guard_value in [
+        "stele_1/law",
+        "stele_2/law",
+        "stele_1_1/law",
+        "stele_1_2/law",
+    ] {
+        for request_uri in &[
+            "/_prefix/a/index.html",
+            "/a/_doc/e/index.html",
+            "/a/e/_doc/f/index.html",
+        ] {
+            let req = test::TestRequest::get()
+                .insert_header(("X-Current-Documents-Guard", guard_value))
+                .uri(request_uri)
+                .to_request();
+            let actual = test::call_and_read_body(&app, req).await;
+            let expected = "<!DOCTYPE html>";
+            assert!(
+                common::blob_to_string(actual.to_vec()).starts_with(expected),
+                "doesn't start with {expected}"
+            );
+        }
+    }
+}
+
+#[actix_web::test]
+async fn test_law_other_data_request_content_with_cycle_expect_other_document_retrieved() {
+    let archive_path = common::initialize_archive_without_bare(ArchiveType::Multihost).unwrap();
+    // Add a cycle
+    // stele_1 -> stele_1_1 -> stele_1
+    // Expect that the cycle is resolved
+    archive_testtools::add_dependencies(archive_path.path(), "stele_1_1", vec!["stele_1"]).unwrap();
+    utils::make_all_git_repos_bare_recursive(&archive_path).unwrap();
+    let app = common::initialize_app(archive_path.path()).await;
+    for guard_value in [
+        "stele_1/law",
+        "stele_2/law",
+        "stele_1_1/law",
+        "stele_1_2/law",
+    ] {
         for request_uri in &[
             "/_prefix/a/index.html",
             "/a/_doc/e/index.html",
