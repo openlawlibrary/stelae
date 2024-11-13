@@ -17,13 +17,9 @@ jobs:
 
       - name: Install NuShell
         uses: hustcer/setup-nu@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.STELAE_GITHUB_TOKEN }}
 
       - name: Install Just
         uses: extractions/setup-just@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.STELAE_GITHUB_TOKEN }}
 
       - uses: taiki-e/install-action@v2
         with:
@@ -47,8 +43,6 @@ jobs:
 
       - name: Install Just
         uses: extractions/setup-just@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.STELAE_GITHUB_TOKEN }}
 
       - name: Run just lint
         run: just lint
