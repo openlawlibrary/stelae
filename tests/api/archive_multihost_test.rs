@@ -1,4 +1,7 @@
-use crate::{archive_testtools::config::ArchiveType, common};
+use crate::{
+    archive_testtools::{self, config::ArchiveType, utils},
+    common,
+};
 use actix_web::test;
 
 #[actix_web::test]
@@ -6,7 +9,12 @@ async fn test_resolve_both_guarded_stele_law_html_request_with_full_path_expect_
     let archive_path = common::initialize_archive(ArchiveType::Multihost).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
 
-    for guard_value in ["stele_1/law", "stele_2/law"] {
+    for guard_value in [
+        "stele_1/law",
+        "stele_2/law",
+        "stele_1_1/law",
+        "stele_1_2/law",
+    ] {
         for request_uri in &["/a/b/c.html", "/a/b/", "/a/b/c/", "/a/d/"] {
             let req = test::TestRequest::get()
                 .insert_header(("X-Current-Documents-Guard", guard_value))
@@ -53,7 +61,12 @@ async fn test_resolve_guarded_stele_law_html_request_where_header_name_is_incorr
 async fn test_resolve_guarded_stele_law_rdf_request_content_expect_rdf_document_retrieved() {
     let archive_path = common::initialize_archive(ArchiveType::Multihost).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
-    for guard_value in ["stele_1/law", "stele_2/law"] {
+    for guard_value in [
+        "stele_1/law",
+        "stele_2/law",
+        "stele_1_1/law",
+        "stele_1_2/law",
+    ] {
         for request_uri in &[
             "/_rdf/index.rdf",
             "/_rdf/a/b/c.rdf",
