@@ -182,7 +182,7 @@ pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContex
             TestDataRepositoryContext::default_other_paths(),
             TestDataRepositoryType::Other("example.json".to_string()),
             None,
-            Some(vec![".*_doc/.*".into(), "_prefix/.*".into()]),
+            Some(vec![".*/_doc/.*".into(), "_prefix/.*".into()]),
             true,
         )?,
     ])

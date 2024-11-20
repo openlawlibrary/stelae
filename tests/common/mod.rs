@@ -56,33 +56,37 @@ pub async fn initialize_app(
 }
 
 pub fn initialize_archive(archive_type: ArchiveType) -> Result<tempfile::TempDir> {
-    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.push("tests/fixtures/");
-
-    let td = Builder::new().tempdir_in(&path).unwrap();
-
-    match archive_testtools::initialize_archive_inner(archive_type, &td) {
-        Ok(_) => {
+    match initialize_archive_without_bare(archive_type) {
+        Ok(td) => {
             if let Err(err) = utils::make_all_git_repos_bare_recursive(&td) {
                 return Err(err);
             }
             Ok(td)
         }
-        Err(err) => {
-            dbg!(&err);
-            use std::mem::ManuallyDrop;
-            let td = ManuallyDrop::new(td);
-            // TODO: better error handling on testing failure
-            let error_output_directory = path.clone().join(PathBuf::from("error_output_directory"));
-            std::fs::remove_dir_all(&error_output_directory).unwrap();
-            std::fs::rename(td.path(), &error_output_directory)
-                .expect("Failed to move temp directory");
-            eprintln!(
+        Err(err) => Err(err),
+    }
+}
+
+pub fn initialize_archive_without_bare(archive_type: ArchiveType) -> Result<tempfile::TempDir> {
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.push("tests/fixtures/");
+
+    let td = Builder::new().tempdir_in(&path).unwrap();
+
+    if let Err(err) = archive_testtools::initialize_archive_inner(archive_type, &td) {
+        dbg!(&err);
+        use std::mem::ManuallyDrop;
+        let td = ManuallyDrop::new(td);
+        // TODO: better error handling on testing failure
+        let error_output_directory = path.clone().join(PathBuf::from("error_output_directory"));
+        std::fs::remove_dir_all(&error_output_directory).unwrap();
+        std::fs::rename(td.path(), &error_output_directory).expect("Failed to move temp directory");
+        eprintln!(
                 "{}", format!("Failed to remove '{error_output_directory:?}', please try to remove directory by hand. Original error: {err}")
             );
-            Err(err)
-        }
+        return Err(err);
     }
+    Ok(td)
 }
 
 /// Used to initialize the test environment for git micro-server.

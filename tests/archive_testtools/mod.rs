@@ -246,6 +246,32 @@ fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
         vec![stele_1_org_name, stele_2_org_name],
     )?;
 
+    let stele_1_1_org_name = "stele_1_1";
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        stele_1_1_org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
+    )
+    .unwrap();
+
+    let stele_1_2_org_name = "stele_1_2";
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        stele_1_2_org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
+    )
+    .unwrap();
+
+    // Add stele_1_1 and stele_1_2 as dependencies of stele_1
+    add_dependencies(
+        td.path(),
+        stele_1_org_name,
+        vec![stele_1_1_org_name, stele_1_2_org_name],
+    )?;
     Ok(())
 }
 
