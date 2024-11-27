@@ -10,18 +10,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install NuShell
-        uses: hustcer/setup-nu@v3
+        uses: hustcer/setup-nu@c6d9051e49681bbb7df7eddd473c04d8bbcef9e1
 
       - name: Install Just
-        uses: extractions/setup-just@v2
+        uses: extractions/setup-just@dd310ad5a97d8e7b41793f8ef055398d51ad4de6
 
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@6da51af62171044932d435033daa70a0eb3383ba
         with:
           tool: nextest
       - name: Run tests (nextest)
@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Install stable toolchain
         # Pin based on current `rust-version` in Cargo.toml.
@@ -42,7 +42,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Install Just
-        uses: extractions/setup-just@v2
+        uses: extractions/setup-just@dd310ad5a97d8e7b41793f8ef055398d51ad4de6
 
       - name: Run just lint
         run: just lint
