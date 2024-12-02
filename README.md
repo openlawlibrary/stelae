@@ -28,6 +28,7 @@ Stelae is a system for distributing, preserving, and authenticating laws.
     - `format`: Format code
     - `lint`: Format code and run strict clippy
     - `test`: Run all tests
+      - Install nextest with command `cargo install cargo-nextest`
 - On windows, especially, you may wish to run just through the nu shell, which can be done by calling all commands with the `--shell` command, e.g. `just --shell nu lint`.
 
 ## Logging

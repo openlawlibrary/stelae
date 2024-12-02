@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 /// Connections can fail if the database is not running, or if the database URL is invalid.
 pub async fn connect(archive_path: &Path) -> anyhow::Result<DatabaseConnection> {
     let db_url = env::var("DATABASE_URL").unwrap_or_else(|_| {
-        let sqlite_db_path = &archive_path.join(PathBuf::from(".stelae/db.sqlite3"));
+        let sqlite_db_path = &archive_path.join(PathBuf::from(".taf/db.sqlite3"));
         format!("sqlite:///{}?mode=rwc", sqlite_db_path.to_string_lossy())
     });
     let connection = DatabaseConnection::connect(&db_url).await?;
