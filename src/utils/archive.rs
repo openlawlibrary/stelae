@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 pub fn find_archive_path(path: &Path) -> anyhow::Result<PathBuf> {
     let abs_path = fix_unc_path(&path.canonicalize()?);
     for working_path in abs_path.ancestors() {
-        if working_path.join(".stelae").exists() {
+        if working_path.join(".taf").exists() {
             return Ok(working_path.to_owned());
         }
     }

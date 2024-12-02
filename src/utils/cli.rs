@@ -65,18 +65,18 @@ enum Subcommands {
 
 /// Place to initialize tracing
 ///
-/// We create `debug` and `error` log files in `.stelae` dir.
+/// We create `debug` and `error` log files in `.taf` dir.
 /// `debug` log file contains all logs, `error` log file contains only `warn` and `error`
 /// NOTE: once `https://github.com/tokio-rs/tracing/pull/2497` is merged,
 /// update `init_tracing` to rotate log files based on size.
 #[allow(clippy::expect_used)]
 fn init_tracing(archive_path: &Path) {
-    let stelae_dir = archive_path.join(PathBuf::from("./.stelae"));
+    let taf_dir = archive_path.join(PathBuf::from("./.taf"));
 
     let debug_file_appender =
-        rolling::never(&stelae_dir, "stelae-debug.log").with_max_level(Level::DEBUG);
+        rolling::never(&taf_dir, "stelae-debug.log").with_max_level(Level::DEBUG);
     let error_file_appender =
-        rolling::never(&stelae_dir, "stelae-error.log").with_max_level(Level::WARN);
+        rolling::never(&taf_dir, "stelae-error.log").with_max_level(Level::WARN);
 
     let mut debug_layer = fmt::layer().with_writer(debug_file_appender);
     let mut error_layer = fmt::layer().with_writer(error_file_appender);
@@ -126,7 +126,7 @@ pub fn run() {
     let archive_path_wd = Path::new(&cli.archive_path);
     let Ok(archive_path) = find_archive_path(archive_path_wd) else {
         tracing::error!(
-            "error: could not find `.stelae` folder in `{}` or any parent directory",
+            "error: could not find `.taf` folder in `{}` or any parent directory",
             &cli.archive_path
         );
         process::exit(1);
