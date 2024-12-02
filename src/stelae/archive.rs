@@ -100,7 +100,9 @@ impl Archive {
         };
         archive.set_root(path)?;
 
-        archive.traverse_children(&archive.get_root()?.clone())?;
+        let root = archive.get_root()?;
+        let mut visited = vec![root.get_qualified_name()];
+        archive.traverse_children(&root.clone(), &mut visited)?;
         Ok(archive)
     }
 
@@ -109,9 +111,16 @@ impl Archive {
     /// Will raise error if unable to traverse the child steles.
     /// # Panics
     /// If unable to unwrap the parent directory of the current path.
-    pub fn traverse_children(&mut self, current: &Stele) -> anyhow::Result<()> {
+    pub fn traverse_children(
+        &mut self,
+        current: &Stele,
+        visited: &mut Vec<String>,
+    ) -> anyhow::Result<()> {
         if let Some(dependencies) = current.get_dependencies()? {
             for qualified_name in dependencies.sorted_dependencies_names() {
+                if visited.contains(&qualified_name) {
+                    continue;
+                }
                 let parent_dir = self.path.clone();
                 let (org, name) = get_name_parts(&qualified_name)?;
                 if fs::metadata(parent_dir.join(&org).join(&name)).is_err() {
@@ -132,7 +141,8 @@ impl Archive {
                         name = child.auth_repo.name
                     ))
                     .or_insert_with(|| child.clone());
-                self.traverse_children(&child)?;
+                visited.push(child.get_qualified_name());
+                self.traverse_children(&child, visited)?;
             }
         }
         Ok(())

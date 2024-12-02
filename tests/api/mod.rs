@@ -1,3 +1,3 @@
-mod basic_archive_test;
-mod multihost_archive_test;
-mod multijurisdiction_archive_test;
+mod archive_basic_test;
+mod archive_multihost_test;
+mod archive_multijursidiction_test;
