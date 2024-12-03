@@ -108,26 +108,24 @@ async fn process_stele(
     stele: &mut Stele,
     archive_path: &Path,
 ) -> anyhow::Result<()> {
-    let Ok(found_repositories) = stele.get_repositories() else {
+    let Some(repositories) = stele.get_repositories()? else {
         tracing::warn!("No repositories found for stele: {name}");
         return Ok(());
     };
-    if let Some(repositories) = found_repositories {
-        let Some(rdf_repo) = repositories.get_rdf_repository() else {
-            tracing::warn!("No RDF repository found for stele: {name}");
-            return Ok(());
-        };
-        let rdf_repo_path = archive_path.to_path_buf().join(&rdf_repo.name);
-        if !rdf_repo_path.exists() {
-            return Err(anyhow::anyhow!(
-                "RDF repository should exist on disk but not found: {}",
-                rdf_repo_path.display()
-            ));
-        }
-        let (rdf_org, rdf_name) = get_name_parts(&rdf_repo.name)?;
-        let rdf = Repo::new(archive_path, &rdf_org, &rdf_name)?;
-        insert_changes_from_rdf_repository(conn, rdf, name).await?;
+    let Some(rdf_repo) = repositories.get_rdf_repository() else {
+        tracing::warn!("No RDF repository found for stele: {name}");
+        return Ok(());
+    };
+    let rdf_repo_path = archive_path.to_path_buf().join(&rdf_repo.name);
+    if !rdf_repo_path.exists() {
+        return Err(anyhow::anyhow!(
+            "RDF repository should exist on disk but not found: {}",
+            rdf_repo_path.display()
+        ));
     }
+    let (rdf_org, rdf_name) = get_name_parts(&rdf_repo.name)?;
+    let rdf = Repo::new(archive_path, &rdf_org, &rdf_name)?;
+    insert_changes_from_rdf_repository(conn, rdf, name).await?;
     Ok(())
 }
 
