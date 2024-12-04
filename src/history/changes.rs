@@ -87,9 +87,19 @@ async fn insert_changes_archive(
 
     let mut errors = Vec::new();
     for (name, mut stele) in archive.get_stelae() {
-        match process_stele(conn, &name, &mut stele, archive_path).await {
-            Ok(()) => (),
-            Err(err) => errors.push(format!("{name}: {err}")),
+        let mut tx = DatabaseTransaction {
+            tx: conn.pool.begin().await?,
+        };
+        match process_stele(&mut tx, &name, &mut stele, archive_path).await {
+            Ok(()) => {
+                tracing::debug!("Applying transaction for stele: {name}");
+                tx.commit().await?;
+            }
+            Err(err) => {
+                tracing::error!("Rolling back transaction for stele: {name} due to error: {err:?}");
+                tx.rollback().await?;
+                errors.push(format!("{name}: {err}"));
+            }
         }
     }
     if !errors.is_empty() {
@@ -103,7 +113,7 @@ async fn insert_changes_archive(
 
 /// Process the stele and insert changes into the database
 async fn process_stele(
-    conn: &DatabaseConnection,
+    tx: &mut DatabaseTransaction,
     name: &str,
     stele: &mut Stele,
     archive_path: &Path,
@@ -125,33 +135,21 @@ async fn process_stele(
     }
     let (rdf_org, rdf_name) = get_name_parts(&rdf_repo.name)?;
     let rdf = Repo::new(archive_path, &rdf_org, &rdf_name)?;
-    insert_changes_from_rdf_repository(conn, rdf, name).await?;
+    insert_changes_from_rdf_repository(tx, rdf, name).await?;
+    // insert_commit_hashes_from_auth_repository(tx, &stele.auth_repo).await?;
     Ok(())
 }
 
 /// Insert changes from the RDF repository into the database
 async fn insert_changes_from_rdf_repository(
-    conn: &DatabaseConnection,
+    tx: &mut DatabaseTransaction,
     rdf_repo: Repo,
     stele_id: &str,
 ) -> anyhow::Result<()> {
     tracing::info!("Inserting changes from RDF repository: {}", stele_id);
     tracing::info!("RDF repository path: {}", rdf_repo.path.display());
-    let mut tx = DatabaseTransaction {
-        tx: conn.pool.begin().await?,
-    };
-    match load_delta_for_stele(&mut tx, &rdf_repo, stele_id).await {
-        Ok(()) => {
-            tracing::debug!("Applying transaction for stele: {stele_id}");
-            tx.commit().await?;
-            Ok(())
-        }
-        Err(err) => {
-            tracing::error!("Rolling back transaction for stele: {stele_id} due to error: {err:?}");
-            tx.rollback().await?;
-            Err(err)
-        }
-    }
+    load_delta_for_stele(tx, &rdf_repo, stele_id).await?;
+    Ok(())
 }
 
 /// Load deltas from the publications
@@ -560,3 +558,11 @@ async fn revoke_same_date_publications(
     }
     Ok(())
 }
+
+// /// Walk the auth repository and insert commit hashes into the database
+// async fn insert_commit_hashes_from_auth_repository(
+//     tx: &mut DatabaseTransaction,
+//     auth_repo: &Repo,
+// ) -> anyhow::Result<()> {
+//     Ok(())
+// }
