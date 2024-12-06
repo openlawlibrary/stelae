@@ -2,7 +2,7 @@
 //! in the Stelae Archive.
 use crate::utils::paths::clean_path;
 use anyhow::Context;
-use git2::Repository;
+use git2::{Repository, Sort};
 use std::{
     fmt,
     path::{Path, PathBuf},
@@ -123,5 +123,20 @@ impl Repo {
         let obj = self.repo.revparse_single(query)?;
         let blob = obj.as_blob().context("Couldn't cast Git object to blob")?;
         Ok(blob.content().to_owned())
+    }
+
+    /// Instantiates a git revwalk from the beginning of the repository.
+    /// Return an iterator over the commits.
+    ///
+    /// # Errors
+    /// Will error if the revwalk could not be instantiated
+    pub fn iter_commits(&self) -> anyhow::Result<impl Iterator<Item = String>> {
+        let mut revwalk = self.repo.revwalk()?;
+        revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::REVERSE)?;
+        revwalk.push_head().unwrap();
+        Ok(revwalk
+            .map(|id| id.unwrap().to_string())
+            .collect::<Vec<String>>()
+            .into_iter())
     }
 }
