@@ -24,6 +24,7 @@ use crate::history::rdf::graph::StelaeGraph;
 use crate::history::rdf::namespaces::{dcterms, oll};
 use crate::server::errors::CliError;
 use crate::stelae::stele::Stele;
+use crate::stelae::types::repositories::Repository;
 use crate::utils::archive::get_name_parts;
 use crate::utils::git::Repo;
 use crate::utils::md5;
@@ -122,7 +123,7 @@ async fn process_stele(
         tracing::warn!("No repositories found for stele: {name}");
         return Ok(());
     };
-    let Some(rdf_repo) = repositories.get_rdf_repository() else {
+    let Some(rdf_repo) = repositories.get_one_by_custom_type("rdf") else {
         tracing::warn!("No RDF repository found for stele: {name}");
         return Ok(());
     };
@@ -136,7 +137,15 @@ async fn process_stele(
     let (rdf_org, rdf_name) = get_name_parts(&rdf_repo.name)?;
     let rdf = Repo::new(archive_path, &rdf_org, &rdf_name)?;
     insert_changes_from_rdf_repository(tx, rdf, name).await?;
-    // insert_commit_hashes_from_auth_repository(tx, &stele.auth_repo).await?;
+    // Insert commit hashes for data repositories with serve type 'historical'
+    let data_repos = repositories.get_all_by_serve_type("historical");
+    for data_repo in data_repos {
+        // For now insert commit hashes only for repositories with repository type 'html'
+        if data_repo.custom.repository_type.as_deref() != Some("html") {
+            continue;
+        }
+        insert_commit_hashes_from_auth_repository(tx, &stele, &data_repo).await?;
+    }
     Ok(())
 }
 
