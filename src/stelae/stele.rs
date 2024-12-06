@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use super::types::repositories::Repository;
+use super::types::{repositories::Repository, targets_metadata::TargetsMetadata};
 use crate::{
     stelae::types::{dependencies::Dependencies, repositories::Repositories},
     utils::git::Repo,
@@ -87,16 +87,39 @@ impl Stele {
     /// # Errors
     /// Will error if unable to find or parse repositories file at `targets/repositories.json`
     pub fn get_repositories(&mut self) -> anyhow::Result<Option<Repositories>> {
-        let blob = self
+        let Ok(blob) = self
             .auth_repo
-            .get_bytes_at_path("HEAD", "targets/repositories.json");
-        if let Ok(repositories_blob) = blob {
-            let repositories_str = String::from_utf8(repositories_blob)?;
-            let repositories: Repositories = serde_json::from_str(&repositories_str)?;
-            self.repositories = Some(repositories.clone());
-            return Ok(Some(repositories));
-        }
-        Ok(None)
+            .get_bytes_at_path("HEAD", "targets/repositories.json")
+        else {
+            return Ok(None);
+        };
+        let repositories_str = String::from_utf8(blob)?;
+        let repositories: Repositories = serde_json::from_str(&repositories_str)?;
+        self.repositories = Some(repositories.clone());
+        Ok(Some(repositories))
+    }
+
+    /// Get Stele's targets metadata file at a specific committish and filename.
+    ///
+    /// # Arguments
+    /// * `committish` - The committish to look for the targets metadata file.
+    /// * `path` - The path to the targets metadata file.
+    ///
+    /// # Returns
+    /// Returns the targets metadata file if found, or None if not found.
+    pub fn get_targets_metadata_at_commit_and_filename(
+        &self,
+        committish: &str,
+        filename: &str,
+    ) -> anyhow::Result<Option<TargetsMetadata>> {
+        let org = &self.auth_repo.org;
+        let file_path = format!("targets/{org}/{filename}");
+        let Ok(blob) = self.auth_repo.get_bytes_at_path(committish, &file_path) else {
+            return Ok(None);
+        };
+        let targets_metadata_str = String::from_utf8(blob)?;
+        let targets_metadata: TargetsMetadata = serde_json::from_str(&targets_metadata_str)?;
+        Ok(Some(targets_metadata))
     }
 
     /// Get Stele's qualified name.
