@@ -100,7 +100,7 @@ impl Repositories {
     /// This is needed for serving current documents because Actix routes are matched in the order they are added.
     #[must_use]
     #[allow(clippy::iter_over_hash_type)]
-    pub fn get_sorted_repositories(&self) -> Vec<&Repository> {
+    pub fn get_sorted(&self) -> Vec<&Repository> {
         let mut result = Vec::new();
         for repository in self.repositories.values() {
             result.push(repository);
