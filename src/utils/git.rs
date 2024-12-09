@@ -2,7 +2,7 @@
 //! in the Stelae Archive.
 use crate::utils::paths::clean_path;
 use anyhow::Context;
-use git2::{Repository, Sort};
+use git2::{Commit, Repository, Sort};
 use std::{
     fmt,
     path::{Path, PathBuf},
@@ -130,13 +130,17 @@ impl Repo {
     ///
     /// # Errors
     /// Will error if the revwalk could not be instantiated
-    pub fn iter_commits(&self) -> anyhow::Result<impl Iterator<Item = String>> {
+    pub fn iter_commits(&self) -> anyhow::Result<impl Iterator<Item = Commit>> {
         let mut revwalk = self.repo.revwalk()?;
         revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::REVERSE)?;
-        revwalk.push_head().unwrap();
+        revwalk.push_head()?;
         Ok(revwalk
-            .map(|id| id.unwrap().to_string())
-            .collect::<Vec<String>>()
+            .filter_map(|found_oid| {
+                found_oid
+                    .ok()
+                    .and_then(|oid| self.repo.find_commit(oid).ok())
+            })
+            .collect::<Vec<Commit>>()
             .into_iter())
     }
 }
