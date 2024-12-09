@@ -35,6 +35,7 @@ use crate::{
     stelae::archive::Archive,
 };
 use anyhow::Context;
+use chrono::DateTime;
 use git2::{TreeWalkMode, TreeWalkResult};
 use sophia::api::ns::rdfs;
 use sophia::api::{prelude::*, term::SimpleTerm};
@@ -570,10 +571,151 @@ async fn revoke_same_date_publications(
     Ok(())
 }
 
-// /// Walk the auth repository and insert commit hashes into the database
-// async fn insert_commit_hashes_from_auth_repository(
-//     tx: &mut DatabaseTransaction,
-//     auth_repo: &Repo,
-// ) -> anyhow::Result<()> {
-//     Ok(())
-// }
+/// Walks the authentication repository commits and processes commit hashes that are inserted into the database.
+///
+/// # Errors
+/// Errors if the commit cannot be processed or inserted into the database.
+async fn insert_commit_hashes_from_auth_repository(
+    tx: &mut DatabaseTransaction,
+    stele: &Stele,
+    data_repo: &Repository,
+) -> anyhow::Result<()> {
+    let auth_repo = &stele.auth_repo;
+    let stele_name = stele.get_qualified_name();
+
+    let mut auth_commits_bulk: Vec<AuthCommits> = vec![];
+    let mut data_commits_bulk: Vec<DataCommits> = vec![];
+
+    let loaded_auth_commits = auth_commits::TxManager::find_all(tx).await?;
+
+    if loaded_auth_commits.is_empty() {
+        tracing::info!("[{stele_name}] | Inserting commit hashes from the beginning...");
+    } else {
+        tracing::info!("[{stele_name}] | Inserting commit hashes...");
+    }
+
+    for commit in auth_repo.iter_commits()? {
+        // Skip commits that are already in the database
+        if is_commit_in_loaded_commits(&commit, &loaded_auth_commits) {
+            continue;
+        }
+        match process_commit(
+            &commit,
+            stele,
+            data_repo,
+            &stele_name,
+            tx,
+            &mut auth_commits_bulk,
+            &mut data_commits_bulk,
+        )
+        .await
+        {
+            Ok(()) => {}
+            Err(err) => {
+                tracing::error!(
+                    "[{stele_name}] | Error processing commit {}: {err:?}",
+                    commit.id().to_string()
+                );
+            }
+        }
+    }
+    let inserted_len = auth_commits_bulk.len();
+    auth_commits::TxManager::insert_bulk(tx, auth_commits_bulk).await?;
+    data_commits::TxManager::insert_bulk(tx, data_commits_bulk).await?;
+    if inserted_len == 0 {
+        tracing::info!("[{stele_name}] | All hashes up to date");
+        return Ok(());
+    }
+    tracing::info!(
+        "[{stele_name}] | Inserted {} commit hashes for: {}",
+        inserted_len,
+        &data_repo.name
+    );
+    Ok(())
+}
+
+/// Process the auth commit.
+///
+/// The commit is used to get the metadata target file for the data repository.
+/// If the metadata target file is found, the commit is checked for a publication name
+/// and a codified date. If both are found, the publication is looked up in the database
+/// and the publication version is looked up by the codified date. If the publication version
+/// is found, the auth commit hash is inserted into the database.
+///
+/// # Errors
+/// Errors if the metadata target file cannot be found, the publication cannot be found,
+/// or the commit cannot be inserted into the database.
+async fn process_commit<'commit>(
+    commit: &git2::Commit<'commit>,
+    stele: &Stele,
+    data_repo: &Repository,
+    stele_name: &str,
+    tx: &mut DatabaseTransaction,
+    auth_commits_bulk: &mut Vec<AuthCommits>,
+    data_commits_bulk: &mut Vec<DataCommits>,
+) -> anyhow::Result<()> {
+    let auth_commit_hash = commit.id().to_string();
+    let Some(targets_metadata) = stele
+        .get_targets_metadata_at_commit_and_filename(&auth_commit_hash, &data_repo.get_name())?
+    else {
+        //Skip commits without metadata target file
+        return Ok(());
+    };
+    let Some(publication_name) = targets_metadata.build_date.as_ref() else {
+        // Skip commits that aren't on a publication
+        return Ok(());
+    };
+    let Ok(publication) =
+        publication::TxManager::find_by_name_and_stele(tx, publication_name, stele_name).await
+    else {
+        tracing::debug!(
+            "[{stele_name}] | Skipping commit {} without publication {}",
+            &auth_commit_hash,
+            publication_name
+        );
+        return Ok(());
+    };
+    let Some(data_repo_commit_date) = targets_metadata
+        .codified_date
+        .or(targets_metadata.build_date)
+    else {
+        tracing::debug!(
+            "[{stele_name}] | Skipping commit {} without codified date or build date",
+            &auth_commit_hash
+        );
+        return Ok(());
+    };
+    let pub_version_id: Option<String> =
+        publication_version::TxManager::find_by_publication_id_and_version(
+            tx,
+            &publication.id,
+            &data_repo_commit_date,
+        )
+        .await?
+        .map(|pv| pv.id);
+    let auth_commit_timestamp = DateTime::from_timestamp(commit.time().seconds(), 0)
+        .unwrap_or_default()
+        .to_string();
+
+    auth_commits_bulk.push(AuthCommits::new(
+        auth_commit_hash.clone(),
+        auth_commit_timestamp,
+        pub_version_id,
+    ));
+    data_commits_bulk.push(DataCommits::new(
+        targets_metadata.commit,
+        data_repo_commit_date,
+        data_repo.get_type().unwrap_or_default(),
+        auth_commit_hash,
+        publication.id,
+    ));
+    Ok(())
+}
+
+/// Checks whether the passed in commit if it is already in the database
+fn is_commit_in_loaded_commits(commit: &git2::Commit, loaded_auth_commits: &[AuthCommits]) -> bool {
+    let commit_hash = commit.id().to_string();
+    loaded_auth_commits
+        .iter()
+        .any(|ac| ac.commit_hash == commit_hash)
+}
