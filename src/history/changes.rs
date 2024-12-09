@@ -157,8 +157,8 @@ async fn insert_changes_from_rdf_repository(
     rdf_repo: Repo,
     stele_id: &str,
 ) -> anyhow::Result<()> {
-    tracing::info!("Inserting changes from RDF repository: {}", stele_id);
-    tracing::info!("RDF repository path: {}", rdf_repo.path.display());
+    tracing::debug!("Inserting changes from RDF repository: {}", stele_id);
+    tracing::debug!("RDF repository path: {}", rdf_repo.path.display());
     load_delta_for_stele(tx, &rdf_repo, stele_id).await?;
     Ok(())
 }
@@ -171,10 +171,10 @@ async fn load_delta_for_stele(
 ) -> anyhow::Result<()> {
     stele::TxManager::create(tx, stele).await?;
     if let Some(publication) = publication::TxManager::find_last_inserted(tx, stele).await? {
-        tracing::info!("Inserting changes from last inserted publication");
+        tracing::info!("[{stele}] | Inserting RDF changes from last inserted publication");
         load_delta_from_publications(tx, rdf_repo, stele, Some(publication)).await?;
     } else {
-        tracing::info!("Inserting changes from beginning for stele: {}", stele);
+        tracing::info!("[{stele}] | Inserting RDF changes from beginning...");
         load_delta_from_publications(tx, rdf_repo, stele, None).await?;
     }
     Ok(())

@@ -70,14 +70,20 @@ impl Repository {
     /// The org is the first part of the name, before the `/`.
     #[must_use]
     pub fn get_org(&self) -> String {
-        self.name.split('/').next().unwrap_or_default().to_string()
+        self.name.split('/').next().unwrap_or_default().to_owned()
     }
 
     /// Get the name of the repository.
     /// The name is the second part of the name, after the `/`.
     #[must_use]
     pub fn get_name(&self) -> String {
-        self.name.split('/').nth(1).unwrap_or_default().to_string()
+        self.name.split('/').nth(1).unwrap_or_default().to_owned()
+    }
+
+    /// Get the type of the repository.
+    #[must_use]
+    pub fn get_type(&self) -> Option<String> {
+        self.custom.repository_type.clone()
     }
 }
 
@@ -134,6 +140,7 @@ impl Repositories {
     }
 
     /// Filter and return a `Repository` by it's custom type.
+    #[must_use]
     pub fn get_one_by_custom_type(&self, repository_type: &str) -> Option<&Repository> {
         self.repositories.values().find(|repository| {
             repository.custom.repository_type.as_deref() == Some(repository_type)
@@ -141,6 +148,7 @@ impl Repositories {
     }
 
     /// Filter and return a `Repository` by it's serve type.
+    #[must_use]
     pub fn get_all_by_custom_type(&self, repository_type: &str) -> Vec<&Repository> {
         self.repositories
             .values()
@@ -182,6 +190,7 @@ impl Repositories {
     /// let repos = repositories.get_all_by_serve_type(serve_type);
     /// assert_eq!(repos.len(), 2);
     /// ```
+    #[must_use]
     pub fn get_all_by_serve_type(&self, serve_type: &str) -> Vec<&Repository> {
         self.repositories
             .values()
