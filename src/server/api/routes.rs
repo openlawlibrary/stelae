@@ -11,8 +11,13 @@ use actix_service::ServiceFactory;
 use actix_web::{
     body::MessageBody,
     dev::{ServiceRequest, ServiceResponse},
+<<<<<<< HEAD
     guard, web, App, Error, Scope, Responder, route,
     HttpResponse
+=======
+    guard, web, App, Error, Scope, get, Responder,
+    HttpResponse, HttpRequest
+>>>>>>> ac49acd (Merging git and serve)
 };
 
 use crate::utils::http::get_contenttype;
@@ -77,6 +82,13 @@ pub fn register_app<
                     .service(web::resource("/{path:.*}").to(versions))
                     .service(web::resource("").to(versions)),
             ),
+
+        )
+        .app_data(web::Data::new(state.clone()));
+
+        app = app
+        .service(
+            get_blob
         )
         .app_data(web::Data::new(state.clone()));
 
@@ -328,17 +340,23 @@ fn register_dependent_routes(
 /// Return the content in the stelae archive in the `{namespace}/{name}`
 /// repo at the `commitish` commit at the `remainder` path.
 /// Return 404 if any are not found or there are any errors.
+<<<<<<< HEAD
 #[route(
     "/{namespace}/{name}/{commitish}{remainder:/+([^{}]*?)?/*}",
     method = "GET",
     method = "HEAD"
 )]
+=======
+#[get("/{namespace}/{name}/ref_{commitish:.*}_/{remainder}")]//:/+([^{}]*?)?/*}")]
+>>>>>>> ac49acd (Merging git and serve)
 #[tracing::instrument(name = "Retrieving a Git blob", skip(path, data))]
 async fn get_blob(
     path: web::Path<(String, String, String, String)>,
     data: web::Data<AppState>,
 ) -> impl Responder {
+    println!("TEST");
     let (namespace, name, commitish, remainder) = path.into_inner();
+    println!("{commitish}");
     let archive_path = &data.archive_path;
     let blob = Repo::find_blob(archive_path, &namespace, &name, &remainder, &commitish);
     let blob_path = clean_path(&remainder);
