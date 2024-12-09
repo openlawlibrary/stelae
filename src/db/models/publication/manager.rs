@@ -106,7 +106,7 @@ impl super::TxManager for DatabaseTransaction {
         Ok(row)
     }
 
-    /// Find a publication by `name` and `date` and `stele_id`.
+    /// Find a publication by `name` and `stele_id`.
     ///
     /// # Errors
     /// Errors if can't establish a connection to the database.
@@ -118,7 +118,7 @@ impl super::TxManager for DatabaseTransaction {
         let statement = "
             SELECT *
             FROM publication
-            WHERE name = $1 AND stele = $2
+            WHERE name = $1 AND stele = $2 AND revoked = 0
         ";
         let row = sqlx::query_as::<_, Publication>(statement)
             .bind(name)

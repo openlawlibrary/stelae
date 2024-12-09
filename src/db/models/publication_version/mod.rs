@@ -34,9 +34,15 @@ pub trait TxManager {
         &mut self,
         publication_id: String,
     ) -> anyhow::Result<Vec<PublicationVersion>>;
+    /// Find a publication version by a `publication_id` and `version`.
+    async fn find_by_publication_id_and_version(
+        &mut self,
+        publication_id: &str,
+        version: &str,
+    ) -> anyhow::Result<Option<PublicationVersion>>;
 }
 
-#[derive(Deserialize, Serialize, Hash, Eq, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, Hash, Eq, PartialEq, Clone)]
 /// Model for a Stele.
 pub struct PublicationVersion {
     /// A hashed identifier for the publication version.

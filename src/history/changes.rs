@@ -146,7 +146,7 @@ async fn process_stele(
         if data_repo.custom.repository_type.as_deref() != Some("html") {
             continue;
         }
-        insert_commit_hashes_from_auth_repository(tx, &stele, &data_repo).await?;
+        insert_commit_hashes_from_auth_repository(tx, stele, data_repo).await?;
     }
     Ok(())
 }

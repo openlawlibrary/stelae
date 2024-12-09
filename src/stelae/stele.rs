@@ -107,6 +107,8 @@ impl Stele {
     ///
     /// # Returns
     /// Returns the targets metadata file if found, or None if not found.
+    /// # Errors
+    /// Will error if unable to find or parse targets metadata file at `targets/{org}/{filename}`
     pub fn get_targets_metadata_at_commit_and_filename(
         &self,
         committish: &str,
