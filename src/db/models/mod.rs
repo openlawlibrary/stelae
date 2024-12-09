@@ -3,8 +3,12 @@
 /// Size of the batch for bulk inserts.
 const BATCH_SIZE: usize = 1000;
 
+/// module for interacting with `auth_commits` table.
+pub mod auth_commits;
 /// module for interacting with the `changed_library_document` table.
 pub mod changed_library_document;
+/// module for interacting with the `data_repos` table.
+pub mod data_commits;
 /// module for interacting with the `document` table.
 pub mod document;
 /// module for interacting with the `document_change` table.

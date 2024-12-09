@@ -6,7 +6,9 @@
     clippy::string_add
 )]
 use super::rdf::graph::Bag;
+use crate::db::models::auth_commits::{self, AuthCommits};
 use crate::db::models::changed_library_document::{self, ChangedLibraryDocument};
+use crate::db::models::data_commits::{self, DataCommits};
 use crate::db::models::document_change::{self, DocumentChange};
 use crate::db::models::document_element::DocumentElement;
 use crate::db::models::library::{self, Library};
