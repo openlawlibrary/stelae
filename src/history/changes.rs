@@ -6,9 +6,8 @@
     clippy::string_add
 )]
 use super::rdf::graph::Bag;
-use crate::db::models::auth_commits::{self, AuthCommits};
 use crate::db::models::changed_library_document::{self, ChangedLibraryDocument};
-use crate::db::models::data_commits::{self, DataCommits};
+use crate::db::models::data_repo_commits::{self, DataRepoCommits};
 use crate::db::models::document_change::{self, DocumentChange};
 use crate::db::models::document_element::DocumentElement;
 use crate::db::models::library::{self, Library};
@@ -69,7 +68,7 @@ pub async fn insert(raw_archive_path: &str, archive_path: PathBuf) -> Result<(),
     insert_changes_archive(&conn, raw_archive_path, &archive_path)
         .await
         .map_err(|err| {
-            tracing::error!("Failed to insert changes into archive");
+            tracing::error!("Failed to update stele in the archive");
             tracing::error!("{err:?}");
             CliError::GenericError
         })
@@ -583,10 +582,10 @@ async fn insert_commit_hashes_from_auth_repository(
     let auth_repo = &stele.auth_repo;
     let stele_name = stele.get_qualified_name();
 
-    let mut auth_commits_bulk: Vec<AuthCommits> = vec![];
-    let mut data_commits_bulk: Vec<DataCommits> = vec![];
+    let mut data_repo_commits_bulk: Vec<DataRepoCommits> = vec![];
 
-    let loaded_auth_commits = auth_commits::TxManager::find_all(tx).await?;
+    let loaded_auth_commits =
+        data_repo_commits::TxManager::find_all_auth_commits_for_stele(tx, &stele_name).await?;
 
     if loaded_auth_commits.is_empty() {
         tracing::info!("[{stele_name}] | Inserting commit hashes from the beginning...");
@@ -596,7 +595,7 @@ async fn insert_commit_hashes_from_auth_repository(
 
     for commit in auth_repo.iter_commits()? {
         // Skip commits that are already in the database
-        if is_commit_in_loaded_commits(&commit, &loaded_auth_commits) {
+        if is_commit_in_loaded_auth_commits(&commit, &loaded_auth_commits) {
             continue;
         }
         match process_commit(
@@ -605,8 +604,7 @@ async fn insert_commit_hashes_from_auth_repository(
             data_repo,
             &stele_name,
             tx,
-            &mut auth_commits_bulk,
-            &mut data_commits_bulk,
+            &mut data_repo_commits_bulk,
         )
         .await
         {
@@ -619,9 +617,8 @@ async fn insert_commit_hashes_from_auth_repository(
             }
         }
     }
-    let inserted_len = auth_commits_bulk.len();
-    auth_commits::TxManager::insert_bulk(tx, auth_commits_bulk).await?;
-    data_commits::TxManager::insert_bulk(tx, data_commits_bulk).await?;
+    let inserted_len = data_repo_commits_bulk.len();
+    data_repo_commits::TxManager::insert_bulk(tx, data_repo_commits_bulk).await?;
     if inserted_len == 0 {
         tracing::info!("[{stele_name}] | All hashes up to date");
         return Ok(());
@@ -638,9 +635,8 @@ async fn insert_commit_hashes_from_auth_repository(
 ///
 /// The commit is used to get the metadata target file for the data repository.
 /// If the metadata target file is found, the commit is checked for a publication name
-/// and a codified date. If both are found, the publication is looked up in the database
-/// and the publication version is looked up by the codified date. If the publication version
-/// is found, the auth commit hash is inserted into the database.
+/// and a codified date. If both are found, the publication is looked up and the commit
+/// hashes are inserted into the database.
 ///
 /// # Errors
 /// Errors if the metadata target file cannot be found, the publication cannot be found,
@@ -651,8 +647,7 @@ async fn process_commit<'commit>(
     data_repo: &Repository,
     stele_name: &str,
     tx: &mut DatabaseTransaction,
-    auth_commits_bulk: &mut Vec<AuthCommits>,
-    data_commits_bulk: &mut Vec<DataCommits>,
+    data_repo_commits_bulk: &mut Vec<DataRepoCommits>,
 ) -> anyhow::Result<()> {
     let auth_commit_hash = commit.id().to_string();
     let Some(targets_metadata) = stele
@@ -685,37 +680,28 @@ async fn process_commit<'commit>(
         );
         return Ok(());
     };
-    let pub_version_id: Option<String> =
-        publication_version::TxManager::find_by_publication_id_and_version(
-            tx,
-            &publication.id,
-            &data_repo_commit_date,
-        )
-        .await?
-        .map(|pv| pv.id);
     let auth_commit_timestamp = DateTime::from_timestamp(commit.time().seconds(), 0)
         .unwrap_or_default()
         .to_string();
 
-    auth_commits_bulk.push(AuthCommits::new(
-        auth_commit_hash.clone(),
-        auth_commit_timestamp,
-        pub_version_id,
-    ));
-    data_commits_bulk.push(DataCommits::new(
+    data_repo_commits_bulk.push(DataRepoCommits::new(
         targets_metadata.commit,
         data_repo_commit_date,
         data_repo.get_type().unwrap_or_default(),
         auth_commit_hash,
+        auth_commit_timestamp,
         publication.id,
     ));
     Ok(())
 }
 
 /// Checks whether the passed in commit if it is already in the database
-fn is_commit_in_loaded_commits(commit: &git2::Commit, loaded_auth_commits: &[AuthCommits]) -> bool {
+fn is_commit_in_loaded_auth_commits(
+    commit: &git2::Commit,
+    loaded_auth_commits: &[DataRepoCommits],
+) -> bool {
     let commit_hash = commit.id().to_string();
     loaded_auth_commits
         .iter()
-        .any(|ac| ac.commit_hash == commit_hash)
+        .any(|ac| ac.auth_commit_hash == commit_hash)
 }
