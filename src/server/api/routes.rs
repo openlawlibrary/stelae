@@ -16,9 +16,14 @@ use actix_web::{
     HttpResponse
 =======
     guard, web, App, Error, Scope, get, Responder,
+<<<<<<< HEAD
     HttpResponse, HttpRequest
 >>>>>>> ac49acd (Merging git and serve)
+=======
+    HttpResponse
+>>>>>>> 6268aa5 (Updated path for stelae git and removed redundant code)
 };
+use serde::Deserialize;
 
 use crate::utils::http::get_contenttype;
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
@@ -88,7 +93,9 @@ pub fn register_app<
 
         app = app
         .service(
-            get_blob
+            web::scope("/_git").service(
+                get_blob
+            )
         )
         .app_data(web::Data::new(state.clone()));
 
@@ -336,10 +343,19 @@ fn register_dependent_routes(
     Ok(())
 }
 
+/// Structure for 
+#[derive(Debug, Deserialize)]
+struct Info {
+    /// commit of the repo
+    commitish: String,
+    /// path of the file
+    remainder: Option<String>,
+}
 
 /// Return the content in the stelae archive in the `{namespace}/{name}`
 /// repo at the `commitish` commit at the `remainder` path.
 /// Return 404 if any are not found or there are any errors.
+<<<<<<< HEAD
 <<<<<<< HEAD
 #[route(
     "/{namespace}/{name}/{commitish}{remainder:/+([^{}]*?)?/*}",
@@ -350,13 +366,19 @@ fn register_dependent_routes(
 #[get("/{namespace}/{name}/ref_{commitish:.*}_/{remainder}")]//:/+([^{}]*?)?/*}")]
 >>>>>>> ac49acd (Merging git and serve)
 #[tracing::instrument(name = "Retrieving a Git blob", skip(path, data))]
+=======
+#[get("/{namespace}/{name}")]//:/+([^{}]*?)?/*}")]
+#[tracing::instrument(name = "Retrieving a Git blob", skip(path, data, info))]
+>>>>>>> 6268aa5 (Updated path for stelae git and removed redundant code)
 async fn get_blob(
-    path: web::Path<(String, String, String, String)>,
-    data: web::Data<AppState>,
+    path: web::Path<(String, String)>,
+    info: web::Query<Info>,
+    data: web::Data<AppState>
 ) -> impl Responder {
-    println!("TEST");
-    let (namespace, name, commitish, remainder) = path.into_inner();
-    println!("{commitish}");
+    let (namespace, name/* , commitish, remainder*/) = path.into_inner();
+    let info_struct: Info = info.into_inner();
+    let commitish = info_struct.commitish;
+    let remainder = info_struct.remainder.unwrap_or_else(|| "".to_string());
     let archive_path = &data.archive_path;
     let blob = Repo::find_blob(archive_path, &namespace, &name, &remainder, &commitish);
     let blob_path = clean_path(&remainder);
