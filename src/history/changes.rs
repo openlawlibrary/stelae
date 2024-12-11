@@ -59,7 +59,7 @@ pub async fn insert(raw_archive_path: &str, archive_path: PathBuf) -> Result<(),
         Err(err) => {
             tracing::error!(
                 "error: could not connect to database.
-                Confirm that `db.sqlite3` exists in `.stelae` dir or that DATABASE_URL env var is set correctly."
+                Confirm that `db.sqlite3` exists in `.taf` dir or that DATABASE_URL env var is set correctly."
             );
             tracing::error!("Error: {err:?}");
             return Err(CliError::DatabaseConnectionError);
