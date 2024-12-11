@@ -249,6 +249,7 @@ fn register_root_routes(cfg: &mut web::ServiceConfig, stele: &Stele) -> anyhow::
                 root_scope = root_scope.service(
                     web::resource(actix_route.as_str())
                         .route(web::get().to(serve))
+                        .route(web::head().to(serve))
                         .app_data(web::Data::new(repo_state.clone())),
                 );
             }
@@ -257,6 +258,7 @@ fn register_root_routes(cfg: &mut web::ServiceConfig, stele: &Stele) -> anyhow::
                     web::scope("").service(
                         web::resource("/{tail:.*}")
                             .route(web::get().to(serve))
+                            .route(web::head().to(serve))
                             .app_data(web::Data::new(repo_state.clone())),
                     ),
                 );
@@ -298,6 +300,7 @@ fn register_dependent_routes(
                 actix_scope = actix_scope.service(
                     web::resource(actix_route.as_str())
                         .route(web::get().to(serve))
+                        .route(web::head().to(serve))
                         .app_data(web::Data::new(repo_state.clone())),
                 );
             }

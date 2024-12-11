@@ -9,7 +9,7 @@
     clippy::infinite_loop
 )]
 
-use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{get, route, web, App, HttpResponse, HttpServer, Responder};
 use git2::{self, ErrorCode};
 use std::path::PathBuf;
 use tracing_actix_web::TracingLogger;
@@ -43,7 +43,11 @@ async fn misc(path: web::Path<String>) -> actix_web::Result<&'static str, Stelae
 /// Return the content in the stelae archive in the `{namespace}/{name}`
 /// repo at the `commitish` commit at the `remainder` path.
 /// Return 404 if any are not found or there are any errors.
-#[get("/{namespace}/{name}/{commitish}{remainder:/+([^{}]*?)?/*}")]
+#[route(
+    "/{namespace}/{name}/{commitish}{remainder:/+([^{}]*?)?/*}",
+    method = "GET",
+    method = "HEAD"
+)]
 #[tracing::instrument(name = "Retrieving a Git blob", skip(path, data))]
 async fn get_blob(
     path: web::Path<(String, String, String, String)>,
