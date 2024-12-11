@@ -99,6 +99,26 @@ impl super::TxManager for DatabaseTransaction {
         Ok(rows)
     }
 
+    /// Find a publication version by a `publication_id` and `version`.
+    async fn find_by_publication_id_and_version(
+        &mut self,
+        publication_id: &str,
+        version: &str,
+    ) -> anyhow::Result<Option<PublicationVersion>> {
+        let statement = "
+            SELECT *
+            FROM publication_version
+            WHERE publication_id = $1 AND version = $2
+        ";
+        let row = sqlx::query_as::<_, PublicationVersion>(statement)
+            .bind(publication_id)
+            .bind(version)
+            .fetch_one(&mut *self.tx)
+            .await
+            .ok();
+        Ok(row)
+    }
+
     /// Recursively find all publication versions starting from a given publication ID.
 
     /// This is necessary because publication versions can be the same across publications.

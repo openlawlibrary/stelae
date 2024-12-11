@@ -7,6 +7,7 @@
 )]
 use super::rdf::graph::Bag;
 use crate::db::models::changed_library_document::{self, ChangedLibraryDocument};
+use crate::db::models::data_repo_commits::{self, DataRepoCommits};
 use crate::db::models::document_change::{self, DocumentChange};
 use crate::db::models::document_element::DocumentElement;
 use crate::db::models::library::{self, Library};
@@ -24,6 +25,7 @@ use crate::history::rdf::graph::StelaeGraph;
 use crate::history::rdf::namespaces::{dcterms, oll};
 use crate::server::errors::CliError;
 use crate::stelae::stele::Stele;
+use crate::stelae::types::repositories::Repository;
 use crate::utils::archive::get_name_parts;
 use crate::utils::git::Repo;
 use crate::utils::md5;
@@ -32,6 +34,7 @@ use crate::{
     stelae::archive::Archive,
 };
 use anyhow::Context;
+use chrono::DateTime;
 use git2::{TreeWalkMode, TreeWalkResult};
 use sophia::api::ns::rdfs;
 use sophia::api::{prelude::*, term::SimpleTerm};
@@ -65,7 +68,7 @@ pub async fn insert(raw_archive_path: &str, archive_path: PathBuf) -> Result<(),
     insert_changes_archive(&conn, raw_archive_path, &archive_path)
         .await
         .map_err(|err| {
-            tracing::error!("Failed to insert changes into archive");
+            tracing::error!("Failed to update stele in the archive");
             tracing::error!("{err:?}");
             CliError::GenericError
         })
@@ -87,9 +90,19 @@ async fn insert_changes_archive(
 
     let mut errors = Vec::new();
     for (name, mut stele) in archive.get_stelae() {
-        match process_stele(conn, &name, &mut stele, archive_path).await {
-            Ok(()) => (),
-            Err(err) => errors.push(format!("{name}: {err}")),
+        let mut tx = DatabaseTransaction {
+            tx: conn.pool.begin().await?,
+        };
+        match process_stele(&mut tx, &name, &mut stele, archive_path).await {
+            Ok(()) => {
+                tracing::debug!("Applying transaction for stele: {name}");
+                tx.commit().await?;
+            }
+            Err(err) => {
+                tracing::error!("Rolling back transaction for stele: {name} due to error: {err:?}");
+                tx.rollback().await?;
+                errors.push(format!("{name}: {err}"));
+            }
         }
     }
     if !errors.is_empty() {
@@ -103,57 +116,51 @@ async fn insert_changes_archive(
 
 /// Process the stele and insert changes into the database
 async fn process_stele(
-    conn: &DatabaseConnection,
+    tx: &mut DatabaseTransaction,
     name: &str,
     stele: &mut Stele,
     archive_path: &Path,
 ) -> anyhow::Result<()> {
-    let Ok(found_repositories) = stele.get_repositories() else {
+    let Some(repositories) = stele.get_repositories()? else {
         tracing::warn!("No repositories found for stele: {name}");
         return Ok(());
     };
-    if let Some(repositories) = found_repositories {
-        let Some(rdf_repo) = repositories.get_rdf_repository() else {
-            tracing::warn!("No RDF repository found for stele: {name}");
-            return Ok(());
-        };
-        let rdf_repo_path = archive_path.to_path_buf().join(&rdf_repo.name);
-        if !rdf_repo_path.exists() {
-            return Err(anyhow::anyhow!(
-                "RDF repository should exist on disk but not found: {}",
-                rdf_repo_path.display()
-            ));
+    let Some(rdf_repo) = repositories.get_one_by_custom_type("rdf") else {
+        tracing::warn!("No RDF repository found for stele: {name}");
+        return Ok(());
+    };
+    let rdf_repo_path = archive_path.to_path_buf().join(&rdf_repo.name);
+    if !rdf_repo_path.exists() {
+        return Err(anyhow::anyhow!(
+            "RDF repository should exist on disk but not found: {}",
+            rdf_repo_path.display()
+        ));
+    }
+    let (rdf_org, rdf_name) = get_name_parts(&rdf_repo.name)?;
+    let rdf = Repo::new(archive_path, &rdf_org, &rdf_name)?;
+    insert_changes_from_rdf_repository(tx, rdf, name).await?;
+    // Insert commit hashes for data repositories with serve type 'historical'
+    let data_repos = repositories.get_all_by_serve_type("historical");
+    for data_repo in data_repos {
+        // For now insert commit hashes only for repositories with repository type 'html'
+        if data_repo.custom.repository_type.as_deref() != Some("html") {
+            continue;
         }
-        let (rdf_org, rdf_name) = get_name_parts(&rdf_repo.name)?;
-        let rdf = Repo::new(archive_path, &rdf_org, &rdf_name)?;
-        insert_changes_from_rdf_repository(conn, rdf, name).await?;
+        insert_commit_hashes_from_auth_repository(tx, stele, data_repo).await?;
     }
     Ok(())
 }
 
 /// Insert changes from the RDF repository into the database
 async fn insert_changes_from_rdf_repository(
-    conn: &DatabaseConnection,
+    tx: &mut DatabaseTransaction,
     rdf_repo: Repo,
     stele_id: &str,
 ) -> anyhow::Result<()> {
-    tracing::info!("Inserting changes from RDF repository: {}", stele_id);
-    tracing::info!("RDF repository path: {}", rdf_repo.path.display());
-    let mut tx = DatabaseTransaction {
-        tx: conn.pool.begin().await?,
-    };
-    match load_delta_for_stele(&mut tx, &rdf_repo, stele_id).await {
-        Ok(()) => {
-            tracing::debug!("Applying transaction for stele: {stele_id}");
-            tx.commit().await?;
-            Ok(())
-        }
-        Err(err) => {
-            tracing::error!("Rolling back transaction for stele: {stele_id} due to error: {err:?}");
-            tx.rollback().await?;
-            Err(err)
-        }
-    }
+    tracing::debug!("Inserting changes from RDF repository: {}", stele_id);
+    tracing::debug!("RDF repository path: {}", rdf_repo.path.display());
+    load_delta_for_stele(tx, &rdf_repo, stele_id).await?;
+    Ok(())
 }
 
 /// Load deltas from the publications
@@ -164,10 +171,10 @@ async fn load_delta_for_stele(
 ) -> anyhow::Result<()> {
     stele::TxManager::create(tx, stele).await?;
     if let Some(publication) = publication::TxManager::find_last_inserted(tx, stele).await? {
-        tracing::info!("Inserting changes from last inserted publication");
+        tracing::info!("[{stele}] | Inserting RDF changes from last inserted publication");
         load_delta_from_publications(tx, rdf_repo, stele, Some(publication)).await?;
     } else {
-        tracing::info!("Inserting changes from beginning for stele: {}", stele);
+        tracing::info!("[{stele}] | Inserting RDF changes from beginning...");
         load_delta_from_publications(tx, rdf_repo, stele, None).await?;
     }
     Ok(())
@@ -561,4 +568,140 @@ async fn revoke_same_date_publications(
         }
     }
     Ok(())
+}
+
+/// Walks the authentication repository commits and processes commit hashes that are inserted into the database.
+///
+/// # Errors
+/// Errors if the commit cannot be processed or inserted into the database.
+async fn insert_commit_hashes_from_auth_repository(
+    tx: &mut DatabaseTransaction,
+    stele: &Stele,
+    data_repo: &Repository,
+) -> anyhow::Result<()> {
+    let auth_repo = &stele.auth_repo;
+    let stele_name = stele.get_qualified_name();
+
+    let mut data_repo_commits_bulk: Vec<DataRepoCommits> = vec![];
+
+    let loaded_auth_commits =
+        data_repo_commits::TxManager::find_all_auth_commits_for_stele(tx, &stele_name).await?;
+
+    if loaded_auth_commits.is_empty() {
+        tracing::info!("[{stele_name}] | Inserting commit hashes from the beginning...");
+    } else {
+        tracing::info!("[{stele_name}] | Inserting commit hashes...");
+    }
+
+    for commit in auth_repo.iter_commits()? {
+        // Skip commits that are already in the database
+        if is_commit_in_loaded_auth_commits(&commit, &loaded_auth_commits) {
+            continue;
+        }
+        match process_commit(
+            &commit,
+            stele,
+            data_repo,
+            &stele_name,
+            tx,
+            &mut data_repo_commits_bulk,
+        )
+        .await
+        {
+            Ok(()) => {}
+            Err(err) => {
+                tracing::error!(
+                    "[{stele_name}] | Error processing commit {}: {err:?}",
+                    commit.id().to_string()
+                );
+            }
+        }
+    }
+    let inserted_len = data_repo_commits_bulk.len();
+    data_repo_commits::TxManager::insert_bulk(tx, data_repo_commits_bulk).await?;
+    if inserted_len == 0 {
+        tracing::info!("[{stele_name}] | All hashes up to date");
+        return Ok(());
+    }
+    tracing::info!(
+        "[{stele_name}] | Inserted {} commit hashes for: {}",
+        inserted_len,
+        &data_repo.name
+    );
+    Ok(())
+}
+
+/// Process the auth commit.
+///
+/// The commit is used to get the metadata target file for the data repository.
+/// If the metadata target file is found, the commit is checked for a publication name
+/// and a codified date. If both are found, the publication is looked up and the commit
+/// hashes are inserted into the database.
+///
+/// # Errors
+/// Errors if the metadata target file cannot be found, the publication cannot be found,
+/// or the commit cannot be inserted into the database.
+async fn process_commit<'commit>(
+    commit: &git2::Commit<'commit>,
+    stele: &Stele,
+    data_repo: &Repository,
+    stele_name: &str,
+    tx: &mut DatabaseTransaction,
+    data_repo_commits_bulk: &mut Vec<DataRepoCommits>,
+) -> anyhow::Result<()> {
+    let auth_commit_hash = commit.id().to_string();
+    let Some(targets_metadata) = stele
+        .get_targets_metadata_at_commit_and_filename(&auth_commit_hash, &data_repo.get_name())?
+    else {
+        //Skip commits without metadata target file
+        return Ok(());
+    };
+    let Some(publication_name) = targets_metadata.build_date.as_ref() else {
+        // Skip commits that aren't on a publication
+        return Ok(());
+    };
+    let Ok(publication) =
+        publication::TxManager::find_by_name_and_stele(tx, publication_name, stele_name).await
+    else {
+        tracing::debug!(
+            "[{stele_name}] | Skipping commit {} without publication {}",
+            &auth_commit_hash,
+            publication_name
+        );
+        return Ok(());
+    };
+    let Some(data_repo_commit_date) = targets_metadata
+        .codified_date
+        .or(targets_metadata.build_date)
+    else {
+        tracing::debug!(
+            "[{stele_name}] | Skipping commit {} without codified date or build date",
+            &auth_commit_hash
+        );
+        return Ok(());
+    };
+    let auth_commit_timestamp = DateTime::from_timestamp(commit.time().seconds(), 0)
+        .unwrap_or_default()
+        .to_string();
+
+    data_repo_commits_bulk.push(DataRepoCommits::new(
+        targets_metadata.commit,
+        data_repo_commit_date,
+        data_repo.get_type().unwrap_or_default(),
+        auth_commit_hash,
+        auth_commit_timestamp,
+        publication.id,
+    ));
+    Ok(())
+}
+
+/// Checks whether the passed in commit if it is already in the database
+fn is_commit_in_loaded_auth_commits(
+    commit: &git2::Commit,
+    loaded_auth_commits: &[DataRepoCommits],
+) -> bool {
+    let commit_hash = commit.id().to_string();
+    loaded_auth_commits
+        .iter()
+        .any(|ac| ac.auth_commit_hash == commit_hash)
 }
