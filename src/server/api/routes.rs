@@ -240,7 +240,7 @@ fn register_routes<T: Global>(cfg: &mut web::ServiceConfig, state: &T) -> anyhow
 fn register_root_routes(cfg: &mut web::ServiceConfig, stele: &Stele) -> anyhow::Result<()> {
     let mut root_scope: Scope = web::scope("");
     if let Some(repositories) = stele.repositories.as_ref() {
-        let sorted_repositories = repositories.get_sorted_repositories();
+        let sorted_repositories = repositories.get_sorted();
         for repository in sorted_repositories {
             let custom = &repository.custom;
             let repo_state = state::init_repo(repository, stele)?;
@@ -283,7 +283,7 @@ fn register_dependent_routes(
     stele: &Stele,
     repositories: &Repositories,
 ) -> anyhow::Result<()> {
-    let sorted_repositories = repositories.get_sorted_repositories();
+    let sorted_repositories = repositories.get_sorted();
     for scope in repositories.scopes.iter().flat_map(|scopes| scopes.iter()) {
         let scope_str = format!("/{{prefix:{}}}", &scope.as_str());
         let mut actix_scope = web::scope(scope_str.as_str());

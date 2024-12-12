@@ -65,6 +65,28 @@ pub struct Repository {
     pub custom: Custom,
 }
 
+impl Repository {
+    /// Get the org of the repository.
+    /// The org is the first part of the name, before the `/`.
+    #[must_use]
+    pub fn get_org(&self) -> String {
+        self.name.split('/').next().unwrap_or_default().to_owned()
+    }
+
+    /// Get the name of the repository.
+    /// The name is the second part of the name, after the `/`.
+    #[must_use]
+    pub fn get_name(&self) -> String {
+        self.name.split('/').nth(1).unwrap_or_default().to_owned()
+    }
+
+    /// Get the type of the repository.
+    #[must_use]
+    pub fn get_type(&self) -> Option<String> {
+        self.custom.repository_type.clone()
+    }
+}
+
 /// Custom object
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct Custom {
@@ -100,7 +122,7 @@ impl Repositories {
     /// This is needed for serving current documents because Actix routes are matched in the order they are added.
     #[must_use]
     #[allow(clippy::iter_over_hash_type)]
-    pub fn get_sorted_repositories(&self) -> Vec<&Repository> {
+    pub fn get_sorted(&self) -> Vec<&Repository> {
         let mut result = Vec::new();
         for repository in self.repositories.values() {
             result.push(repository);
@@ -117,12 +139,63 @@ impl Repositories {
         result
     }
 
-    /// Get the RDF repository from repositories.
+    /// Filter and return a `Repository` by it's custom type.
     #[must_use]
-    pub fn get_rdf_repository(&self) -> Option<&Repository> {
+    pub fn get_one_by_custom_type(&self, repository_type: &str) -> Option<&Repository> {
+        self.repositories.values().find(|repository| {
+            repository.custom.repository_type.as_deref() == Some(repository_type)
+        })
+    }
+
+    /// Filter and return a `Repository` by it's serve type.
+    #[must_use]
+    pub fn get_all_by_custom_type(&self, repository_type: &str) -> Vec<&Repository> {
         self.repositories
             .values()
-            .find(|repository| repository.custom.repository_type.as_deref() == Some("rdf"))
+            .filter(|repository| {
+                repository.custom.repository_type.as_deref() == Some(repository_type)
+            })
+            .collect()
+    }
+
+    /// Filter and return all `Repository` objects by it's serve type.
+    ///
+    /// Example:
+    /// ```rust
+    /// use serde_json::json;
+    /// use stelae::stelae::types::repositories::Repositories;
+    ///
+    /// let data = r#"
+    /// {
+    ///     "scopes": ["some/scope/path"],
+    ///    "repositories": {
+    ///        "test_org_1/data_repo_1": {
+    ///           "custom": {
+    ///          "serve": "latest",
+    ///         "routes": ["example-route-glob-pattern-1"]
+    ///        }
+    ///   },
+    ///  "test_org_1/data_repo_2": {
+    ///    "custom": {
+    ///      "serve": "latest",
+    ///      "serve-prefix": "_prefix",
+    ///      "is_fallback": true
+    ///     }
+    ///   }
+    ///  }
+    /// }
+    /// "#;
+    /// let repositories: Repositories = serde_json::from_str(data).unwrap();
+    /// let serve_type = "latest";
+    /// let repos = repositories.get_all_by_serve_type(serve_type);
+    /// assert_eq!(repos.len(), 2);
+    /// ```
+    #[must_use]
+    pub fn get_all_by_serve_type(&self, serve_type: &str) -> Vec<&Repository> {
+        self.repositories
+            .values()
+            .filter(|repository| repository.custom.serve == serve_type)
+            .collect()
     }
 }
 
