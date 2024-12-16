@@ -8,7 +8,7 @@ use crate::{
     stelae::types::{dependencies::Dependencies, repositories::Repositories},
     utils::git::Repo,
 };
-use anyhow::Context;
+use anyhow::Context as _;
 use git2::Repository as GitRepository;
 use serde_derive::{Deserialize, Serialize};
 use serde_json;
@@ -32,7 +32,7 @@ impl Stele {
     /// Will error if unable to find or parse repositories file at `targets/repositories.json`
     /// # Panics
     /// Will panic if unable to determine the current root Stele.
-    #[allow(clippy::shadow_reuse)]
+    #[expect(clippy::shadow_reuse, reason = "Use same param as field name")]
     pub fn new(
         archive_path: &Path,
         name: Option<String>,

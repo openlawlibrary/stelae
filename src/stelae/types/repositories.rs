@@ -121,7 +121,10 @@ impl Repositories {
     ///
     /// This is needed for serving current documents because Actix routes are matched in the order they are added.
     #[must_use]
-    #[allow(clippy::iter_over_hash_type)]
+    #[expect(
+        clippy::iter_over_hash_type,
+        reason = "Returns sorted repositories, even with iterating over hash type"
+    )]
     pub fn get_sorted(&self) -> Vec<&Repository> {
         let mut result = Vec::new();
         for repository in self.repositories.values() {
@@ -199,7 +202,10 @@ impl Repositories {
     }
 }
 
-#[allow(clippy::missing_trait_methods)]
+#[expect(
+    clippy::missing_trait_methods,
+    reason = "Use serde default trait implementations"
+)]
 impl<'de> Deserialize<'de> for Repositories {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

@@ -50,44 +50,77 @@
 // > If you enable a restriction lint for your crate it is recommended to also fix code that
 // > this lint triggers on. However, those lints are really strict by design and you might want
 // > to #[allow] them in some special cases, with a comment justifying that.
-#![allow(clippy::blanket_clippy_restriction_lints)]
+#![allow(
+    clippy::blanket_clippy_restriction_lints,
+    reason = "See above explanation."
+)]
 #![warn(clippy::restriction)]
 //
 //
 // =========================================================================
 //   Individually blanket-allow single lints relevant to this whole crate
 // =========================================================================
+#![allow(clippy::implicit_return, reason = "This is idiomatic Rust")]
 #![allow(
-    // This is idiomatic Rust
-    clippy::implicit_return,
-
-    // Multiple deps are currently pinning `hermit-abi` — December 2022
     clippy::multiple_crate_versions,
-
-    // We're not interested in becoming no-std compatible
+    reason = "Multiple deps are currently pinning `hermit-abi` — December 2022"
+)]
+#![allow(
     clippy::std_instead_of_alloc,
+    reason = "We're not interested in becoming no-std compatible"
+)]
+#![allow(
     clippy::std_instead_of_core,
-
-    // TODO: But I think the mod.rs is more conventional — @tombh
+    reason = "Import items from std instead of core"
+)]
+#![allow(
     clippy::mod_module_files,
-
-    // Although performance is of course important for this application, it is not currently
-    // such that it would benefit from explicit inline suggestions. Besides, not specifying
-    // `#[inline]` doesn't mean that a function won't be inlined. And if performance does start
-    // to become a problem, there are other avenues to explore before deciding on which functions
-    // would benefit from explicit inlining.
+    reason = "TODO: But I think the mod.rs is more conventional — @tombh"
+)]
+#![allow(
     clippy::missing_inline_in_public_items,
-
-    // I think marking `#[non_exhaustive]` is more for structs/enums that are imported into other crates
+    reason = "
+    Although performance is of course important for this application, it is not currently
+    such that it would benefit from explicit inline suggestions. Besides, not specifying
+    `#[inline]` doesn't mean that a function won't be inlined. And if performance does start
+    to become a problem, there are other avenues to explore before deciding on which functions
+    would benefit from explicit inlining
+"
+)]
+#![allow(
     clippy::exhaustive_structs,
+    reason = "I think marking `#[non_exhaustive]` is more for structs/enums that are imported into other crates"
+)]
+#![allow(
     clippy::exhaustive_enums,
+    reason = "I think marking `#[non_exhaustive]` is more for structs/enums that are imported into other crates"
+)]
+#![allow(
     clippy::question_mark_used,
+    reason = "We rely on propagating errors with question mark extensively"
+)]
+#![allow(
     clippy::semicolon_outside_block,
-    // We tend to break up long functions into smaller ones, so this lint is not useful
+    reason = "Opt in to have semicolon in the outside block across codebase"
+)]
+#![allow(
     clippy::single_call_fn,
+    reason = "We tend to break up long functions into smaller ones, so this lint is not useful"
+)]
+#![allow(
     clippy::arithmetic_side_effects,
-    // We'll allow unimplemented! in code, but disallow todo!
+    reason = "Our arithmetic is very simple for now, so no side effects are expected at the time of writing this"
+)]
+#![allow(
     clippy::unimplemented,
+    reason = "We'll allow unimplemented! in code, but disallow todo!"
+)]
+#![allow(
+    clippy::renamed_function_params,
+    reason = "
+    Sometimes collides with `min_ident_chars`, in cases where trait params consist of a single char.
+    So we disallow single chars, and allow renamed_function_params.
+"
 )]
 
 pub mod db;

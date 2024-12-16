@@ -1,5 +1,4 @@
 //! API endpoint for serving current documents from Stele repositories.
-#![allow(clippy::infinite_loop)]
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 
 use crate::{
@@ -12,7 +11,10 @@ use super::state::{RepoData as RepoState, Shared as SharedState};
 const HEAD_COMMIT: &str = "HEAD";
 
 /// Serve current document
-#[allow(clippy::future_not_send)]
+#[expect(
+    clippy::future_not_send,
+    reason = "We don't worry about git2-rs not implementing `Send` trait"
+)]
 pub async fn serve(
     req: HttpRequest,
     shared: web::Data<SharedState>,
@@ -39,7 +41,6 @@ pub async fn serve(
 
 /// Find the latest blob for the given path from the given repo
 /// Latest blob is found by looking at the HEAD commit
-#[allow(clippy::panic_in_result_fn, clippy::unreachable)]
 #[tracing::instrument(name = "Finding document", skip(repo, shared))]
 fn find_current_blob(
     repo: &RepoState,

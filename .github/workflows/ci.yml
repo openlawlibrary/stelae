@@ -37,7 +37,7 @@ jobs:
       - name: Install stable toolchain
         # Pin based on current `rust-version` in Cargo.toml.
         # IMPORTANT: Upgrade `dtolnay/rust-toolchain@*` version when `rust-version` changes.
-        uses: dtolnay/rust-toolchain@1.78
+        uses: dtolnay/rust-toolchain@1.83
         with:
           components: rustfmt, clippy
 

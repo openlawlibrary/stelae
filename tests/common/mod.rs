@@ -16,7 +16,7 @@ static INIT: Once = Once::new();
 
 use actix_http::body::MessageBody;
 
-use stelae::server::app::init_app;
+use stelae::server::app;
 use stelae::stelae::archive::Archive;
 
 pub const BASIC_MODULE_NAME: &str = "basic";
@@ -51,7 +51,7 @@ pub async fn initialize_app(
 ) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = Error> {
     let archive = Archive::parse(archive_path.to_path_buf(), archive_path, false).unwrap();
     let state = TestAppState { archive };
-    let app = init_app(&state).unwrap();
+    let app = app::init(&state).unwrap();
     test::init_service(app).await
 }
 

@@ -5,7 +5,9 @@ use actix_web::http::header::ContentType;
 use std::path::Path;
 
 /// `get_contenttype` uses the file extension to return the `ContentType`
-/// for the content at `path`. If there is no extension, we assume it is
+/// for the content at `path`.
+///
+/// If there is no extension, we assume it is
 /// html. If the extension cannot be converted to a str, then we return
 /// HTML.
 /// Some browsers will not render `application/rdf+xml`, but instead will

@@ -22,9 +22,9 @@ pub struct Archive {
 impl Archive {
     /// Get an archive's config object.
     /// # Errors
-    /// Will error if unable to find or parse config file at `.stelae/config.toml`
+    /// Will error if unable to find or parse config file at `.taf/config.toml`
     pub fn get_config(&self) -> anyhow::Result<Config> {
-        let config_path = &self.path.join(PathBuf::from(".stelae/config.toml"));
+        let config_path = &self.path.join(PathBuf::from(".taf/config.toml"));
         let config_str = read_to_string(config_path)?;
         let conf: Config = toml::from_str(&config_str)?;
         Ok(conf)
@@ -190,7 +190,7 @@ pub fn init(
     headers: Option<Headers>,
 ) -> anyhow::Result<Box<Archive>> {
     raise_error_if_in_existing_archive(&path)?;
-    let stelae_dir = path.join(PathBuf::from("./.stelae"));
+    let stelae_dir = path.join(PathBuf::from("./.taf"));
     create_dir_all(&stelae_dir)?;
     let config_path = stelae_dir.join(PathBuf::from("./config.toml"));
     let conf = Config {

@@ -98,7 +98,10 @@ impl fmt::Debug for Shared {
     }
 }
 
-#[allow(clippy::missing_trait_methods)]
+#[expect(
+    clippy::missing_trait_methods,
+    reason = "Use implicit trait implementation"
+)]
 impl Clone for RepoData {
     fn clone(&self) -> Self {
         Self {
@@ -111,7 +114,10 @@ impl Clone for RepoData {
     }
 }
 
-#[allow(clippy::missing_trait_methods)]
+#[expect(
+    clippy::missing_trait_methods,
+    reason = "Use implicit trait implementation"
+)]
 impl Clone for Shared {
     fn clone(&self) -> Self {
         Self {

@@ -1,7 +1,7 @@
 //! The archive module contains structs for interacting with a Stele archive
 
 use super::paths::fix_unc_path;
-use anyhow::Context;
+use anyhow::Context as _;
 use std::path::{Path, PathBuf};
 
 /// given a &Path `path`, return the path to the containing archive.
@@ -11,12 +11,12 @@ use std::path::{Path, PathBuf};
 pub fn find_archive_path(path: &Path) -> anyhow::Result<PathBuf> {
     let abs_path = fix_unc_path(&path.canonicalize()?);
     for working_path in abs_path.ancestors() {
-        if working_path.join(".stelae").exists() {
+        if working_path.join(".taf").exists() {
             return Ok(working_path.to_owned());
         }
     }
     anyhow::bail!(format!(
-        "{} is not inside a Stelae Archive. Run `stelae init` to create a archive at this location.",
+        "{} is not inside a Stelae Archive. Run `taf conf init` to create an archive at this location.",
         abs_path.to_string_lossy()
     ))
 }

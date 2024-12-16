@@ -1,7 +1,8 @@
 //! Running the CLI
-
-// Allow exits because in this file we ideally handle all errors with known exit codes
-#![allow(clippy::exit)]
+#![expect(
+    clippy::exit,
+    reason = "Allow exits because in this file we ideally handle all errors with known exit codes"
+)]
 
 use crate::history::changes;
 use crate::server::app::serve_archive;
@@ -17,9 +18,11 @@ use tracing;
 use tracing::Level;
 use tracing_appender::rolling;
 use tracing_subscriber::fmt;
-use tracing_subscriber::fmt::writer::MakeWriterExt;
-use tracing_subscriber::Layer;
-use tracing_subscriber::{filter::EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::fmt::writer::MakeWriterExt as _;
+use tracing_subscriber::Layer as _;
+use tracing_subscriber::{
+    filter::EnvFilter, layer::SubscriberExt as _, util::SubscriberInitExt as _,
+};
 
 /// Stelae is currently just a simple git server.
 /// run from the library directory or pass
@@ -65,18 +68,21 @@ enum Subcommands {
 
 /// Place to initialize tracing
 ///
-/// We create `debug` and `error` log files in `.stelae` dir.
+/// We create `debug` and `error` log files in `.taf` dir.
 /// `debug` log file contains all logs, `error` log file contains only `warn` and `error`
 /// NOTE: once `https://github.com/tokio-rs/tracing/pull/2497` is merged,
 /// update `init_tracing` to rotate log files based on size.
-#[allow(clippy::expect_used)]
+#[expect(
+    clippy::expect_used,
+    reason = "Expect that console logging can be initialized"
+)]
 fn init_tracing(archive_path: &Path) {
-    let stelae_dir = archive_path.join(PathBuf::from("./.stelae"));
+    let taf_dir = archive_path.join(PathBuf::from("./.taf"));
 
     let debug_file_appender =
-        rolling::never(&stelae_dir, "stelae-debug.log").with_max_level(Level::DEBUG);
+        rolling::never(&taf_dir, "stelae-debug.log").with_max_level(Level::DEBUG);
     let error_file_appender =
-        rolling::never(&stelae_dir, "stelae-error.log").with_max_level(Level::WARN);
+        rolling::never(&taf_dir, "stelae-error.log").with_max_level(Level::WARN);
 
     let mut debug_layer = fmt::layer().with_writer(debug_file_appender);
     let mut error_layer = fmt::layer().with_writer(error_file_appender);
@@ -126,7 +132,7 @@ pub fn run() {
     let archive_path_wd = Path::new(&cli.archive_path);
     let Ok(archive_path) = find_archive_path(archive_path_wd) else {
         tracing::error!(
-            "error: could not find `.stelae` folder in `{}` or any parent directory",
+            "error: could not find `.taf` folder in `{}` or any parent directory",
             &cli.archive_path
         );
         process::exit(1);

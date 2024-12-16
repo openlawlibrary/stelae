@@ -1,12 +1,11 @@
 //! Database related module.
-#![allow(clippy::unreachable)]
 use async_trait::async_trait;
 use sqlx::Transaction;
-use std::str::FromStr;
+use std::str::FromStr as _;
 
 use sqlx::any::{self, AnyPoolOptions};
 use sqlx::AnyPool;
-use sqlx::ConnectOptions;
+use sqlx::ConnectOptions as _;
 use tracing::instrument;
 
 /// Database initialization.

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use sqlx::{any::AnyRow, FromRow, Row};
+use sqlx::{any::AnyRow, FromRow, Row as _};
 
 pub mod manager;
 

@@ -1,5 +1,5 @@
 //! Utility functions for `md5` hash computation.
-use md5::{Digest, Md5};
+use md5::{Digest as _, Md5};
 
 /// Compute the `md5` hash of a string.
 ///

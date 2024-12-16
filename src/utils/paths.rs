@@ -15,7 +15,7 @@ pub fn fix_unc_path(absolute_path: &Path) -> PathBuf {
     absolute_path.to_path_buf()
 }
 
-#[allow(clippy::expect_used)]
+#[expect(clippy::expect_used, reason = "Expect to compile regex")]
 #[must_use]
 /// Remove leading and trailing `/`s from the `path` string.
 pub fn clean_path(path: &str) -> String {

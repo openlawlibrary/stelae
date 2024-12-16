@@ -1,7 +1,7 @@
 //! The git module contains structs for interacting with git repositories
 //! in the Stelae Archive.
 use crate::utils::paths::clean_path;
-use anyhow::Context;
+use anyhow::Context as _;
 use git2::{Commit, Repository, Sort};
 use std::{
     fmt,
@@ -37,7 +37,11 @@ impl fmt::Debug for Repo {
     }
 }
 
-#[allow(clippy::missing_trait_methods, clippy::unwrap_used)]
+#[expect(
+    clippy::missing_trait_methods,
+    clippy::unwrap_used,
+    reason = "Expect to have git repo on disk"
+)]
 impl Clone for Repo {
     fn clone(&self) -> Self {
         Self {

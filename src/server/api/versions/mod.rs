@@ -1,5 +1,8 @@
 //! Handlers for serving historical documents.
-#![allow(clippy::future_not_send)]
+#![expect(
+    clippy::future_not_send,
+    reason = "We don't worry about git2-rs not implementing `Send` trait"
+)]
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use chrono::NaiveDate;
 use std::convert::Into;
@@ -18,7 +21,7 @@ use crate::{
 
 use self::response::messages;
 
-use super::state::{App as AppState, Global as GlobalState};
+use super::state::{App as AppState, Global as _};
 
 /// Name of the current publication.
 pub const CURRENT_PUBLICATION_NAME: &str = "Current";
