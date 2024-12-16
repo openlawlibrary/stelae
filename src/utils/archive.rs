@@ -16,7 +16,7 @@ pub fn find_archive_path(path: &Path) -> anyhow::Result<PathBuf> {
         }
     }
     anyhow::bail!(format!(
-        "{} is not inside a Stelae Archive. Run `stelae init` to create a archive at this location.",
+        "{} is not inside a Stelae Archive. Run `taf conf init` to create an archive at this location.",
         abs_path.to_string_lossy()
     ))
 }
