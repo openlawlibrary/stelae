@@ -5,7 +5,7 @@ use std::time::Instant;
 use actix_web::{
     body::MessageBody,
     dev::{ServiceRequest, ServiceResponse},
-    HttpMessage,
+    HttpMessage as _,
 };
 use tracing_actix_web::{DefaultRootSpanBuilder, RootSpanBuilder};
 

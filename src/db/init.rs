@@ -1,4 +1,4 @@
-use crate::db::{DatabaseConnection, DatabaseKind, Db};
+use crate::db::{DatabaseConnection, DatabaseKind, Db as _};
 use std::env;
 use std::path::{Path, PathBuf};
 /// Connects to a database and applies migrations.

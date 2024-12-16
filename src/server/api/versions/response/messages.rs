@@ -44,7 +44,7 @@ pub fn historical(
             current_version,
             found_version_date,
             versions,
-            compare_to_date,
+            compare_to_date.as_ref(),
         )
     });
     let comparison = compare_to_date.as_ref().and_then(|found_compare_to_date| {
@@ -90,7 +90,7 @@ fn version_message(
     current_version: &str,
     version_date: &str,
     versions: &[Version],
-    compare_to_date: &Option<String>,
+    compare_to_date: Option<&String>,
 ) -> Option<String> {
     let is_current_version = {
         let current_date =

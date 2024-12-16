@@ -1,10 +1,9 @@
-#![allow(
-    // derive_more doesn't respect these lints
-    clippy::pattern_type_mismatch,
-    clippy::use_self
-)]
-
 //! Stelae-specific errors
+
+#![expect(
+    clippy::pattern_type_mismatch,
+    reason = "derive_more doesn't respect these lints"
+)]
 
 use actix_web::{error, http::StatusCode, HttpResponse};
 use derive_more::{Display, Error};
@@ -37,7 +36,7 @@ pub enum CliError {
 
 impl From<io::Error> for CliError {
     fn from(_error: io::Error) -> Self {
-        CliError::GenericError
+        Self::GenericError
     }
 }
 
@@ -49,7 +48,7 @@ pub enum StelaeError {
     GitError,
 }
 
-#[allow(clippy::missing_trait_methods)]
+#[expect(clippy::missing_trait_methods, reason = "Use implicit implementation")]
 impl error::ResponseError for StelaeError {
     fn error_response(&self) -> HttpResponse {
         HttpResponse::build(self.status_code()).body(self.to_string())

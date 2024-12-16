@@ -1,5 +1,8 @@
 //! A central place to register App routes.
-#![allow(clippy::exit)]
+#![expect(
+    clippy::exit,
+    reason = "We exit with 1 error code on any application errors"
+)]
 use std::{process, sync::OnceLock};
 
 use crate::server::api::state;
@@ -215,7 +218,10 @@ fn initialize_dynamic_routes<
 /// * `state` - The application state
 /// # Errors
 /// Will error if unable to register routes (e.g. if git repository cannot be opened)
-#[allow(clippy::iter_over_hash_type)]
+#[expect(
+    clippy::iter_over_hash_type,
+    reason = "List of repositories that are registered as routes are always sorted, even with iterating over hash type"
+)]
 fn register_routes<T: Global>(cfg: &mut web::ServiceConfig, state: &T) -> anyhow::Result<()> {
     for stele in state.archive().stelae.values() {
         if let Some(repositories) = stele.repositories.as_ref() {

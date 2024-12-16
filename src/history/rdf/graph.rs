@@ -1,11 +1,18 @@
-#![allow(
+#![expect(
     clippy::module_name_repetitions,
+    reason = "Call our graph `StelaeGraph`, which repeats the name graph, but is used to differentiate between our wrapper and the underlying sophia graph."
+)]
+#![expect(
     clippy::min_ident_chars,
-    clippy::pattern_type_mismatch
+    reason = "Nomenclature for RDF is `s`, `p, `o` instead of `subject`, `predicate`, `object`"
+)]
+#![expect(
+    clippy::pattern_type_mismatch,
+    reason = "Bypass sophia internal & ref match on SimpleTerm"
 )]
 /// The helper methods for working with RDF in Stelae.
-use anyhow::Context;
-use sophia::api::graph::{GTripleSource, Graph};
+use anyhow::Context as _;
+use sophia::api::graph::{GTripleSource, Graph as _};
 use sophia::api::ns::NsTerm;
 use sophia::api::MownStr;
 use sophia::api::{prelude::*, term::SimpleTerm};
@@ -94,7 +101,7 @@ impl StelaeGraph {
         subject: Option<&'graph SimpleTerm>,
         predicate: Option<NsTerm<'graph>>,
         object: Option<NsTerm<'graph>>,
-    ) -> anyhow::Result<SimpleTerm> {
+    ) -> anyhow::Result<SimpleTerm<'graph>> {
         let triple = self.get_next_triples_matching(subject, predicate, object)?;
         let SimpleTerm::Iri(iri) = &triple.o() else {
             anyhow::bail!("Expected literal language, got - {:?}", triple.o());
@@ -111,7 +118,7 @@ impl StelaeGraph {
         subject: Option<&'graph SimpleTerm>,
         predicate: Option<NsTerm<'graph>>,
         object: Option<NsTerm<'graph>>,
-    ) -> anyhow::Result<[&'graph SimpleTerm<'_>; 3]> {
+    ) -> anyhow::Result<[&'graph SimpleTerm<'graph>; 3]> {
         let triple = self
             .triples_matching_inner(subject, predicate, object)
             .next()
@@ -151,7 +158,7 @@ impl StelaeGraph {
         subject: Option<&'graph SimpleTerm>,
         predicate: Option<NsTerm<'graph>>,
         object: Option<NsTerm<'graph>>,
-    ) -> anyhow::Result<Vec<&SimpleTerm>> {
+    ) -> anyhow::Result<Vec<&'graph SimpleTerm<'graph>>> {
         let triples_iter = self.triples_matching_inner(subject, predicate, object);
         let iris = triples_iter
             .into_iter()
@@ -184,10 +191,9 @@ impl Bag<'_> {
     ///
     /// # Errors
     /// Errors if the items are not found.
-    #[allow(clippy::separated_literal_suffix)]
     pub fn items(&self) -> anyhow::Result<Vec<SimpleTerm>> {
         let container = &self.uri;
-        let mut i = 1_u32;
+        let mut i: u32 = 1;
         let mut items = vec![];
         loop {
             let el_uri = format!("http://www.w3.org/1999/02/22-rdf-syntax-ns#_{i}");

@@ -1,7 +1,7 @@
 //! The archive module contains structs for interacting with a Stele archive
 
 use super::paths::fix_unc_path;
-use anyhow::Context;
+use anyhow::Context as _;
 use std::path::{Path, PathBuf};
 
 /// given a &Path `path`, return the path to the containing archive.

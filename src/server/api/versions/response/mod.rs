@@ -88,7 +88,10 @@ impl From<models::version::Version> for Version {
 
 impl Versions {
     /// Build and returns an HTTP versions response converted into json.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Basically a model mapper for returning a `Versions` instance, can get simplified in the future. Leave it with too many args for now."
+    )]
     #[must_use]
     pub fn build(
         active_publication_name: &str,

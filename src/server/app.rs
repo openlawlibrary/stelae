@@ -1,9 +1,7 @@
 //! Serve documents in a Stelae archive.
-#![allow(
+#![expect(
     clippy::exit,
-    clippy::unused_async,
-    clippy::infinite_loop,
-    clippy::module_name_repetitions
+    reason = "We exit with 1 error code on any application errors"
 )]
 use crate::db;
 use crate::server::api::state::App as AppState;
@@ -58,7 +56,7 @@ pub async fn serve_archive(
     let state = AppState { archive, db };
 
     HttpServer::new(move || {
-        init_app(&state).unwrap_or_else(|err| {
+        init(&state).unwrap_or_else(|err| {
             tracing::error!("Unable to initialize app.");
             tracing::error!("Error: {err:?}");
             // NOTE: We should not need to exit code 1 here (or in any of the closures in `routes.rs`).
@@ -84,7 +82,7 @@ pub async fn serve_archive(
 /// * `state` - The application state
 /// # Errors
 /// Will error if unable to initialize the application
-pub fn init_app<T: Global + Clone + 'static>(
+pub fn init<T: Global + Clone + 'static>(
     state: &T,
 ) -> anyhow::Result<
     App<

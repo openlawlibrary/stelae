@@ -1,14 +1,5 @@
 //! Legacy git microserver.
 
-#![allow(
-    // Unused asyncs are the norm in Actix route definition files
-    clippy::unused_async,
-    clippy::unreachable,
-    clippy::let_with_type_underscore,
-    // Clippy wrongly detects the `infinite_loop` lint on functions with tracing::instrument!
-    clippy::infinite_loop
-)]
-
 use actix_web::{get, route, web, App, HttpResponse, HttpServer, Responder};
 use git2::{self, ErrorCode};
 use std::path::PathBuf;
@@ -65,7 +56,10 @@ async fn get_blob(
 }
 
 /// A centralised place to match potentially unsafe internal errors to safe user-facing error responses
-#[allow(clippy::wildcard_enum_match_arm)]
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "Default to wildcard match in case of unexpected errors"
+)]
 #[tracing::instrument(name = "Error with Git blob request", skip(error, namespace, name))]
 fn blob_error_response(error: &anyhow::Error, namespace: &str, name: &str) -> HttpResponse {
     tracing::error!("{error}",);

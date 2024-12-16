@@ -1,9 +1,11 @@
 //! Module for inserting changes into the database
-#![allow(
-    clippy::exit,
+#![expect(
     clippy::shadow_reuse,
+    reason = "Bindings that shadow other bindings in the same scope are used to make the code a bit more legible in this module"
+)]
+#![expect(
     clippy::future_not_send,
-    clippy::string_add
+    reason = "We don't worry about git2-rs not implementing `Send` trait"
 )]
 use super::rdf::graph::Bag;
 use crate::db::models::changed_library_document::{self, ChangedLibraryDocument};
@@ -20,7 +22,7 @@ use crate::db::models::publication_version;
 use crate::db::models::status::Status;
 use crate::db::models::{document, document_element};
 use crate::db::models::{stele, version};
-use crate::db::{DatabaseTransaction, Tx};
+use crate::db::{DatabaseTransaction, Tx as _};
 use crate::history::rdf::graph::StelaeGraph;
 use crate::history::rdf::namespaces::{dcterms, oll};
 use crate::server::errors::CliError;
@@ -33,7 +35,7 @@ use crate::{
     db::{self, DatabaseConnection},
     stelae::archive::Archive,
 };
-use anyhow::Context;
+use anyhow::Context as _;
 use chrono::DateTime;
 use git2::{TreeWalkMode, TreeWalkResult};
 use sophia::api::ns::rdfs;
@@ -184,7 +186,6 @@ async fn load_delta_for_stele(
 ///
 /// # Errors
 /// Errors if the delta cannot be loaded from the publications
-#[allow(clippy::unwrap_used)]
 async fn load_delta_from_publications(
     tx: &mut DatabaseTransaction,
     rdf_repo: &Repo,
@@ -266,7 +267,7 @@ async fn load_delta_from_publications(
         })?;
         let (last_valid_pub_name, last_valid_codified_date) =
             referenced_publication_information(&pub_graph);
-        let publication_hash = md5::compute(pub_name.clone() + stele);
+        let publication_hash = md5::compute(format!("{}{}", pub_name.clone(), stele));
         let last_inserted_pub_id = if let Some(valid_pub_name) = last_valid_pub_name {
             let last_inserted_pub =
                 publication::TxManager::find_by_name_and_stele(tx, &valid_pub_name, stele).await?;
@@ -310,7 +311,7 @@ async fn load_delta_for_publication(
 
     insert_document_changes(
         tx,
-        &last_inserted_date,
+        last_inserted_date.as_ref(),
         pub_document_versions,
         pub_graph,
         &publication,
@@ -319,7 +320,7 @@ async fn load_delta_for_publication(
 
     insert_library_changes(
         tx,
-        &last_inserted_date,
+        last_inserted_date.as_ref(),
         pub_collection_versions,
         pub_graph,
         &publication,
@@ -336,7 +337,7 @@ async fn load_delta_for_publication(
 /// Insert document changes into the database
 async fn insert_document_changes(
     tx: &mut DatabaseTransaction,
-    last_inserted_date: &Option<NaiveDate>,
+    last_inserted_date: Option<&NaiveDate>,
     pub_document_versions: Vec<&SimpleTerm<'_>>,
     pub_graph: &StelaeGraph,
     publication: &Publication,
@@ -354,8 +355,12 @@ async fn insert_document_changes(
             }
         }
         version::TxManager::create(tx, &codified_date).await?;
-        let pub_version_hash =
-            md5::compute(publication.name.clone() + &codified_date + &publication.stele);
+        let pub_version_hash = md5::compute(format!(
+            "{}{}{}",
+            publication.name.clone(),
+            &codified_date,
+            &publication.stele
+        ));
         publication_version::TxManager::create(
             tx,
             &pub_version_hash,
@@ -396,9 +401,12 @@ async fn insert_document_changes(
             )?;
             for el_status in statuses {
                 let status = Status::from_string(&el_status)?;
-                let document_change_hash = md5::compute(
-                    pub_version_hash.clone() + &doc_mpath.clone() + &status.to_int().to_string(),
-                );
+                let document_change_hash = md5::compute(format!(
+                    "{}{}{}",
+                    pub_version_hash.clone(),
+                    &doc_mpath.clone(),
+                    &status.to_int().to_string()
+                ));
                 document_changes_bulk.push(DocumentChange::new(
                     document_change_hash,
                     status.to_int(),
@@ -417,7 +425,7 @@ async fn insert_document_changes(
 /// Insert library changes into the database
 async fn insert_library_changes(
     tx: &mut DatabaseTransaction,
-    last_inserted_date: &Option<NaiveDate>,
+    last_inserted_date: Option<&NaiveDate>,
     pub_collection_versions: Vec<&SimpleTerm<'_>>,
     pub_graph: &StelaeGraph,
     publication: &Publication,
@@ -449,8 +457,12 @@ async fn insert_library_changes(
             url.clone(),
             publication.stele.clone(),
         ));
-        let pub_version_hash =
-            md5::compute(publication.name.clone() + &codified_date + &publication.stele);
+        let pub_version_hash = md5::compute(format!(
+            "{}{}{}",
+            publication.name.clone(),
+            &codified_date,
+            &publication.stele
+        ));
         library_changes_bulk.push(LibraryChange::new(
             pub_version_hash.clone(),
             library_status.to_int(),
@@ -473,9 +485,12 @@ async fn insert_library_changes(
                 continue;
             };
             let status = Status::from_string(&found_status)?;
-            let document_change_hash = md5::compute(
-                pub_version_hash.clone() + &doc_mpath.clone() + &status.to_int().to_string(),
-            );
+            let document_change_hash = md5::compute(format!(
+                "{}{}{}",
+                pub_version_hash.clone(),
+                &doc_mpath.clone(),
+                &status.to_int().to_string()
+            ));
             changed_library_document_bulk.push(ChangedLibraryDocument::new(
                 document_change_hash,
                 library_mpath.clone(),

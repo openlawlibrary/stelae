@@ -1,7 +1,8 @@
 //! Running the CLI
-
-// Allow exits because in this file we ideally handle all errors with known exit codes
-#![allow(clippy::exit)]
+#![expect(
+    clippy::exit,
+    reason = "Allow exits because in this file we ideally handle all errors with known exit codes"
+)]
 
 use crate::history::changes;
 use crate::server::app::serve_archive;
@@ -17,9 +18,11 @@ use tracing;
 use tracing::Level;
 use tracing_appender::rolling;
 use tracing_subscriber::fmt;
-use tracing_subscriber::fmt::writer::MakeWriterExt;
-use tracing_subscriber::Layer;
-use tracing_subscriber::{filter::EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::fmt::writer::MakeWriterExt as _;
+use tracing_subscriber::Layer as _;
+use tracing_subscriber::{
+    filter::EnvFilter, layer::SubscriberExt as _, util::SubscriberInitExt as _,
+};
 
 /// Stelae is currently just a simple git server.
 /// run from the library directory or pass
@@ -69,7 +72,10 @@ enum Subcommands {
 /// `debug` log file contains all logs, `error` log file contains only `warn` and `error`
 /// NOTE: once `https://github.com/tokio-rs/tracing/pull/2497` is merged,
 /// update `init_tracing` to rotate log files based on size.
-#[allow(clippy::expect_used)]
+#[expect(
+    clippy::expect_used,
+    reason = "Expect that console logging can be initialized"
+)]
 fn init_tracing(archive_path: &Path) {
     let taf_dir = archive_path.join(PathBuf::from("./.taf"));
 
