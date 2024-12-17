@@ -11,10 +11,18 @@ use actix_service::ServiceFactory;
 use actix_web::{
     body::MessageBody,
     dev::{ServiceRequest, ServiceResponse},
-    guard, web, App, Error, Scope,
+    guard, route, web, App, Error, HttpResponse, Responder, Scope,
 };
+use serde::Deserialize;
 
+use super::state::App as AppState;
 use super::{serve::serve, state::Global, versions::versions};
+use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
+use crate::utils::http::get_contenttype;
+use crate::utils::paths::clean_path;
+use git2::{self, ErrorCode};
+
+use super::super::errors::HTTPError;
 
 /// Name of the header to guard current documents
 static HEADER_NAME: OnceLock<String> = OnceLock::new();
@@ -74,6 +82,10 @@ pub fn register_app<
                     .service(web::resource("").to(versions)),
             ),
         )
+        .app_data(web::Data::new(state.clone()));
+
+    app = app
+        .service(web::scope("/_git").service(get_blob))
         .app_data(web::Data::new(state.clone()));
 
     app = register_dynamic_routes(app, state)?;
@@ -318,4 +330,68 @@ fn register_dependent_routes(
         cfg.service(actix_scope);
     }
     Ok(())
+}
+
+/// Structure for
+#[derive(Debug, Deserialize)]
+struct Info {
+    /// commit of the repo
+    commitish: String,
+    /// path of the file
+    remainder: Option<String>,
+}
+
+/// Return the content in the stelae archive in the `{namespace}/{name}`
+/// repo at the `commitish` commit at the `remainder` path.
+/// Return 404 if any are not found or there are any errors.
+#[route(
+    "/{namespace}/{name}/{commitish}{remainder:/+([^{}]*?)?/*}",
+    method = "GET",
+    method = "HEAD"
+)]
+#[tracing::instrument(name = "Retrieving a Git blob", skip(path, data, info))]
+#[expect(
+    clippy::future_not_send,
+    reason = "We don't worry about git2-rs not implementing `Send` trait"
+)]
+async fn get_blob(
+    path: web::Path<(String, String)>,
+    info: web::Query<Info>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    let (namespace, name /* , commitish, remainder*/) = path.into_inner();
+    let info_struct: Info = info.into_inner();
+    let commitish = info_struct.commitish;
+    let remainder = info_struct.remainder.unwrap_or_else(|| "".to_string());
+    let archive_path = &data.archive_path;
+    let blob = Repo::find_blob(archive_path, &namespace, &name, &remainder, &commitish);
+    let blob_path = clean_path(&remainder);
+    let contenttype = get_contenttype(&blob_path);
+    match blob {
+        Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
+        Err(error) => blob_error_response(&error, &namespace, &name),
+    }
+}
+
+/// A centralised place to match potentially unsafe internal errors to safe user-facing error responses
+#[allow(clippy::wildcard_enum_match_arm)]
+#[tracing::instrument(name = "Error with Git blob request", skip(error, namespace, name))]
+fn blob_error_response(error: &anyhow::Error, namespace: &str, name: &str) -> HttpResponse {
+    tracing::error!("{error}",);
+    if let Some(git_error) = error.downcast_ref::<git2::Error>() {
+        return match git_error.code() {
+            // TODO: check this is the right error
+            ErrorCode::NotFound => {
+                HttpResponse::NotFound().body(format!("repo {namespace}/{name} does not exist"))
+            }
+            _ => HttpResponse::InternalServerError().body("Unexpected Git error"),
+        };
+    }
+    match error {
+        // TODO: Obviously it's better to use custom `Error` types
+        _ if error.to_string() == GIT_REQUEST_NOT_FOUND => {
+            HttpResponse::NotFound().body(HTTPError::NotFound.to_string())
+        }
+        _ => HttpResponse::InternalServerError().body(HTTPError::InternalServerError.to_string()),
+    }
 }
