@@ -11,10 +11,18 @@ use actix_service::ServiceFactory;
 use actix_web::{
     body::MessageBody,
     dev::{ServiceRequest, ServiceResponse},
-    guard, web, App, Error, Scope,
+    guard, web, App, Error, Scope, Responder, route,
+    HttpResponse
 };
 
+use crate::utils::http::get_contenttype;
+use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use super::{serve::serve, state::Global, versions::versions};
+use crate::utils::paths::clean_path;
+use git2::{self, ErrorCode};
+use super::state::App as AppState;
+
+use super::super::errors::HTTPError;
 
 /// Name of the header to guard current documents
 static HEADER_NAME: OnceLock<String> = OnceLock::new();
@@ -314,4 +322,52 @@ fn register_dependent_routes(
         cfg.service(actix_scope);
     }
     Ok(())
+}
+
+
+/// Return the content in the stelae archive in the `{namespace}/{name}`
+/// repo at the `commitish` commit at the `remainder` path.
+/// Return 404 if any are not found or there are any errors.
+#[route(
+    "/{namespace}/{name}/{commitish}{remainder:/+([^{}]*?)?/*}",
+    method = "GET",
+    method = "HEAD"
+)]
+#[tracing::instrument(name = "Retrieving a Git blob", skip(path, data))]
+async fn get_blob(
+    path: web::Path<(String, String, String, String)>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    let (namespace, name, commitish, remainder) = path.into_inner();
+    let archive_path = &data.archive_path;
+    let blob = Repo::find_blob(archive_path, &namespace, &name, &remainder, &commitish);
+    let blob_path = clean_path(&remainder);
+    let contenttype = get_contenttype(&blob_path);
+    match blob {
+        Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
+        Err(error) => blob_error_response(&error, &namespace, &name),
+    }
+}
+
+/// A centralised place to match potentially unsafe internal errors to safe user-facing error responses
+#[allow(clippy::wildcard_enum_match_arm)]
+#[tracing::instrument(name = "Error with Git blob request", skip(error, namespace, name))]
+fn blob_error_response(error: &anyhow::Error, namespace: &str, name: &str) -> HttpResponse {
+    tracing::error!("{error}",);
+    if let Some(git_error) = error.downcast_ref::<git2::Error>() {
+        return match git_error.code() {
+            // TODO: check this is the right error
+            ErrorCode::NotFound => {
+                HttpResponse::NotFound().body(format!("repo {namespace}/{name} does not exist"))
+            }
+            _ => HttpResponse::InternalServerError().body("Unexpected Git error"),
+        };
+    }
+    match error {
+        // TODO: Obviously it's better to use custom `Error` types
+        _ if error.to_string() == GIT_REQUEST_NOT_FOUND => {
+            HttpResponse::NotFound().body(HTTPError::NotFound.to_string())
+        }
+        _ => HttpResponse::InternalServerError().body(HTTPError::InternalServerError.to_string()),
+    }
 }
