@@ -340,11 +340,7 @@ struct Info {
 /// Return the content in the stelae archive in the `{namespace}/{name}`
 /// repo at the `commitish` commit at the `remainder` path.
 /// Return 404 if any are not found or there are any errors.
-#[route(
-    "/{namespace}/{name}/{commitish}{remainder:/+([^{}]*?)?/*}",
-    method = "GET",
-    method = "HEAD"
-)]
+#[route("/{namespace}/{name}", method = "GET", method = "HEAD")]
 #[tracing::instrument(name = "Retrieving a Git blob", skip(path, data, info))]
 #[expect(
     clippy::future_not_send,
@@ -355,10 +351,10 @@ async fn get_blob(
     info: web::Query<Info>,
     data: web::Data<AppState>,
 ) -> impl Responder {
-    let (namespace, name /* , commitish, remainder*/) = path.into_inner();
+    let (namespace, name) = path.into_inner();
     let info_struct: Info = info.into_inner();
     let commitish = info_struct.commitish;
-    let remainder = info_struct.remainder.unwrap_or_else(|| "".to_string());
+    let remainder = info_struct.remainder.unwrap_or_default();
     let archive_path = &data.archive_path;
     let blob = Repo::find_blob(archive_path, &namespace, &name, &remainder, &commitish);
     let blob_path = clean_path(&remainder);
@@ -370,7 +366,7 @@ async fn get_blob(
 }
 
 /// A centralised place to match potentially unsafe internal errors to safe user-facing error responses
-#[allow(clippy::wildcard_enum_match_arm)]
+#[expect(clippy::wildcard_enum_match_arm, reason = "Allows _ for enum matching")]
 #[tracing::instrument(name = "Error with Git blob request", skip(error, namespace, name))]
 fn blob_error_response(error: &anyhow::Error, namespace: &str, name: &str) -> HttpResponse {
     tracing::error!("{error}",);
