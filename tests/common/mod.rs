@@ -44,6 +44,9 @@ impl Global for TestAppState {
     fn db(&self) -> &db::DatabaseConnection {
         unimplemented!()
     }
+    fn archive_path(&self) -> &PathBuf {
+        unimplemented!()
+    }
 }
 
 pub async fn initialize_app(
