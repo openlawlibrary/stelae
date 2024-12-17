@@ -11,26 +11,16 @@ use actix_service::ServiceFactory;
 use actix_web::{
     body::MessageBody,
     dev::{ServiceRequest, ServiceResponse},
-<<<<<<< HEAD
-    guard, web, App, Error, Scope, Responder, route,
-    HttpResponse
-=======
-    guard, web, App, Error, Scope, get, Responder,
-<<<<<<< HEAD
-    HttpResponse, HttpRequest
->>>>>>> ac49acd (Merging git and serve)
-=======
-    HttpResponse
->>>>>>> 6268aa5 (Updated path for stelae git and removed redundant code)
+    guard, route, web, App, Error, HttpResponse, Responder, Scope,
 };
 use serde::Deserialize;
 
-use crate::utils::http::get_contenttype;
-use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
+use super::state::App as AppState;
 use super::{serve::serve, state::Global, versions::versions};
+use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
+use crate::utils::http::get_contenttype;
 use crate::utils::paths::clean_path;
 use git2::{self, ErrorCode};
-use super::state::App as AppState;
 
 use super::super::errors::HTTPError;
 
@@ -87,16 +77,11 @@ pub fn register_app<
                     .service(web::resource("/{path:.*}").to(versions))
                     .service(web::resource("").to(versions)),
             ),
-
         )
         .app_data(web::Data::new(state.clone()));
 
-        app = app
-        .service(
-            web::scope("/_git").service(
-                get_blob
-            )
-        )
+    app = app
+        .service(web::scope("/_git").service(get_blob))
         .app_data(web::Data::new(state.clone()));
 
     app = register_dynamic_routes(app, state)?;
@@ -343,7 +328,7 @@ fn register_dependent_routes(
     Ok(())
 }
 
-/// Structure for 
+/// Structure for
 #[derive(Debug, Deserialize)]
 struct Info {
     /// commit of the repo
@@ -355,27 +340,22 @@ struct Info {
 /// Return the content in the stelae archive in the `{namespace}/{name}`
 /// repo at the `commitish` commit at the `remainder` path.
 /// Return 404 if any are not found or there are any errors.
-<<<<<<< HEAD
-<<<<<<< HEAD
 #[route(
     "/{namespace}/{name}/{commitish}{remainder:/+([^{}]*?)?/*}",
     method = "GET",
     method = "HEAD"
 )]
-=======
-#[get("/{namespace}/{name}/ref_{commitish:.*}_/{remainder}")]//:/+([^{}]*?)?/*}")]
->>>>>>> ac49acd (Merging git and serve)
-#[tracing::instrument(name = "Retrieving a Git blob", skip(path, data))]
-=======
-#[get("/{namespace}/{name}")]//:/+([^{}]*?)?/*}")]
 #[tracing::instrument(name = "Retrieving a Git blob", skip(path, data, info))]
->>>>>>> 6268aa5 (Updated path for stelae git and removed redundant code)
+#[expect(
+    clippy::future_not_send,
+    reason = "We don't worry about git2-rs not implementing `Send` trait"
+)]
 async fn get_blob(
     path: web::Path<(String, String)>,
     info: web::Query<Info>,
-    data: web::Data<AppState>
+    data: web::Data<AppState>,
 ) -> impl Responder {
-    let (namespace, name/* , commitish, remainder*/) = path.into_inner();
+    let (namespace, name /* , commitish, remainder*/) = path.into_inner();
     let info_struct: Info = info.into_inner();
     let commitish = info_struct.commitish;
     let remainder = info_struct.remainder.unwrap_or_else(|| "".to_string());

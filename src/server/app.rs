@@ -44,7 +44,11 @@ pub async fn serve_archive(
         }
     };
 
-    let archive = match Archive::parse(archive_path.clone(), &PathBuf::from(raw_archive_path), individual) {
+    let archive = match Archive::parse(
+        archive_path.clone(),
+        &PathBuf::from(raw_archive_path),
+        individual,
+    ) {
         Ok(archive) => archive,
         Err(err) => {
             tracing::error!("Unable to parse archive at '{raw_archive_path}'.");
@@ -53,7 +57,11 @@ pub async fn serve_archive(
         }
     };
 
-    let state = AppState { archive, db, archive_path };
+    let state = AppState {
+        archive,
+        db,
+        archive_path,
+    };
 
     HttpServer::new(move || {
         init(&state).unwrap_or_else(|err| {
