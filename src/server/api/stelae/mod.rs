@@ -1,11 +1,10 @@
 //! API endpoint for serving git blobs.
 
-use std::sync::Arc;
+use std::path::PathBuf;
 
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use request::StelaeQueryData;
 
-use super::state::Global;
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use crate::utils::http::get_contenttype;
 use crate::utils::paths::clean_path;
@@ -28,13 +27,13 @@ pub async fn get_blob(
     req: HttpRequest,
     path: web::Path<(String, String)>,
     query: web::Query<StelaeQueryData>,
-    data: web::Data<Arc<dyn Global>>,
+    data: web::Data<PathBuf>,
 ) -> impl Responder {
     let (namespace, name) = path.into_inner();
     let query_data: StelaeQueryData = query.into_inner();
     let commitish = query_data.commitish.unwrap_or_default();
     let remainder = query_data.remainder.unwrap_or_default();
-    let archive_path = &data.archive().path.clone();
+    let archive_path = &data;
     let blob = Repo::find_blob(archive_path, &namespace, &name, &remainder, &commitish);
     let blob_path = clean_path(&remainder);
     let contenttype = get_contenttype(&blob_path);

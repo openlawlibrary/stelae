@@ -3,7 +3,6 @@
     clippy::exit,
     reason = "We exit with 1 error code on any application errors"
 )]
-use std::sync::Arc;
 use std::{process, sync::OnceLock};
 
 use crate::server::api::state;
@@ -74,8 +73,7 @@ pub fn register_app<
         )
         .app_data(web::Data::new(state.clone()));
 
-    let stelae_data: Arc<dyn Global> = Arc::new(state.clone());
-    app = app.app_data(web::Data::new(stelae_data.clone())).service(
+    app = app.app_data(web::Data::new(state.archive().path.clone())).service(
         web::scope("_stelae").service(
             web::resource("/{namespace}/{name}")
                 .route(web::get().to(get_blob))
