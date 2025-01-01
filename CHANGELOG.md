@@ -18,6 +18,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Fixed
 
+- git serve now support commitish that contains / in name ([64])
+
 ### Removed
 
 [64]: https://github.com/openlawlibrary/stelae/pull/64
