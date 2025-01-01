@@ -34,7 +34,7 @@ pub fn blob_to_string(blob: Vec<u8>) -> String {
 
 #[derive(Debug, Clone)]
 pub struct TestAppState {
-    archive: Archive,
+    pub archive: Archive,
 }
 
 impl Global for TestAppState {
@@ -42,9 +42,6 @@ impl Global for TestAppState {
         &self.archive
     }
     fn db(&self) -> &db::DatabaseConnection {
-        unimplemented!()
-    }
-    fn archive_path(&self) -> &PathBuf {
         unimplemented!()
     }
 }
@@ -61,7 +58,7 @@ pub async fn initialize_app(
 pub fn initialize_archive(archive_type: ArchiveType) -> Result<tempfile::TempDir> {
     match initialize_archive_without_bare(archive_type) {
         Ok(td) => {
-            if let Err(err) = utils::make_all_git_repos_bare_recursive(&td) {
+             if let Err(err) = utils::make_all_git_repos_bare_recursive(&td) {
                 return Err(err);
             }
             Ok(td)
