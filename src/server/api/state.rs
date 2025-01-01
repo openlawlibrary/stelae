@@ -13,8 +13,6 @@ pub trait Global {
     fn archive(&self) -> &Archive;
     /// Database connection
     fn db(&self) -> &db::DatabaseConnection;
-    /// path to the Stelae archive
-    fn archive_path(&self) -> &PathBuf;
 }
 
 /// Application state
@@ -24,8 +22,6 @@ pub struct App {
     pub archive: Archive,
     /// Database connection
     pub db: db::DatabaseConnection,
-    /// path to the Stelae archive
-    pub archive_path: PathBuf,
 }
 
 impl Global for App {
@@ -35,10 +31,6 @@ impl Global for App {
 
     fn db(&self) -> &db::DatabaseConnection {
         &self.db
-    }
-
-    fn archive_path(&self) -> &PathBuf {
-        &self.archive_path
     }
 }
 

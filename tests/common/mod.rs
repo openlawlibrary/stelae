@@ -58,7 +58,7 @@ pub async fn initialize_app(
 pub fn initialize_archive(archive_type: ArchiveType) -> Result<tempfile::TempDir> {
     match initialize_archive_without_bare(archive_type) {
         Ok(td) => {
-             if let Err(err) = utils::make_all_git_repos_bare_recursive(&td) {
+            if let Err(err) = utils::make_all_git_repos_bare_recursive(&td) {
                 return Err(err);
             }
             Ok(td)

@@ -57,11 +57,7 @@ pub async fn serve_archive(
         }
     };
 
-    let state = AppState {
-        archive,
-        db,
-        archive_path,
-    };
+    let state = AppState { archive, db };
 
     HttpServer::new(move || {
         init(&state).unwrap_or_else(|err| {
