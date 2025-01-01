@@ -10,11 +10,17 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
+- Added tests fot `stelae git` ([64])
+
 ### Changed
+
+- Merged `stelae git` and `stelae serve` into single command ([64])
 
 ### Fixed
 
 ### Removed
+
+[64]: https://github.com/openlawlibrary/stelae/pull/64
 
 ## [0.3.2]
 
