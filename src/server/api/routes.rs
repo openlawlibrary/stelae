@@ -73,13 +73,15 @@ pub fn register_app<
         )
         .app_data(web::Data::new(state.clone()));
 
-    app = app.app_data(web::Data::new(state.archive().path.clone())).service(
-        web::scope("_stelae").service(
-            web::resource("/{namespace}/{name}")
-                .route(web::get().to(get_blob))
-                .route(web::head().to(get_blob)),
-        ),
-    );
+    app = app
+        .app_data(web::Data::new(state.archive().path.clone()))
+        .service(
+            web::scope("_stelae").service(
+                web::resource("/{namespace}/{name}")
+                    .route(web::get().to(get_blob))
+                    .route(web::head().to(get_blob)),
+            ),
+        );
 
     app = register_dynamic_routes(app, state)?;
     Ok(app)
