@@ -31,7 +31,7 @@ pub async fn get_blob(
 ) -> impl Responder {
     let (namespace, name) = path.into_inner();
     let query_data: StelaeQueryData = query.into_inner();
-    let commitish = query_data.commitish.unwrap_or_default();
+    let commitish = query_data.commitish;
     let remainder = query_data.remainder.unwrap_or_default();
     let archive_path = &data;
     let blob = Repo::find_blob(archive_path, &namespace, &name, &remainder, &commitish);
