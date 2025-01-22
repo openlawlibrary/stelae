@@ -7,6 +7,7 @@
 use crate::history::changes;
 use crate::server::app::serve_archive;
 use crate::server::errors::CliError;
+use crate::server::git::serve_git;
 use crate::utils::archive::find_archive_path;
 use clap::Parser;
 use std::env;
@@ -40,6 +41,12 @@ struct Cli {
 /// Subcommands for the Stelae CLI
 #[derive(Clone, clap::Subcommand)]
 enum Subcommands {
+    /// Serve git repositories in the Stelae archive
+    Git {
+        /// Port on which to serve the archive.
+        #[arg(short, long, default_value_t = 8080)]
+        port: u16,
+    },
     /// Serve documents in a Stelae archive.
     Serve {
         /// Port on which to serve the archive.
@@ -108,6 +115,7 @@ fn init_tracing(archive_path: &Path) {
 /// This function returns the generic `CliError`, based on which we exit with a known exit code.
 fn execute_command(cli: &Cli, archive_path: PathBuf) -> Result<(), CliError> {
     match cli.subcommands {
+        Subcommands::Git { port } => serve_git(&cli.archive_path, archive_path, port),
         Subcommands::Serve { port, individual } => {
             serve_archive(&cli.archive_path, archive_path, port, individual)
         }
