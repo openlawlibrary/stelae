@@ -12,6 +12,7 @@ pub enum Jurisdiction {
     Multi,
 }
 
+#[derive(Debug)]
 pub enum TestDataRepositoryType {
     Html,
     Rdf,
@@ -23,6 +24,7 @@ pub enum TestDataRepositoryType {
 /// Information about a data repository.
 ///
 /// This struct is used to initialize a data repository in the test suite.
+#[derive(Debug)]
 pub struct TestDataRepositoryContext {
     /// The name of the data repository.
     pub name: String,

@@ -93,6 +93,29 @@ impl GitRepository {
             path: path.to_path_buf(),
         })
     }
+
+    pub fn create_branch(&self, branch_name: &str) -> Result<(), Error> {
+        let head = self.repo.head()?;
+        let head_commit = head.peel_to_commit()?;
+        let _ = self.repo.branch(branch_name, &head_commit, false);
+        Ok(())
+    }
+
+    pub fn checkout(&self, branch_name: &str) -> Result<(), Error> {
+        let branch = match self.repo.find_branch(branch_name, git2::BranchType::Local) {
+            Ok(branch) => branch,
+            Err(_) => {
+                let head_commit = self.repo.head()?.peel_to_commit()?;
+                self.repo.branch(branch_name, &head_commit, false)?
+            }
+        };
+
+        self.repo
+            .set_head(branch.into_reference().name().unwrap())?;
+        self.repo
+            .checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
+        Ok(())
+    }
 }
 
 impl Into<git2::Repository> for GitRepository {
