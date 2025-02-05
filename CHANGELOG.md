@@ -16,6 +16,18 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
+## [0.4.1]
+
+### Added
+
+### Changed
+
+### Fixed
+
+- Add missing route to versions endpoint ([#68])
+
+### Removed
+
 ## [0.4.0]
 
 ### Added
@@ -144,7 +156,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.4.1...HEAD
+[0.4.0]: https://github.com/openlawlibrary/stelae/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/openlawlibrary/stelae/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/openlawlibrary/stelae/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/openlawlibrary/stelae/compare/v0.3.0...v0.3.1
