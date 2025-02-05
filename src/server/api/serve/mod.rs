@@ -3,7 +3,11 @@ use actix_web::{web, HttpRequest, HttpResponse, Responder};
 
 use crate::{
     server::errors::HTTPError,
-    utils::{git::Repo, http::get_contenttype, paths::clean_path},
+    utils::{
+        git::{Blob, Repo},
+        http::get_contenttype,
+        paths::clean_path,
+    },
 };
 
 use super::state::{RepoData as RepoState, Shared as SharedState};
@@ -31,7 +35,9 @@ pub async fn serve(
     let contenttype = get_contenttype(&path);
     let blob = find_current_blob(&data, &shared, &path);
     match blob {
-        Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
+        Ok(found_blob) => HttpResponse::Ok()
+            .insert_header(contenttype)
+            .body(found_blob.content),
         Err(error) => {
             tracing::debug!("{path}: {error}",);
             HttpResponse::NotFound().body(HTTPError::NotFound.to_string())
@@ -42,11 +48,7 @@ pub async fn serve(
 /// Find the latest blob for the given path from the given repo
 /// Latest blob is found by looking at the HEAD commit
 #[tracing::instrument(name = "Finding document", skip(repo, shared))]
-fn find_current_blob(
-    repo: &RepoState,
-    shared: &SharedState,
-    path: &str,
-) -> anyhow::Result<Vec<u8>> {
+fn find_current_blob(repo: &RepoState, shared: &SharedState, path: &str) -> anyhow::Result<Blob> {
     let blob = Repo::find_blob(&repo.archive_path, &repo.org, &repo.name, path, HEAD_COMMIT);
     match blob {
         Ok(content) => Ok(content),

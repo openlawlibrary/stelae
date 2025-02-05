@@ -49,7 +49,14 @@ async fn get_blob(
     let blob_path = clean_path(&remainder);
     let contenttype = get_contenttype(&blob_path);
     match blob {
-        Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
+        Ok(found_blob) => {
+            let content = found_blob.content;
+            let filepath = found_blob.path;
+            HttpResponse::Ok()
+                .insert_header(contenttype)
+                .insert_header(("X-File-Path", filepath))
+                .body(content)
+        }
         Err(error) => blob_error_response(&error, &namespace, &name),
     }
 }
