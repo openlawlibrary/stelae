@@ -58,6 +58,10 @@ pub fn register_app<
                         .to(versions),
                     )
                     .service(web::resource("/_publication/{publication}/_date/{date}").to(versions))
+                    .service(
+                        web::resource("/_publication/{publication}/_date/{date}/{path:.*}")
+                            .to(versions),
+                    )
                     .service(web::resource("/_publication/{publication}").to(versions))
                     .service(web::resource("/_publication/{publication}/{path:.*}").to(versions))
                     .service(web::resource("/_compare/{date}/{compare_date}").to(versions))
