@@ -1,5 +1,4 @@
 //! Legacy git microserver.
-
 use actix_web::{get, route, web, App, HttpResponse, HttpServer, Responder};
 use git2::{self, ErrorCode};
 use std::path::PathBuf;

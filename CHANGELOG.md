@@ -16,6 +16,24 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
+## [0.5.0-alpha.1]
+
+### Added
+
+- Added tests fot `stelae git` ([64])
+
+### Changed
+
+- Merged `stelae git` and `stelae serve` into single command ([64])
+
+### Fixed
+
+- git serve now support commitish that contains / in name ([64])
+
+### Removed
+
+[64]: https://github.com/openlawlibrary/stelae/pull/64
+
 ## [0.4.1]
 
 ### Added

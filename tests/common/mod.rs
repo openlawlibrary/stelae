@@ -34,7 +34,7 @@ pub fn blob_to_string(blob: Vec<u8>) -> String {
 
 #[derive(Debug, Clone)]
 pub struct TestAppState {
-    archive: Archive,
+    pub archive: Archive,
 }
 
 impl Global for TestAppState {
