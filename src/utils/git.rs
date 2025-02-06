@@ -27,6 +27,15 @@ pub struct Repo {
     pub repo: Repository,
 }
 
+/// Represents a git blob returned from the archive on disk
+#[derive(Debug)]
+pub struct Blob {
+    /// The actual content of the git blob
+    pub content: Vec<u8>,
+    /// Path to the blob
+    pub path: String,
+}
+
 impl fmt::Debug for Repo {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -86,7 +95,7 @@ impl Repo {
         name: &str,
         remainder: &str,
         commitish: &str,
-    ) -> anyhow::Result<Vec<u8>> {
+    ) -> anyhow::Result<Blob> {
         let repo = Self::new(archive_path, namespace, name)?;
         let blob_path = clean_path(remainder);
         let blob = repo.get_bytes_at_path(commitish, &blob_path)?;
@@ -107,14 +116,18 @@ impl Repo {
     ///
     /// Will return `Err` if `commitish` does not exist in repo, if a blob does
     /// not exist in commit at `path`, or if there is a problem with reading repo.
-    pub fn get_bytes_at_path(&self, commitish: &str, path: &str) -> anyhow::Result<Vec<u8>> {
+    pub fn get_bytes_at_path(&self, commitish: &str, path: &str) -> anyhow::Result<Blob> {
         let base_revision = format!("{commitish}:{path}");
         for postfix in ["", "/index.html", ".html", "index.html"] {
-            let query = &format!("{base_revision}{postfix}");
-            let blob = self.find(query);
-            if blob.is_ok() {
+            let query = format!("{base_revision}{postfix}");
+            let blob = self.find(&query);
+            if let Ok(content) = blob {
+                let filepath = format!("{path}{postfix}");
                 tracing::trace!(query, "Found Git object");
-                return blob;
+                return Ok(Blob {
+                    content,
+                    path: filepath,
+                });
             }
         }
         tracing::debug!(base_revision, "Couldn't find requested Git object");

@@ -1,5 +1,3 @@
-//# def test_<method/code under test>_where_<conditions/inputs/state>_expect_<result>
-
 use crate::{archive_testtools::config::ArchiveType, common};
 
 use super::test_stelae_paths;

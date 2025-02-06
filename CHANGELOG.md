@@ -10,16 +10,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
-### Changed
-
-### Fixed
-
-### Removed
-
-## [0.5.0-alpha.1]
-
-### Added
-
+- Add `X-File-Path` header to `_stelae` and git microserver HTTP responses ([70])
 - Added tests fot `stelae git` ([64])
 
 ### Changed
@@ -32,6 +23,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
+[70]: https://github.com/openlawlibrary/stelae/pull/70
 [64]: https://github.com/openlawlibrary/stelae/pull/64
 
 ## [0.4.1]
@@ -42,7 +34,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Fixed
 
-- Add missing route to versions endpoint ([#68])
+- Add missing route to versions endpoint ([68])
 
 ### Removed
 
@@ -50,18 +42,19 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
-- Insert commit hashes in the database ([#63])
+- Insert commit hashes in the database ([63])
 
 ### Changed
 
-- Allow HEAD requests for dynamic routes ([#58])
-- Rename `.stelae` to `.taf` dir ([#61])
-- Bump rust-version to `1.83` ([#61])
+- Allow HEAD requests for dynamic routes ([58])
+- Rename `.stelae` to `.taf` dir ([61])
+- Bump rust-version to `1.83` ([61])
 
 ### Fixed
 
 ### Removed
 
+[68]: https://github.com/openlawlibrary/stelae/pull/68
 [63]: https://github.com/openlawlibrary/stelae/pull/63
 [61]: https://github.com/openlawlibrary/stelae/pull/61
 [58]: https://github.com/openlawlibrary/stelae/pull/58
@@ -175,7 +168,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 ### Removed
 
 [Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.4.1...HEAD
-[0.4.0]: https://github.com/openlawlibrary/stelae/compare/v0.4.0...v0.4.1
+[0.4.1]: https://github.com/openlawlibrary/stelae/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/openlawlibrary/stelae/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/openlawlibrary/stelae/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/openlawlibrary/stelae/compare/v0.3.0...v0.3.1
