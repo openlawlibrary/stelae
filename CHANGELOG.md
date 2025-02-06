@@ -10,16 +10,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
-### Changed
-
-### Fixed
-
-### Removed
-
-## [0.5.0-alpha.1]
-
-### Added
-
+- Add `X-File-Path` header to `_stelae` and git microserver HTTP responses ([70])
 - Added tests fot `stelae git` ([64])
 
 ### Changed
@@ -32,6 +23,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
+[70]: https://github.com/openlawlibrary/stelae/pull/70
 [64]: https://github.com/openlawlibrary/stelae/pull/64
 
 ## [0.4.1]
