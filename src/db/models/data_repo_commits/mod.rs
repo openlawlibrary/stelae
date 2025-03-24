@@ -20,8 +20,10 @@ pub trait TxManager {
 pub struct DataRepoCommits {
     /// Unique commit hash of the authentication repository.
     pub commit_hash: String,
-    /// Either codified date or date on which the commit was built on (build-date).
-    pub date: String,
+    /// Codified date.
+    pub codified_date: Option<String>,
+    /// Build date of the commit.
+    pub build_date: Option<String>,
     /// Type of the data repository. E.g. `html`.
     pub repo_type: String,
     /// Foreign key reference to the authentication commit hash.
@@ -37,7 +39,8 @@ impl DataRepoCommits {
     #[must_use]
     pub const fn new(
         commit_hash: String,
-        date: String,
+        codified_date: Option<String>,
+        build_date: Option<String>,
         repo_type: String,
         auth_commit_hash: String,
         auth_commit_timestamp: String,
@@ -45,7 +48,8 @@ impl DataRepoCommits {
     ) -> Self {
         Self {
             commit_hash,
-            date,
+            codified_date,
+            build_date,
             repo_type,
             auth_commit_hash,
             auth_commit_timestamp,

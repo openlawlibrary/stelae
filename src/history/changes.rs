@@ -696,23 +696,14 @@ async fn process_commit<'commit>(
         );
         return Ok(());
     };
-    let Some(data_repo_commit_date) = targets_metadata
-        .codified_date
-        .or(targets_metadata.build_date)
-    else {
-        tracing::debug!(
-            "[{stele_name}] | Skipping commit {} without codified date or build date",
-            &auth_commit_hash
-        );
-        return Ok(());
-    };
     let auth_commit_timestamp = DateTime::from_timestamp(commit.time().seconds(), 0)
         .unwrap_or_default()
         .to_string();
 
     data_repo_commits_bulk.push(DataRepoCommits::new(
         targets_metadata.commit,
-        data_repo_commit_date,
+        targets_metadata.codified_date,
+        targets_metadata.build_date,
         data_repo.get_type().unwrap_or_default(),
         auth_commit_hash,
         auth_commit_timestamp,
