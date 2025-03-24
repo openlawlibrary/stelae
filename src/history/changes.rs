@@ -140,6 +140,13 @@ async fn process_stele(
     }
     let (rdf_org, rdf_name) = get_name_parts(&rdf_repo.name)?;
     let rdf = Repo::new(archive_path, &rdf_org, &rdf_name)?;
+    if !rdf.path.join("_publication").exists() {
+        tracing::warn!(
+            "[{name}]: No publications found for RDF repository: {}",
+            rdf.path.display()
+        );
+        return Ok(());
+    }
     insert_changes_from_rdf_repository(tx, rdf, name).await?;
     // Insert commit hashes for data repositories with serve type 'historical'
     let data_repos = repositories.get_all_by_serve_type("historical");
@@ -671,17 +678,21 @@ async fn process_commit<'commit>(
         //Skip commits without metadata target file
         return Ok(());
     };
-    let Some(publication_name) = targets_metadata.build_date.as_ref() else {
+    let Some(publication_date) = targets_metadata.build_date.as_ref() else {
         // Skip commits that aren't on a publication
         return Ok(());
     };
-    let Ok(publication) =
-        publication::TxManager::find_by_name_and_stele(tx, publication_name, stele_name).await
+    let Ok(publication) = publication::TxManager::find_first_by_date_and_stele_non_revoked(
+        tx,
+        publication_date,
+        stele_name,
+    )
+    .await
     else {
         tracing::debug!(
-            "[{stele_name}] | Skipping commit {} without publication {}",
+            "[{stele_name}] | Skipping commit {} without publication on date {}",
             &auth_commit_hash,
-            publication_name
+            publication_date
         );
         return Ok(());
     };
