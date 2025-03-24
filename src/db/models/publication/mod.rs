@@ -42,6 +42,12 @@ pub trait TxManager {
         name: &str,
         stele: &str,
     ) -> anyhow::Result<Publication>;
+    /// Find the first publication by date and stele that is not revoked.
+    async fn find_first_by_date_and_stele_non_revoked(
+        &mut self,
+        date: &str,
+        stele: &str,
+    ) -> anyhow::Result<Publication>;
     /// Find all by date and stele and sort by name in descending order.
     /// Used in revocation logic to find the latest publication.
     async fn find_all_by_date_and_stele_order_by_name_desc(
