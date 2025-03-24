@@ -155,7 +155,10 @@ impl Archive {
 fn raise_error_if_in_existing_archive(path: &Path) -> anyhow::Result<bool> {
     let existing_archive_path = find_archive_path(path);
     match existing_archive_path {
-        Ok(_) => anyhow::bail!("You cannot create a new archive inside of an existing archive."),
+        Ok(_) => anyhow::bail!(format!(
+            "You cannot create a new archive inside of an existing archive at {} path.",
+            path.display()
+        )),
         Err(_) => Ok(false),
     }
 }

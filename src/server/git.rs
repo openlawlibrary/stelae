@@ -1,11 +1,11 @@
 //! Legacy git microserver.
-
 use actix_web::{get, route, web, App, HttpResponse, HttpServer, Responder};
 use git2::{self, ErrorCode};
 use std::path::PathBuf;
 use tracing_actix_web::TracingLogger;
 
 use super::errors::{CliError, HTTPError, StelaeError};
+use crate::server::headers;
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use crate::utils::http::get_contenttype;
 use crate::{server::tracing::StelaeRootSpanBuilder, utils::paths::clean_path};
@@ -50,7 +50,14 @@ async fn get_blob(
     let blob_path = clean_path(&remainder);
     let contenttype = get_contenttype(&blob_path);
     match blob {
-        Ok(content) => HttpResponse::Ok().insert_header(contenttype).body(content),
+        Ok(found_blob) => {
+            let content = found_blob.content;
+            let filepath = found_blob.path;
+            HttpResponse::Ok()
+                .insert_header(contenttype)
+                .insert_header((headers::HTTP_X_FILE_PATH, filepath))
+                .body(content)
+        }
         Err(error) => blob_error_response(&error, &namespace, &name),
     }
 }

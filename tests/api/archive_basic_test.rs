@@ -1,5 +1,5 @@
 use crate::archive_testtools::config::{ArchiveType, Jurisdiction};
-use crate::common;
+use crate::common::{self};
 use actix_web::test;
 
 #[actix_web::test]

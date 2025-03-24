@@ -73,15 +73,15 @@ impl Stele {
     /// # Errors
     /// Will error if unable to parse dependencies file from `targets/dependencies.json`
     pub fn get_dependencies(&self) -> anyhow::Result<Option<Dependencies>> {
-        let blob = self
+        let Ok(blob) = self
             .auth_repo
-            .get_bytes_at_path("HEAD", "targets/dependencies.json");
-        if let Ok(dependencies_blob) = blob {
-            let dependencies_str = String::from_utf8(dependencies_blob)?;
-            let dependencies = serde_json::from_str(&dependencies_str)?;
-            return Ok(Some(dependencies));
-        }
-        Ok(None)
+            .get_bytes_at_path("HEAD", "targets/dependencies.json")
+        else {
+            return Ok(None);
+        };
+        let dependencies_str = String::from_utf8(blob.content)?;
+        let dependencies = serde_json::from_str(&dependencies_str)?;
+        Ok(Some(dependencies))
     }
     /// Get Stele's repositories.
     /// # Errors
@@ -93,7 +93,7 @@ impl Stele {
         else {
             return Ok(None);
         };
-        let repositories_str = String::from_utf8(blob)?;
+        let repositories_str = String::from_utf8(blob.content)?;
         let repositories: Repositories = serde_json::from_str(&repositories_str)?;
         self.repositories = Some(repositories.clone());
         Ok(Some(repositories))
@@ -119,7 +119,7 @@ impl Stele {
         let Ok(blob) = self.auth_repo.get_bytes_at_path(committish, &file_path) else {
             return Ok(None);
         };
-        let targets_metadata_str = String::from_utf8(blob)?;
+        let targets_metadata_str = String::from_utf8(blob.content)?;
         let targets_metadata: TargetsMetadata = serde_json::from_str(&targets_metadata_str)?;
         Ok(Some(targets_metadata))
     }

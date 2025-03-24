@@ -12,7 +12,7 @@ fn test_get_bytes_at_path_when_empty_path_expect_index_html() {
     let actual = repo.get_bytes_at_path(COMMIT, "").unwrap();
     let expected = "<!DOCTYPE html>";
     assert!(
-        common::blob_to_string(actual).starts_with(expected),
+        common::blob_to_string(actual.content).starts_with(expected),
         "doesn't start with {expected}"
     );
 }
@@ -25,7 +25,7 @@ fn test_get_bytes_at_path_when_full_path_expect_data() {
     let actual = repo.get_bytes_at_path(COMMIT, "a/b/c.html").unwrap();
     let expected = "<!DOCTYPE html>";
     assert!(
-        common::blob_to_string(actual).starts_with(expected),
+        common::blob_to_string(actual.content).starts_with(expected),
         "doesn't start with {expected}"
     );
 }
@@ -38,7 +38,7 @@ fn test_get_bytes_at_path_when_omit_html_expect_data() {
     let actual = repo.get_bytes_at_path(COMMIT, "a/b/c").unwrap();
     let expected = "<!DOCTYPE html>";
     assert!(
-        common::blob_to_string(actual).starts_with(expected),
+        common::blob_to_string(actual.content).starts_with(expected),
         "doesn't start with {expected}"
     );
 }
@@ -51,7 +51,7 @@ fn test_get_bytes_at_path_when_omit_index_expect_data() {
     let actual = repo.get_bytes_at_path(COMMIT, "a/b/d").unwrap();
     let expected = "<!DOCTYPE html>";
     assert!(
-        common::blob_to_string(actual).starts_with(expected),
+        common::blob_to_string(actual.content).starts_with(expected),
         "doesn't start with {expected}"
     );
 }
