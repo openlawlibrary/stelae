@@ -685,6 +685,7 @@ async fn process_commit<'commit>(
         );
         return Ok(());
     };
+    let data_repo_commit_type = i64::from(targets_metadata.codified_date.is_some());
     let Some(data_repo_commit_date) = targets_metadata
         .codified_date
         .or(targets_metadata.build_date)
@@ -706,6 +707,7 @@ async fn process_commit<'commit>(
         auth_commit_hash,
         auth_commit_timestamp,
         publication.id,
+        data_repo_commit_type,
     ));
     Ok(())
 }

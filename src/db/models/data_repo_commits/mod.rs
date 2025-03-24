@@ -30,6 +30,9 @@ pub struct DataRepoCommits {
     pub auth_commit_timestamp: String,
     /// Foreign key reference to the publication.
     pub publication_id: String,
+    /// Type of commit: 0 for build date, 1 for codified date.
+    #[serde(default)]
+    pub commit_type: i64,
 }
 
 impl DataRepoCommits {
@@ -42,6 +45,7 @@ impl DataRepoCommits {
         auth_commit_hash: String,
         auth_commit_timestamp: String,
         publication_id: String,
+        commit_type: i64,
     ) -> Self {
         Self {
             commit_hash,
@@ -50,6 +54,7 @@ impl DataRepoCommits {
             auth_commit_hash,
             auth_commit_timestamp,
             publication_id,
+            commit_type,
         }
     }
 }
