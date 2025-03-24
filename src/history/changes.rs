@@ -140,6 +140,13 @@ async fn process_stele(
     }
     let (rdf_org, rdf_name) = get_name_parts(&rdf_repo.name)?;
     let rdf = Repo::new(archive_path, &rdf_org, &rdf_name)?;
+    if !rdf.path.join("_publication").exists() {
+        tracing::warn!(
+            "[{name}]: No publications found for RDF repository: {}",
+            rdf.path.display()
+        );
+        return Ok(());
+    }
     insert_changes_from_rdf_repository(tx, rdf, name).await?;
     // Insert commit hashes for data repositories with serve type 'historical'
     let data_repos = repositories.get_all_by_serve_type("historical");
