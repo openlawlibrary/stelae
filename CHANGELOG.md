@@ -24,10 +24,12 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Fixed
 
+- Turn error into a warning when stele rdf repo is not setup ([#75])
 - Fix insert hashes on non-revoked publications ([#73])
 
 ### Removed
 
+[#75]: https://github.com/openlawlibrary/stelae/pull/75
 [#73]: https://github.com/openlawlibrary/stelae/pull/73
 
 ## [0.4.1]
