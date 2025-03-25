@@ -34,12 +34,13 @@ impl super::TxManager for DatabaseTransaction {
     /// # Errors
     /// Errors if the commits cannot be inserted.
     async fn insert_bulk(&mut self, data_repo_commits: Vec<DataRepoCommits>) -> anyhow::Result<()> {
-        let mut query_builder = QueryBuilder::new("INSERT OR IGNORE INTO data_repo_commits ( commit_hash, date, repo_type, auth_commit_hash, auth_commit_timestamp, publication_id ) ");
+        let mut query_builder = QueryBuilder::new("INSERT OR IGNORE INTO data_repo_commits ( commit_hash, codified_date, build_date, repo_type, auth_commit_hash, auth_commit_timestamp, publication_id ) ");
         for chunk in data_repo_commits.chunks(BATCH_SIZE) {
             query_builder.push_values(chunk, |mut bindings, dc| {
                 bindings
                     .push_bind(&dc.commit_hash)
-                    .push_bind(&dc.date)
+                    .push_bind(&dc.codified_date)
+                    .push_bind(&dc.build_date)
                     .push_bind(&dc.repo_type)
                     .push_bind(&dc.auth_commit_hash)
                     .push_bind(&dc.auth_commit_timestamp)
