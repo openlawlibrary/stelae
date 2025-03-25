@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use sqlx::{any::AnyRow, FromRow, Row as _};
 
 pub mod manager;
 
@@ -15,7 +16,7 @@ pub trait TxManager {
     async fn insert_bulk(&mut self, data_repo_commits: Vec<DataRepoCommits>) -> anyhow::Result<()>;
 }
 
-#[derive(sqlx::FromRow, Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 /// Model for the commits within the data repository.
 pub struct DataRepoCommits {
     /// Unique commit hash of the authentication repository.
@@ -55,5 +56,19 @@ impl DataRepoCommits {
             auth_commit_timestamp,
             publication_id,
         }
+    }
+}
+
+impl FromRow<'_, AnyRow> for DataRepoCommits {
+    fn from_row(row: &AnyRow) -> anyhow::Result<Self, sqlx::Error> {
+        Ok(Self {
+            commit_hash: row.try_get("commit_hash")?,
+            codified_date: row.try_get("codified_date").ok(),
+            build_date: row.try_get("build_date").ok(),
+            repo_type: row.try_get("repo_type")?,
+            auth_commit_hash: row.try_get("auth_commit_hash")?,
+            auth_commit_timestamp: row.try_get("auth_commit_timestamp")?,
+            publication_id: row.try_get("publication_id")?,
+        })
     }
 }
