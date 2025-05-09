@@ -29,7 +29,7 @@ pub async fn serve_archive(
     port: u16,
     individual: bool,
 ) -> Result<(), CliError> {
-    let bind = "127.0.0.1";
+    let bind = "0.0.0.0";
     let message = "Running Publish Server on a Stelae archive at";
     tracing::info!("{message} '{raw_archive_path}' on http://{bind}:{port}.",);
 
