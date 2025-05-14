@@ -55,6 +55,9 @@ enum Subcommands {
         #[arg(short, long, default_value_t = false)]
         /// Serve an individual stele instead of the Stele specified in config.toml.
         individual: bool,
+        /// Bind to 0.0.0.0 instead of 127.0.0.1
+        #[arg(short, long, default_value_t = false)]
+        bind_to_all: bool,
     },
     /// Update the archive
     ///
@@ -115,9 +118,11 @@ fn init_tracing(archive_path: &Path) {
 /// This function returns the generic `CliError`, based on which we exit with a known exit code.
 fn execute_command(cli: &Cli, archive_path: PathBuf) -> Result<(), CliError> {
     match cli.subcommands {
-        Subcommands::Git { port } => serve_git(&cli.archive_path, archive_path, port),
-        Subcommands::Serve { port, individual } => {
-            serve_archive(&cli.archive_path, archive_path, port, individual)
+        Subcommands::Git { port } => {
+            serve_git(&cli.archive_path, archive_path, port)
+        },
+        Subcommands::Serve { port, individual, bind_to_all } => {
+            serve_archive(&cli.archive_path, archive_path, port, individual, bind_to_all)
         }
         Subcommands::Update => changes::insert(&cli.archive_path, archive_path),
     }
