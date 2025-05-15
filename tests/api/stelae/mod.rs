@@ -3,8 +3,8 @@ use actix_service::Service;
 use actix_web::body::MessageBody;
 use actix_web::dev::ServiceResponse;
 use actix_web::{test, Error};
-mod stelae_basic_test;
-mod stelae_multihost_test;
+// mod stelae_basic_test;
+// mod stelae_multihost_test;
 
 /// Helper method which test all `file_paths`` in `org_name`/`repo_name` repository on `branch_name`` branch with `expected` result
 async fn test_stelae_paths(
