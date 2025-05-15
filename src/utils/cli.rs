@@ -118,12 +118,18 @@ fn init_tracing(archive_path: &Path) {
 /// This function returns the generic `CliError`, based on which we exit with a known exit code.
 fn execute_command(cli: &Cli, archive_path: PathBuf) -> Result<(), CliError> {
     match cli.subcommands {
-        Subcommands::Git { port } => {
-            serve_git(&cli.archive_path, archive_path, port)
-        },
-        Subcommands::Serve { port, individual, bind_to_all } => {
-            serve_archive(&cli.archive_path, archive_path, port, individual, bind_to_all)
-        }
+        Subcommands::Git { port } => serve_git(&cli.archive_path, archive_path, port),
+        Subcommands::Serve {
+            port,
+            individual,
+            bind_to_all,
+        } => serve_archive(
+            &cli.archive_path,
+            archive_path,
+            port,
+            individual,
+            bind_to_all,
+        ),
         Subcommands::Update => changes::insert(&cli.archive_path, archive_path),
     }
 }

@@ -28,7 +28,7 @@ pub async fn serve_archive(
     archive_path: PathBuf,
     port: u16,
     individual: bool,
-    bind_to_all: bool
+    bind_to_all: bool,
 ) -> Result<(), CliError> {
     let bind = if bind_to_all { "0.0.0.0" } else { "127.0.0.1" };
     let message = "Running Publish Server on a Stelae archive at";
