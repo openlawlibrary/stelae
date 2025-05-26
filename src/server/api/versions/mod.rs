@@ -191,7 +191,10 @@ async fn publication_versions(
 /// Extracts the stele from the request.
 /// If the `X-Stelae` header is present, it will return the value of the header.
 /// Otherwise, it will return the root stele.
-fn get_stele_from_request(req: &HttpRequest, archive: &Archive) -> anyhow::Result<String> {
+///
+/// # Errors
+/// Errors if X-Stelae is in invalid format
+pub fn get_stele_from_request(req: &HttpRequest, archive: &Archive) -> anyhow::Result<String> {
     let req_headers = req.headers();
     let stele = archive.get_root()?.get_qualified_name();
 

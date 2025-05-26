@@ -99,6 +99,24 @@ impl Stele {
         Ok(Some(repositories))
     }
 
+    /// Get Stele's repositories for specific commitish.
+    /// # Errors
+    /// Will error if unable to find or parse repositories file at `targets/repositories.json`
+    pub fn get_repositories_for_commitish(
+        &self,
+        committish: &str,
+    ) -> anyhow::Result<Option<Repositories>> {
+        let Ok(blob) = self
+            .auth_repo
+            .get_bytes_at_path(committish, "targets/repositories.json")
+        else {
+            return Ok(None);
+        };
+        let repositories_str = String::from_utf8(blob.content)?;
+        let repositories: Repositories = serde_json::from_str(&repositories_str)?;
+        Ok(Some(repositories))
+    }
+
     /// Get Stele's targets metadata file at a specific committish and filename.
     ///
     /// # Arguments
