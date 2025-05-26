@@ -55,6 +55,9 @@ enum Subcommands {
         #[arg(short, long, default_value_t = false)]
         /// Serve an individual stele instead of the Stele specified in config.toml.
         individual: bool,
+        /// Bind to specify ip address instead of 127.0.0.1
+        #[arg(short, long, default_value = "127.0.0.1")]
+        bind_to: String,
     },
     /// Update the archive
     ///
@@ -109,16 +112,22 @@ fn init_tracing(archive_path: &Path) {
     }
 }
 
+#[expect(
+    clippy::pattern_type_mismatch,
+    reason = "Allow patern type mismatch because we need it to pass &str to serve function in `execute_command`"
+)]
 /// Central place to execute commands
 ///
 /// # Errors
 /// This function returns the generic `CliError`, based on which we exit with a known exit code.
 fn execute_command(cli: &Cli, archive_path: PathBuf) -> Result<(), CliError> {
-    match cli.subcommands {
-        Subcommands::Git { port } => serve_git(&cli.archive_path, archive_path, port),
-        Subcommands::Serve { port, individual } => {
-            serve_archive(&cli.archive_path, archive_path, port, individual)
-        }
+    match &cli.subcommands {
+        Subcommands::Git { port } => serve_git(&cli.archive_path, archive_path, *port),
+        Subcommands::Serve {
+            port,
+            individual,
+            bind_to,
+        } => serve_archive(&cli.archive_path, archive_path, *port, *individual, bind_to),
         Subcommands::Update => changes::insert(&cli.archive_path, archive_path),
     }
 }

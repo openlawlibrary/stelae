@@ -28,10 +28,10 @@ pub async fn serve_archive(
     archive_path: PathBuf,
     port: u16,
     individual: bool,
+    bind_to: &str,
 ) -> Result<(), CliError> {
-    let bind = "127.0.0.1";
     let message = "Running Publish Server on a Stelae archive at";
-    tracing::info!("{message} '{raw_archive_path}' on http://{bind}:{port}.",);
+    tracing::info!("{message} '{raw_archive_path}' on http://{bind_to}:{port}.",);
 
     let db = match db::init::connect(&archive_path).await {
         Ok(db) => db,
@@ -71,7 +71,7 @@ pub async fn serve_archive(
             process::exit(1)
         })
     })
-    .bind((bind, port))?
+    .bind((bind_to, port))?
     .run()
     .await
     .map_err(|err| {
