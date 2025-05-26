@@ -1,8 +1,10 @@
 //! API endpoint for serving git blobs.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use crate::server::headers;
+use crate::utils::archive::get_name_parts;
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use crate::utils::http::get_contenttype;
 use crate::utils::paths::clean_path;
@@ -11,10 +13,16 @@ use git2::{self, ErrorCode};
 use request::StelaeQueryData;
 
 use super::super::errors::HTTPError;
+use super::state::Global;
+use super::versions::get_stele_from_request;
 
 /// Module that maps the HTTP web request body to structs.
 pub mod request;
 
+#[expect(
+    clippy::pattern_type_mismatch,
+    reason = "The pattern is clear and intentional; matching by reference adds unnecessary verbosity for this context."
+)]
 /// Return the content in the stelae archive in the `{namespace}/{name}`
 /// repo at the `commitish` commit at the `remainder` path.
 /// Return 404 if any are not found or there are any errors.
@@ -28,11 +36,47 @@ pub async fn get_blob(
     path: web::Path<(String, String)>,
     query: web::Query<StelaeQueryData>,
     data: web::Data<PathBuf>,
+    archive_data: web::Data<Arc<dyn Global>>,
 ) -> impl Responder {
+    let stele_name = match get_stele_from_request(&req, archive_data.archive()) {
+        Ok(stele) => stele,
+        Err(err) => {
+            tracing::error!("Error getting stele from request: {err}");
+            return HttpResponse::BadRequest().body(format!("Error: {err}"));
+        }
+    };
+    let (org, _) = match get_name_parts(&stele_name) {
+        Ok(parts) => parts,
+        Err(err) => return HttpResponse::BadRequest().body(format!("Error: {err}")),
+    };
     let (namespace, name) = path.into_inner();
+    if namespace != org {
+        return HttpResponse::BadRequest()
+            .body("Organization name is different from namespace path segment");
+    }
     let query_data: StelaeQueryData = query.into_inner();
     let commitish = query_data.commitish.unwrap_or_else(|| String::from("HEAD"));
     let remainder = query_data.remainder.unwrap_or_default();
+    let stelae = archive_data.archive().get_stelae();
+    let Some((_, stele)) = stelae.iter().find(|(s_name, _)| *s_name == stele_name) else {
+        return HttpResponse::BadRequest().body("Can not find stele in archive stelae");
+    };
+    let repositories = match stele.get_repositories_for_commitish("HEAD") {
+        Ok(Some(repos)) => repos,
+        Ok(None) => {
+            tracing::error!("No repositories found");
+            return HttpResponse::BadRequest().body("No repositories found");
+        }
+        Err(err) => {
+            tracing::error!("Error fetching repositories: {err}");
+            return HttpResponse::BadRequest().body(format!("Error: {err}"));
+        }
+    };
+    let full_name = format!("{namespace}/{name}");
+    if !repositories.repositories.contains_key(&full_name) {
+        return HttpResponse::BadRequest()
+            .body("Repository is not in list of allowed repositories");
+    }
     let archive_path = &data;
     let blob = Repo::find_blob(archive_path, &namespace, &name, &remainder, &commitish);
     let blob_path = clean_path(&remainder);

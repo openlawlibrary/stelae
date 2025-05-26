@@ -373,6 +373,20 @@ fn init_data_repository(
     Ok(())
 }
 
+pub fn init_secret_repository(test_path: &Path) -> Result<()> {
+    // Create full path: test_path/test_org/secret_repo
+    let path = test_path.join("secret_repo");
+    std::fs::create_dir_all(&path).unwrap();
+    let repo = GitRepository::init(&path).unwrap();
+
+    let password_content = String::from("Super Secret Password");
+
+    repo.add_file(&path, "password.txt", &password_content)
+        .unwrap();
+    repo.commit(None, "Add password.txt").unwrap();
+    Ok(())
+}
+
 fn add_fixture_file_to_git_repo(git_repo: &GitRepository, path: &Path) -> Result<()> {
     let filename = path.file_name().unwrap().to_str().unwrap();
     let static_file_path = get_static_file_path(filename);

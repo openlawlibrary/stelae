@@ -1,9 +1,12 @@
+use std::path::PathBuf;
+
 use actix_web::test;
 
 use crate::api::stelae::test_stelae_paths;
 use crate::archive_testtools::config::{ArchiveType, Jurisdiction};
-use crate::archive_testtools::get_repository;
+use crate::archive_testtools::{get_repository, init_secret_repository};
 use crate::common;
+use actix_web::http::header;
 
 use super::test_stelae_paths_with_head_method;
 
@@ -381,7 +384,6 @@ async fn test_stele_api_with_same_file_on_different_branches_expect_different_fi
         .to_request();
     let actual = test::call_and_read_body(&app, req).await;
     let expected = "Content for test branch";
-    println!("{}", common::blob_to_string(actual.to_vec()));
     assert!(
         common::blob_to_string(actual.to_vec()).starts_with(expected),
         "doesn't start with {expected}"
@@ -445,6 +447,69 @@ async fn test_stelae_api_where_branch_is_commit_sha_expect_resolved_content() {
         .to_request();
     let actual = test::call_and_read_body(&app, req).await;
     let expected = "Content for test branch";
+    assert!(
+        common::blob_to_string(actual.to_vec()).starts_with(expected),
+        "doesn't start with {expected}"
+    );
+}
+
+#[actix_web::test]
+async fn test_stelae_api_where_org_name_is_different_from_name_path_expect_error() {
+    let archive_path =
+        common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
+    let app = common::initialize_app(archive_path.path()).await;
+
+    let req = test::TestRequest::get()
+        .uri("/_stelae/test_org/law-html?commitish=HEAD&remainder=/index.html")
+        .insert_header((
+            header::HeaderName::from_static("x-stelae"),
+            "unknown_name/law",
+        ))
+        .to_request();
+    let actual = test::call_and_read_body(&app, req).await;
+    let expected = "Organization name is different from namespace path segment";
+    assert!(
+        common::blob_to_string(actual.to_vec()).starts_with(expected),
+        "doesn't start with {expected}"
+    );
+}
+
+#[actix_web::test]
+async fn test_stelae_api_where_org_name_does_not_exists_expect_error() {
+    let archive_path =
+        common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
+    let app = common::initialize_app(archive_path.path()).await;
+
+    let req = test::TestRequest::get()
+        .uri("/_stelae/unknown_org/law-html?commitish=HEAD&remainder=/index.html")
+        .insert_header((
+            header::HeaderName::from_static("x-stelae"),
+            "unknown_org/law",
+        ))
+        .to_request();
+    let actual = test::call_and_read_body(&app, req).await;
+    let expected = "Can not find stele in archive stelae";
+    println!("{}", common::blob_to_string(actual.to_vec()));
+    assert!(
+        common::blob_to_string(actual.to_vec()).starts_with(expected),
+        "doesn't start with {expected}"
+    );
+}
+
+#[actix_web::test]
+async fn test_stelae_api_where_repo_name_is_not_in_repository_json_file_expect_error() {
+    let archive_path =
+        common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
+    let test_org_path: PathBuf = archive_path.path().join("test_org");
+    let _ = init_secret_repository(&test_org_path);
+    let app = common::initialize_app(archive_path.path()).await;
+
+    let req = test::TestRequest::get()
+        .uri("/_stelae/test_org/secret_repo?commitish=HEAD&remainder=/password.txt")
+        .insert_header((header::HeaderName::from_static("x-stelae"), "test_org/law"))
+        .to_request();
+    let actual = test::call_and_read_body(&app, req).await;
+    let expected = "Repository is not in list of allowed repositories";
     assert!(
         common::blob_to_string(actual.to_vec()).starts_with(expected),
         "doesn't start with {expected}"
