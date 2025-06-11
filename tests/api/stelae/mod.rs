@@ -19,7 +19,7 @@ async fn test_stelae_paths(
     for file_path in file_paths {
         let req = test::TestRequest::get()
             .uri(&format!(
-                "/_stelae/{}/{}?commitish={}&remainder={}",
+                "/_archive/{}/{}?commitish={}&path={}",
                 org_name, repo_name, branch_name, file_path
             ))
             .insert_header((
@@ -62,7 +62,7 @@ async fn test_stelae_paths_with_head_method(
         let req = test::TestRequest::default()
             .method(Method::HEAD)
             .uri(&format!(
-                "/_stelae/{}/{}?commitish={}&remainder={}",
+                "/_archive/{}/{}?commitish={}&path={}",
                 org_name, repo_name, branch_name, file_path
             ))
             .to_request();

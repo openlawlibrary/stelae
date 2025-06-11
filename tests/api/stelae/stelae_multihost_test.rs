@@ -47,7 +47,7 @@ async fn test_stelae_api_where_header_is_not_present_for_root_stele_expect_succe
     let app = common::initialize_app(archive_path.path()).await;
 
     let req = test::TestRequest::get()
-        .uri("/_stelae/root_stele/law-html?commitish=HEAD&remainder=/index.html")
+        .uri("/_archive/root_stele/law-html?path=/index.html")
         .to_request();
     let actual = test::call_and_read_body(&app, req).await;
     let expected = "<!DOCTYPE html>";
@@ -63,7 +63,7 @@ async fn test_stelae_api_where_header_is_not_present_for_non_root_stele_expect_e
     let app = common::initialize_app(archive_path.path()).await;
 
     let req = test::TestRequest::get()
-        .uri("/_stelae/stele_1/law-html?commitish=HEAD&remainder=/index.html")
+        .uri("/_archive/stele_1/law-html?path=/index.html")
         .to_request();
     let actual = test::call_and_read_body(&app, req).await;
     let expected = "Organization name is different from namespace path segment";

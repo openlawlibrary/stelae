@@ -24,7 +24,7 @@ pub mod request;
     reason = "The pattern is clear and intentional; matching by reference adds unnecessary verbosity for this context."
 )]
 /// Return the content in the stelae archive in the `{namespace}/{name}`
-/// repo at the `commitish` commit at the `remainder` path.
+/// repo at the `commitish` commit at the `path` path.
 /// Return 404 if any are not found or there are any errors.
 #[tracing::instrument(name = "Retrieving a Git blob", skip(path, data, query))]
 #[expect(
@@ -56,7 +56,7 @@ pub async fn get_blob(
     }
     let query_data: StelaeQueryData = query.into_inner();
     let commitish = query_data.commitish.unwrap_or_else(|| String::from("HEAD"));
-    let remainder = query_data.remainder.unwrap_or_default();
+    let path = query_data.path.unwrap_or_default();
     let stelae = archive_data.archive().get_stelae();
     let Some((_, stele)) = stelae.iter().find(|(s_name, _)| *s_name == stele_name) else {
         return HttpResponse::BadRequest().body("Can not find stele in archive stelae");
@@ -78,8 +78,8 @@ pub async fn get_blob(
             .body("Repository is not in list of allowed repositories");
     }
     let archive_path = &data;
-    let blob = Repo::find_blob(archive_path, &namespace, &name, &remainder, &commitish);
-    let blob_path = clean_path(&remainder);
+    let blob = Repo::find_blob(archive_path, &namespace, &name, &path, &commitish);
+    let blob_path = clean_path(&path);
     let contenttype = get_contenttype(&blob_path);
     match blob {
         Ok(found_blob) => {

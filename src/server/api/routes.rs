@@ -84,7 +84,7 @@ pub fn register_app<
         .app_data(web::Data::new(state.archive().path.clone()))
         .app_data(web::Data::new(data_state))
         .service(
-            web::scope("_stelae").service(
+            web::scope("_archive").service(
                 web::resource("/{namespace}/{name}")
                     .route(web::get().to(get_blob))
                     .route(web::head().to(get_blob)),

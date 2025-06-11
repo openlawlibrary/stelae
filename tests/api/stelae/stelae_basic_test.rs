@@ -367,7 +367,7 @@ async fn test_stele_api_with_same_file_on_different_branches_expect_different_fi
 
     let req = test::TestRequest::get()
         .uri(&format!(
-            "/_stelae/test_org/law-html?commitish=default_branch&remainder=/test.txt"
+            "/_archive/test_org/law-html?commitish=default_branch&path=/test.txt"
         ))
         .to_request();
     let actual = test::call_and_read_body(&app, req).await;
@@ -379,7 +379,7 @@ async fn test_stele_api_with_same_file_on_different_branches_expect_different_fi
 
     let req = test::TestRequest::get()
         .uri(&format!(
-            "/_stelae/test_org/law-html?commitish=test_branch&remainder=test.txt"
+            "/_archive/test_org/law-html?commitish=test_branch&path=test.txt"
         ))
         .to_request();
     let actual = test::call_and_read_body(&app, req).await;
@@ -409,7 +409,7 @@ async fn test_stelae_api_where_branch_contains_slashs_expect_resolved_content() 
 
     let req = test::TestRequest::get()
         .uri(&format!(
-            "/_stelae/test_org/law-html?commitish={}&remainder=/test.txt",
+            "/_archive/test_org/law-html?commitish={}&path=/test.txt",
             branch_name
         ))
         .to_request();
@@ -441,7 +441,7 @@ async fn test_stelae_api_where_branch_is_commit_sha_expect_resolved_content() {
 
     let req = test::TestRequest::get()
         .uri(&format!(
-            "/_stelae/test_org/law-html?commitish={}&remainder=/test.txt",
+            "/_archive/test_org/law-html?commitish={}&path=/test.txt",
             sha_string
         ))
         .to_request();
@@ -460,7 +460,7 @@ async fn test_stelae_api_where_org_name_is_different_from_name_path_expect_error
     let app = common::initialize_app(archive_path.path()).await;
 
     let req = test::TestRequest::get()
-        .uri("/_stelae/test_org/law-html?commitish=HEAD&remainder=/index.html")
+        .uri("/_archive/test_org/law-html?path=/index.html")
         .insert_header((
             header::HeaderName::from_static("x-stelae"),
             "unknown_name/law",
@@ -481,7 +481,7 @@ async fn test_stelae_api_where_org_name_does_not_exists_expect_error() {
     let app = common::initialize_app(archive_path.path()).await;
 
     let req = test::TestRequest::get()
-        .uri("/_stelae/unknown_org/law-html?commitish=HEAD&remainder=/index.html")
+        .uri("/_archive/unknown_org/law-html?&path=/index.html")
         .insert_header((
             header::HeaderName::from_static("x-stelae"),
             "unknown_org/law",
@@ -505,7 +505,7 @@ async fn test_stelae_api_where_repo_name_is_not_in_repository_json_file_expect_e
     let app = common::initialize_app(archive_path.path()).await;
 
     let req = test::TestRequest::get()
-        .uri("/_stelae/test_org/secret_repo?commitish=HEAD&remainder=/password.txt")
+        .uri("/_archive/test_org/secret_repo?path=/password.txt")
         .insert_header((header::HeaderName::from_static("x-stelae"), "test_org/law"))
         .to_request();
     let actual = test::call_and_read_body(&app, req).await;
