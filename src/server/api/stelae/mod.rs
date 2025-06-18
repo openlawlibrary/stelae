@@ -50,15 +50,35 @@ pub async fn get_blob(
         Err(err) => return HttpResponse::BadRequest().body(format!("Error: {err}")),
     };
     let (namespace, name) = path.into_inner();
-    if namespace != org {
-        return HttpResponse::BadRequest()
-            .body("Organization name is different from namespace path segment");
-    }
+    let Ok(root_stele) = archive_data.archive().get_root() else {
+        return HttpResponse::NotFound().body("Can not find root stele in archive");
+    };
+    if namespace == org {
+        match root_stele.get_repositories_for_commitish("HEAD") {
+            Ok(Some(repos))
+                if repos
+                    .repositories
+                    .contains_key(&format!("{namespace}/{name}")) =>
+            {
+                return HttpResponse::Forbidden().body("Forbidden repository");
+            }
+            Ok(Some(_) | None) => {
+                tracing::warn!("No matching repo found or root repositories empty");
+            }
+            Err(err) => {
+                tracing::error!("Error fetching root repositories: {err}");
+                return HttpResponse::BadRequest().body(format!("Error: {err}"));
+            }
+        }
+    };
     let query_data: StelaeQueryData = query.into_inner();
     let commitish = query_data.commitish.unwrap_or_else(|| String::from("HEAD"));
-    let path = query_data.path.unwrap_or_default();
+    let file_path = query_data.path.unwrap_or_default();
     let stelae = archive_data.archive().get_stelae();
-    let Some((_, stele)) = stelae.iter().find(|(s_name, _)| *s_name == stele_name) else {
+    let Some((_, stele)) = stelae
+        .iter()
+        .find(|(s_name, _)| *s_name == format!("{namespace}/law"))
+    else {
         return HttpResponse::BadRequest().body("Can not find stele in archive stelae");
     };
     let repositories = match stele.get_repositories_for_commitish("HEAD") {
@@ -78,8 +98,8 @@ pub async fn get_blob(
             .body("Repository is not in list of allowed repositories");
     }
     let archive_path = &data;
-    let blob = Repo::find_blob(archive_path, &namespace, &name, &path, &commitish);
-    let blob_path = clean_path(&path);
+    let blob = Repo::find_blob(archive_path, &namespace, &name, &file_path, &commitish);
+    let blob_path = clean_path(&file_path);
     let contenttype = get_contenttype(&blob_path);
     match blob {
         Ok(found_blob) => {

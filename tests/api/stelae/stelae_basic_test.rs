@@ -23,6 +23,8 @@ async fn test_stele_api_on_all_repositories_with_full_path_expect_success() {
         "HEAD",
         &app,
         true,
+        "x-stelae",
+        "test_org/law",
     )
     .await;
 
@@ -44,6 +46,8 @@ async fn test_stele_api_on_all_repositories_with_full_path_expect_success() {
         "HEAD",
         &app,
         true,
+        "x-stelae",
+        "test_org/law",
     )
     .await;
 
@@ -54,6 +58,8 @@ async fn test_stele_api_on_all_repositories_with_full_path_expect_success() {
         "HEAD",
         &app,
         true,
+        "x-stelae",
+        "test_org/law",
     )
     .await;
 
@@ -71,6 +77,8 @@ async fn test_stele_api_on_all_repositories_with_full_path_expect_success() {
         "HEAD",
         &app,
         true,
+        "x-stelae",
+        "test_org/law",
     )
     .await;
 
@@ -88,6 +96,8 @@ async fn test_stele_api_on_all_repositories_with_full_path_expect_success() {
         "HEAD",
         &app,
         true,
+        "x-stelae",
+        "test_org/law",
     )
     .await;
 
@@ -98,6 +108,8 @@ async fn test_stele_api_on_all_repositories_with_full_path_expect_success() {
         "HEAD",
         &app,
         true,
+        "x-stelae",
+        "test_org/law",
     )
     .await;
 }
@@ -207,6 +219,8 @@ async fn test_stele_api_on_law_html_repository_with_missing_branch_name_expect_c
         "",
         &app,
         false,
+        "x-stelae",
+        "test_org/law",
     )
     .await;
 }
@@ -224,6 +238,8 @@ async fn test_stele_api_on_law_html_repository_with_invalid_branch_name_expect_c
         "notExistingBranch",
         &app,
         false,
+        "x-stelae",
+        "test_org/law",
     )
     .await;
 }
@@ -241,6 +257,8 @@ async fn test_stele_api_on_law_html_repository_with_invalid_org_name_expect_clie
         "HEAD",
         &app,
         false,
+        "x-stelae",
+        "test_org/law",
     )
     .await;
 }
@@ -258,6 +276,8 @@ async fn test_stele_api_on_law_html_repository_with_invalid_repo_name_expect_cli
         "HEAD",
         &app,
         false,
+        "x-stelae",
+        "test_org/law",
     )
     .await;
 }
@@ -275,6 +295,8 @@ async fn test_stele_api_on_law_html_repository_with_incorrect_paths_expect_clien
         "HEAD",
         &app,
         false,
+        "x-stelae",
+        "test_org/law",
     )
     .await;
 }
@@ -308,6 +330,8 @@ async fn test_stele_api_on_law_html_repository_with_different_files_on_different
         "default_branch",
         &app,
         true,
+        "x-stelae",
+        "test_org/law",
     )
     .await;
 
@@ -318,6 +342,8 @@ async fn test_stele_api_on_law_html_repository_with_different_files_on_different
         "default_branch",
         &app,
         false,
+        "x-stelae",
+        "test_org/law",
     )
     .await;
 
@@ -328,6 +354,8 @@ async fn test_stele_api_on_law_html_repository_with_different_files_on_different
         "test_branch",
         &app,
         false,
+        "x-stelae",
+        "test_org/law",
     )
     .await;
 
@@ -338,6 +366,8 @@ async fn test_stele_api_on_law_html_repository_with_different_files_on_different
         "test_branch",
         &app,
         true,
+        "x-stelae",
+        "test_org/law",
     )
     .await;
 }
@@ -454,27 +484,6 @@ async fn test_stelae_api_where_branch_is_commit_sha_expect_resolved_content() {
 }
 
 #[actix_web::test]
-async fn test_stelae_api_where_org_name_is_different_from_name_path_expect_error() {
-    let archive_path =
-        common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
-    let app = common::initialize_app(archive_path.path()).await;
-
-    let req = test::TestRequest::get()
-        .uri("/_archive/test_org/law-html?path=/index.html")
-        .insert_header((
-            header::HeaderName::from_static("x-stelae"),
-            "unknown_name/law",
-        ))
-        .to_request();
-    let actual = test::call_and_read_body(&app, req).await;
-    let expected = "Organization name is different from namespace path segment";
-    assert!(
-        common::blob_to_string(actual.to_vec()).starts_with(expected),
-        "doesn't start with {expected}"
-    );
-}
-
-#[actix_web::test]
 async fn test_stelae_api_where_org_name_does_not_exists_expect_error() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
@@ -514,4 +523,21 @@ async fn test_stelae_api_where_repo_name_is_not_in_repository_json_file_expect_e
         common::blob_to_string(actual.to_vec()).starts_with(expected),
         "doesn't start with {expected}"
     );
+}
+
+#[actix_web::test]
+async fn test_stelae_api_without_header_expect_error() {
+    let archive_path =
+        common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
+    let test_org_path: PathBuf = archive_path.path().join("test_org");
+    let _ = init_secret_repository(&test_org_path);
+    let app = common::initialize_app(archive_path.path()).await;
+
+    let req = test::TestRequest::get()
+        .uri("/_archive/test_org/secret_repo?path=/password.txt")
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    let actual = resp.status().is_client_error();
+    let expected = true;
+    assert_eq!(actual, expected);
 }
