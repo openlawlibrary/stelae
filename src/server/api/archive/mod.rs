@@ -1,5 +1,24 @@
 //! API endpoint for serving git blobs.
-
+/// The `_archive` endpoint provides access to the contents of files stored within
+/// repositories managed by stelae.
+///
+/// This endpoint only permits access to files that belong to **public** repositories.
+/// Attempts to access files in private or restricted repositories will result in a
+/// `403 Forbidden` response.
+///
+/// # Overview
+/// - Resolves repositories and files based on the provided path and query parameters.
+/// - Verifies that the target repository is publicly accessible.
+/// - Returns the requested file content if access is allowed.
+///
+/// # Restrictions
+/// - Only public repositories are accessible.
+/// - Authorization headers or guards may further restrict access.
+///
+/// # Example
+/// ```http
+/// GET /_archive/org/repo?path=/README.md&commitish=main
+/// ```
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -10,7 +29,7 @@ use crate::utils::http::get_contenttype;
 use crate::utils::paths::clean_path;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use git2::{self, ErrorCode};
-use request::StelaeQueryData;
+use request::ArchiveQueryData;
 
 use super::super::errors::HTTPError;
 use super::state::Global;
@@ -34,9 +53,10 @@ pub mod request;
 pub async fn get_blob(
     req: HttpRequest,
     path: web::Path<(String, String)>,
-    query: web::Query<StelaeQueryData>,
+    query: web::Query<ArchiveQueryData>,
     data: web::Data<PathBuf>,
     archive_data: web::Data<Arc<dyn Global>>,
+    is_guarded: web::Data<bool>,
 ) -> impl Responder {
     let stele_name = match get_stele_from_request(&req, archive_data.archive()) {
         Ok(stele) => stele,
@@ -53,7 +73,7 @@ pub async fn get_blob(
     let Ok(root_stele) = archive_data.archive().get_root() else {
         return HttpResponse::NotFound().body("Can not find root stele in archive");
     };
-    if namespace == org {
+    if **is_guarded && namespace == org {
         match root_stele.get_repositories_for_commitish("HEAD") {
             Ok(Some(repos))
                 if repos
@@ -71,7 +91,7 @@ pub async fn get_blob(
             }
         }
     };
-    let query_data: StelaeQueryData = query.into_inner();
+    let query_data: ArchiveQueryData = query.into_inner();
     let commitish = query_data.commitish.unwrap_or_else(|| String::from("HEAD"));
     let file_path = query_data.path.unwrap_or_default();
     let stelae = archive_data.archive().get_stelae();

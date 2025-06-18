@@ -15,7 +15,7 @@ use actix_web::{
     guard, web, App, Error, Scope,
 };
 
-use super::stelae::get_blob;
+use super::archive::get_blob;
 use super::{serve::serve, state::Global, versions::versions};
 
 /// Name of the header to guard current documents
@@ -80,9 +80,7 @@ pub fn register_app<
         )
         .app_data(web::Data::new(state.clone()));
 
-    app = register_stelae_routes(app, state)?;
-
-    app = register_dynamic_routes(app, state)?;
+    app = register_guarded_and_unguarded_routes(app, state)?;
     Ok(app)
 }
 
@@ -93,7 +91,7 @@ pub fn register_app<
 ///
 /// # Errors
 /// Errors if unable to register dynamic routes (e.g. if git repository cannot be opened)
-fn register_stelae_routes<
+fn register_guarded_and_unguarded_routes<
     T: MessageBody,
     U: ServiceFactory<
         ServiceRequest,
@@ -113,9 +111,11 @@ fn register_stelae_routes<
         .and_then(|headers| headers.current_documents_guard);
 
     if let Some(guard) = stelae_guard {
-        app = initialize_guarded_stelae_route(guard, app, state)?;
+        app = initialize_guarded_archive_route(guard.clone(), app, state)?;
+        app = initialize_guarded_dynamic_routes(guard, app, state)?;
     } else {
-        app = initialize_stelae_route(app, state);
+        app = initialize_archive_route(app, state);
+        app = initialize_dynamic_routes(app, state)?;
     };
     Ok(app)
 }
@@ -124,12 +124,12 @@ fn register_stelae_routes<
     clippy::expect_used,
     reason = "If there is no root stelae, we should panic"
 )]
-/// Initialize all guarded stelae routes for the given Archive.
+/// Initialize all guarded archive routes for the given Archive.
 /// Routes are guarded by a header value specified in the config.toml file.
 ///
 /// # Errors
 /// Errors if unable to register dynamic routes (e.g. if git repository cannot be opened)
-fn initialize_guarded_stelae_route<
+fn initialize_guarded_archive_route<
     T: MessageBody,
     U: ServiceFactory<
         ServiceRequest,
@@ -167,6 +167,7 @@ fn initialize_guarded_stelae_route<
             app = app
                 .app_data(web::Data::new(state.archive().path.clone()))
                 .app_data(web::Data::new(Arc::clone(&data_state)))
+                .app_data(web::Data::new(true))
                 .service(
                     stelae_scope.service(
                         web::resource("/{namespace}/{name}")
@@ -183,11 +184,11 @@ fn initialize_guarded_stelae_route<
     Ok(app)
 }
 
-/// Initialize stelae routes for the given Archive.
+/// Initialize _archive routes for the given Archive.
 ///
 /// # Errors
 /// Errors if unable to register stelae routes (e.g. if git repository cannot be opened)
-fn initialize_stelae_route<
+fn initialize_archive_route<
     T: MessageBody,
     U: ServiceFactory<
         ServiceRequest,
@@ -206,6 +207,7 @@ fn initialize_stelae_route<
     app = app
         .app_data(web::Data::new(state.archive().path.clone()))
         .app_data(web::Data::new(data_state))
+        .app_data(web::Data::new(false))
         .service(
             web::scope("_archive").service(
                 web::resource("/{namespace}/{name}")
@@ -214,39 +216,6 @@ fn initialize_stelae_route<
             ),
         );
     app
-}
-
-/// Initialize all dynamic routes for the given Archive.
-///
-/// Dynamic routes are determined at runtime by looking at the stele's `dependencies.json` and `repositories.json` files
-/// in the authentication (e.g. law) repository.
-///
-/// # Errors
-/// Errors if unable to register dynamic routes (e.g. if git repository cannot be opened)
-fn register_dynamic_routes<
-    T: MessageBody,
-    U: ServiceFactory<
-        ServiceRequest,
-        Response = ServiceResponse<T>,
-        Config = (),
-        InitError = (),
-        Error = Error,
-    >,
->(
-    mut app: App<U>,
-    state: &impl Global,
-) -> anyhow::Result<App<U>> {
-    let config = state.archive().get_config()?;
-    let stelae_guard = config
-        .headers
-        .and_then(|headers| headers.current_documents_guard);
-
-    if let Some(guard) = stelae_guard {
-        app = initialize_guarded_dynamic_routes(guard, app, state)?;
-    } else {
-        app = initialize_dynamic_routes(app, state)?;
-    };
-    Ok(app)
 }
 
 /// Initialize all guarded dynamic routes for the given Archive.
