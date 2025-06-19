@@ -1,6 +1,6 @@
 //! API endpoint for serving git blobs.
 /// The `_archive` endpoint provides access to the contents of files stored within
-/// repositories managed by stelae.
+/// repositories.
 ///
 /// This endpoint only permits access to files that belong to **public** repositories.
 /// Attempts to access files in private or restricted repositories will result in a

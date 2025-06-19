@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use super::test_stelae_paths;
+use super::test_archive_paths;
 use crate::{
     archive_testtools::{
         config::{ArchiveType, MultihostConfig},
@@ -13,12 +13,12 @@ use actix_web::http::header;
 use actix_web::test;
 
 #[actix_web::test]
-async fn test_stelae_api_with_multiple_non_root_repositories_expect_success() {
+async fn test_archive_api_with_multiple_non_root_repositories_expect_success() {
     let archive_path =
         common::initialize_archive(ArchiveType::Multihost(MultihostConfig::Private)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "root_stele",
         "law-html",
         vec!["/a/b/c.html"],
@@ -30,7 +30,7 @@ async fn test_stelae_api_with_multiple_non_root_repositories_expect_success() {
     )
     .await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "stele_1",
         "law-html",
         vec!["/a/b/c.html"],
@@ -42,7 +42,7 @@ async fn test_stelae_api_with_multiple_non_root_repositories_expect_success() {
     )
     .await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "stele_1_1",
         "law-pdf",
         vec!["/a/b/example.pdf"],
@@ -54,7 +54,7 @@ async fn test_stelae_api_with_multiple_non_root_repositories_expect_success() {
     )
     .await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "stele_1_2",
         "law-xml",
         vec!["/a/b/c/index.xml"],
@@ -66,7 +66,7 @@ async fn test_stelae_api_with_multiple_non_root_repositories_expect_success() {
     )
     .await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "stele_2",
         "law-rdf",
         vec!["/a/b/c.rdf"],
@@ -80,7 +80,7 @@ async fn test_stelae_api_with_multiple_non_root_repositories_expect_success() {
 }
 
 #[actix_web::test]
-async fn test_stelae_api_with_root_repositorie_expect_forbiden() {
+async fn test_archive_api_with_root_repositorie_expect_forbiden() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Multihost(MultihostConfig::Private))
             .unwrap();
@@ -109,12 +109,12 @@ async fn test_stelae_api_with_root_repositorie_expect_forbiden() {
 }
 
 #[actix_web::test]
-async fn test_stelae_api_with_wrong_guard_expect_failure() {
+async fn test_archive_api_with_wrong_guard_expect_failure() {
     let archive_path =
         common::initialize_archive(ArchiveType::Multihost(MultihostConfig::Private)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "root_stele",
         "law-html",
         vec!["/a/b/c.html"],
@@ -128,12 +128,12 @@ async fn test_stelae_api_with_wrong_guard_expect_failure() {
 }
 
 #[actix_web::test]
-async fn test_stelae_api_with_wrong_header_expect_failure() {
+async fn test_archive_api_with_wrong_header_expect_failure() {
     let archive_path =
         common::initialize_archive(ArchiveType::Multihost(MultihostConfig::Private)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "root_stele",
         "law-html",
         vec!["/a/b/c.html"],
@@ -147,7 +147,7 @@ async fn test_stelae_api_with_wrong_header_expect_failure() {
 }
 
 #[actix_web::test]
-async fn test_stelae_api_where_repo_name_is_not_in_repository_json_file_expect_error() {
+async fn test_archive_api_where_repo_name_is_not_in_repository_json_file_expect_error() {
     let archive_path =
         common::initialize_archive(ArchiveType::Multihost(MultihostConfig::Private)).unwrap();
     let stele_path: PathBuf = archive_path.path().join("stele_1");

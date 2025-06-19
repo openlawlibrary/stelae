@@ -156,8 +156,8 @@ fn initialize_guarded_archive_route<
             .stelae
             .get(&archive.get_root()?.get_qualified_name());
         if let Some(_guarded_stele) = stele {
-            let mut stelae_scope = web::scope("_archive");
-            stelae_scope = stelae_scope.guard(guard::Header(
+            let mut archive_scope = web::scope("_archive");
+            archive_scope = archive_scope.guard(guard::Header(
                 guard_name,
                 ROOT_NAME_VALUE
                     .get()
@@ -169,7 +169,7 @@ fn initialize_guarded_archive_route<
                 .app_data(web::Data::new(Arc::clone(&data_state)))
                 .app_data(web::Data::new(true))
                 .service(
-                    stelae_scope.service(
+                    archive_scope.service(
                         web::resource("/{namespace}/{name}")
                             .route(web::get().to(get_blob))
                             .route(web::head().to(get_blob)),
@@ -177,7 +177,8 @@ fn initialize_guarded_archive_route<
                 );
         }
     } else {
-        let err_msg = "Failed to initialize guarded stelae routes. Header name or value not found.";
+        let err_msg =
+            "Failed to initialize guarded archive routes. Header name or value not found.";
         tracing::error!(err_msg);
         anyhow::bail!(err_msg);
     }
@@ -202,7 +203,7 @@ fn initialize_archive_route<
     mut app: App<U>,
     state: &V,
 ) -> actix_web::App<U> {
-    tracing::info!("Initializing stelae routes");
+    tracing::info!("Initializing archive routes");
     let data_state: Arc<dyn Global> = Arc::new(state.clone());
     app = app
         .app_data(web::Data::new(state.archive().path.clone()))

@@ -2,21 +2,21 @@ use std::path::PathBuf;
 
 use actix_web::test;
 
-use crate::api::stelae::test_stelae_paths;
+use crate::api::stelae::test_archive_paths;
 use crate::archive_testtools::config::{ArchiveType, Jurisdiction};
 use crate::archive_testtools::{get_repository, init_secret_repository};
 use crate::common;
 use actix_web::http::header;
 
-use super::test_stelae_paths_with_head_method;
+use super::test_archive_paths_with_head_method;
 
 #[actix_web::test]
-async fn test_stele_api_on_all_repositories_with_full_path_expect_success() {
+async fn test_archive_api_on_all_repositories_with_full_path_expect_success() {
     let archive_path =
         common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "test_org",
         "law-html",
         vec!["", "a/", "a/b/", "a/d/", "a/b/c.html", "a/b/c/"],
@@ -28,7 +28,7 @@ async fn test_stele_api_on_all_repositories_with_full_path_expect_success() {
     )
     .await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "test_org",
         "law-other",
         vec![
@@ -51,7 +51,7 @@ async fn test_stele_api_on_all_repositories_with_full_path_expect_success() {
     )
     .await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "test_org",
         "law-pdf",
         vec!["/example.pdf", "/a/example.pdf", "/a/b/example.pdf"],
@@ -63,7 +63,7 @@ async fn test_stele_api_on_all_repositories_with_full_path_expect_success() {
     )
     .await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "test_org",
         "law-rdf",
         vec![
@@ -82,7 +82,7 @@ async fn test_stele_api_on_all_repositories_with_full_path_expect_success() {
     )
     .await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "test_org",
         "law-xml",
         vec![
@@ -101,7 +101,7 @@ async fn test_stele_api_on_all_repositories_with_full_path_expect_success() {
     )
     .await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "test_org",
         "law-xml-codified",
         vec!["index.xml", "e/index.xml", "e/f/index.xml", "e/g/index.xml"],
@@ -115,12 +115,12 @@ async fn test_stele_api_on_all_repositories_with_full_path_expect_success() {
 }
 
 #[actix_web::test]
-async fn test_stele_api_on_all_repositories_with_head_method_expect_success() {
+async fn test_archive_api_on_all_repositories_with_head_method_expect_success() {
     let archive_path =
         common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
 
-    test_stelae_paths_with_head_method(
+    test_archive_paths_with_head_method(
         "test_org",
         "law-html",
         vec!["", "a/", "a/b/", "a/d/", "a/b/c.html", "a/b/c/"],
@@ -130,7 +130,7 @@ async fn test_stele_api_on_all_repositories_with_head_method_expect_success() {
     )
     .await;
 
-    test_stelae_paths_with_head_method(
+    test_archive_paths_with_head_method(
         "test_org",
         "law-other",
         vec![
@@ -151,7 +151,7 @@ async fn test_stele_api_on_all_repositories_with_head_method_expect_success() {
     )
     .await;
 
-    test_stelae_paths_with_head_method(
+    test_archive_paths_with_head_method(
         "test_org",
         "law-pdf",
         vec!["/example.pdf", "/a/example.pdf", "/a/b/example.pdf"],
@@ -161,7 +161,7 @@ async fn test_stele_api_on_all_repositories_with_head_method_expect_success() {
     )
     .await;
 
-    test_stelae_paths_with_head_method(
+    test_archive_paths_with_head_method(
         "test_org",
         "law-rdf",
         vec![
@@ -178,7 +178,7 @@ async fn test_stele_api_on_all_repositories_with_head_method_expect_success() {
     )
     .await;
 
-    test_stelae_paths_with_head_method(
+    test_archive_paths_with_head_method(
         "test_org",
         "law-xml",
         vec![
@@ -195,7 +195,7 @@ async fn test_stele_api_on_all_repositories_with_head_method_expect_success() {
     )
     .await;
 
-    test_stelae_paths_with_head_method(
+    test_archive_paths_with_head_method(
         "test_org",
         "law-xml-codified",
         vec!["index.xml", "e/index.xml", "e/f/index.xml", "e/g/index.xml"],
@@ -207,12 +207,12 @@ async fn test_stele_api_on_all_repositories_with_head_method_expect_success() {
 }
 
 #[actix_web::test]
-async fn test_stele_api_on_law_html_repository_with_missing_branch_name_expect_client_error() {
+async fn test_archive_api_on_law_html_repository_with_missing_branch_name_expect_client_error() {
     let archive_path =
         common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "test_org",
         "law-html",
         vec!["", "a/index.html"],
@@ -226,12 +226,12 @@ async fn test_stele_api_on_law_html_repository_with_missing_branch_name_expect_c
 }
 
 #[actix_web::test]
-async fn test_stele_api_on_law_html_repository_with_invalid_branch_name_expect_client_error() {
+async fn test_archive_api_on_law_html_repository_with_invalid_branch_name_expect_client_error() {
     let archive_path =
         common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "test_org",
         "law-html",
         vec!["", "a/index.html"],
@@ -245,12 +245,12 @@ async fn test_stele_api_on_law_html_repository_with_invalid_branch_name_expect_c
 }
 
 #[actix_web::test]
-async fn test_stele_api_on_law_html_repository_with_invalid_org_name_expect_client_error() {
+async fn test_archive_api_on_law_html_repository_with_invalid_org_name_expect_client_error() {
     let archive_path =
         common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "not_test_org",
         "law-html",
         vec!["", "a/index.html"],
@@ -264,12 +264,12 @@ async fn test_stele_api_on_law_html_repository_with_invalid_org_name_expect_clie
 }
 
 #[actix_web::test]
-async fn test_stele_api_on_law_html_repository_with_invalid_repo_name_expect_client_error() {
+async fn test_archive_api_on_law_html_repository_with_invalid_repo_name_expect_client_error() {
     let archive_path =
         common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "test_org",
         "not_law-html",
         vec!["", "a/index.html"],
@@ -283,12 +283,12 @@ async fn test_stele_api_on_law_html_repository_with_invalid_repo_name_expect_cli
 }
 
 #[actix_web::test]
-async fn test_stele_api_on_law_html_repository_with_incorrect_paths_expect_client_error() {
+async fn test_archive_api_on_law_html_repository_with_incorrect_paths_expect_client_error() {
     let archive_path =
         common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "test_org",
         "law-html",
         vec!["a/b/c/d", "a/index.css"],
@@ -302,7 +302,7 @@ async fn test_stele_api_on_law_html_repository_with_incorrect_paths_expect_clien
 }
 
 #[actix_web::test]
-async fn test_stele_api_on_law_html_repository_with_different_files_on_different_branches_expect_success(
+async fn test_archive_api_on_law_html_repository_with_different_files_on_different_branches_expect_success(
 ) {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
@@ -323,7 +323,7 @@ async fn test_stele_api_on_law_html_repository_with_different_files_on_different
     let _ = git_repo.add_file(&path, "test1.txt", "Content for test branch");
     let _ = git_repo.commit(None, "Adding data for test branch");
 
-    test_stelae_paths(
+    test_archive_paths(
         "test_org",
         "law-html",
         vec!["/test.txt"],
@@ -335,7 +335,7 @@ async fn test_stele_api_on_law_html_repository_with_different_files_on_different
     )
     .await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "test_org",
         "law-html",
         vec!["/test1.txt"],
@@ -347,7 +347,7 @@ async fn test_stele_api_on_law_html_repository_with_different_files_on_different
     )
     .await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "test_org",
         "law-html",
         vec!["/test.txt"],
@@ -359,7 +359,7 @@ async fn test_stele_api_on_law_html_repository_with_different_files_on_different
     )
     .await;
 
-    test_stelae_paths(
+    test_archive_paths(
         "test_org",
         "law-html",
         vec!["/test1.txt"],
@@ -373,7 +373,7 @@ async fn test_stele_api_on_law_html_repository_with_different_files_on_different
 }
 
 #[actix_web::test]
-async fn test_stele_api_with_same_file_on_different_branches_expect_different_file_content_on_different_branches(
+async fn test_archive_api_with_same_file_on_different_branches_expect_different_file_content_on_different_branches(
 ) {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
@@ -421,7 +421,7 @@ async fn test_stele_api_with_same_file_on_different_branches_expect_different_fi
 }
 
 #[actix_web::test]
-async fn test_stelae_api_where_branch_contains_slashs_expect_resolved_content() {
+async fn test_archive_api_where_branch_contains_slashs_expect_resolved_content() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
@@ -452,7 +452,7 @@ async fn test_stelae_api_where_branch_contains_slashs_expect_resolved_content() 
 }
 
 #[actix_web::test]
-async fn test_stelae_api_where_branch_is_commit_sha_expect_resolved_content() {
+async fn test_archive_api_where_branch_is_commit_sha_expect_resolved_content() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
@@ -484,7 +484,7 @@ async fn test_stelae_api_where_branch_is_commit_sha_expect_resolved_content() {
 }
 
 #[actix_web::test]
-async fn test_stelae_api_where_org_name_does_not_exists_expect_error() {
+async fn test_archive_api_where_org_name_does_not_exists_expect_error() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
@@ -506,7 +506,7 @@ async fn test_stelae_api_where_org_name_does_not_exists_expect_error() {
 }
 
 #[actix_web::test]
-async fn test_stelae_api_where_repo_name_is_not_in_repository_json_file_expect_error() {
+async fn test_archive_api_where_repo_name_is_not_in_repository_json_file_expect_error() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     let test_org_path: PathBuf = archive_path.path().join("test_org");
@@ -526,7 +526,7 @@ async fn test_stelae_api_where_repo_name_is_not_in_repository_json_file_expect_e
 }
 
 #[actix_web::test]
-async fn test_stelae_api_without_header_expect_error() {
+async fn test_archive_api_without_header_expect_error() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     let test_org_path: PathBuf = archive_path.path().join("test_org");

@@ -5,13 +5,13 @@ use actix_web::dev::ServiceResponse;
 use actix_web::http::header;
 use actix_web::{test, Error};
 // Basic tests are currently unnecessary because the archive only contains a root folder,
-// and the stelae API is not yet functional for individual repository.
+// and the archive API is not yet functional for individual repository.
 // Once we introduce public/private tags in the repository JSON, tests can be added.
-//mod stelae_basic_test;
-mod stelae_multihost_test;
+//mod archive_basic_test;
+mod archive_multihost_test;
 
 /// Helper method which test all `file_paths`` in `org_name`/`repo_name` repository on `branch_name`` branch with `expected` result
-async fn test_stelae_paths(
+async fn test_archive_paths(
     org_name: &str,
     repo_name: &str,
     file_paths: Vec<&str>,
@@ -52,7 +52,7 @@ async fn test_stelae_paths(
 }
 
 /// Helper method which test all `fille_paths`` in `org_name`/`repo_name` repository on `branch_name`` branch with `expected` result
-async fn test_stelae_paths_with_head_method(
+async fn test_archive_paths_with_head_method(
     org_name: &str,
     repo_name: &str,
     file_paths: Vec<&str>,
