@@ -167,6 +167,7 @@ fn initialize_guarded_archive_route<
             app = app
                 .app_data(web::Data::new(state.archive().path.clone()))
                 .app_data(web::Data::new(Arc::clone(&data_state)))
+                // Indicates that this route is guarded.
                 .app_data(web::Data::new(true))
                 .service(
                     archive_scope.service(
@@ -208,6 +209,7 @@ fn initialize_archive_route<
     app = app
         .app_data(web::Data::new(state.archive().path.clone()))
         .app_data(web::Data::new(data_state))
+        // Indicates that this route is not guarded.
         .app_data(web::Data::new(false))
         .service(
             web::scope("_archive").service(
