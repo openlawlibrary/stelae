@@ -520,6 +520,16 @@ pub fn init_secret_repository(test_path: &Path) -> Result<()> {
     Ok(())
 }
 
+pub fn add_private_json_file(auth_repo_path: &Path, file_content: String) -> Result<()> {
+    let repo = GitRepository::open(auth_repo_path).unwrap();
+    // Create full path: auth_repo_path/targets
+    let path = auth_repo_path.join("targets");
+
+    repo.add_file(&path, "private.json", &file_content).unwrap();
+    repo.commit(None, "Add access file").unwrap();
+    Ok(())
+}
+
 fn add_fixture_file_to_git_repo(git_repo: &GitRepository, path: &Path) -> Result<()> {
     let filename = path.file_name().unwrap().to_str().unwrap();
     let static_file_path = get_static_file_path(filename);

@@ -83,6 +83,7 @@ impl Stele {
         let dependencies = serde_json::from_str(&dependencies_str)?;
         Ok(Some(dependencies))
     }
+
     /// Get Stele's repositories.
     /// # Errors
     /// Will error if unable to find or parse repositories file at `targets/repositories.json`
@@ -97,6 +98,15 @@ impl Stele {
         let repositories: Repositories = serde_json::from_str(&repositories_str)?;
         self.repositories = Some(repositories.clone());
         Ok(Some(repositories))
+    }
+
+    /// Check if Stele's private access file exists.
+    /// Returns true if `targets/private.json` exists, false otherwise.
+    #[must_use]
+    pub fn is_private_stelae(&self) -> bool {
+        self.auth_repo
+            .get_bytes_at_path("HEAD", "targets/private.json")
+            .is_ok()
     }
 
     /// Get Stele's repositories for specific commitish.

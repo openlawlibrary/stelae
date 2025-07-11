@@ -23,7 +23,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::server::headers;
-use crate::utils::archive::get_name_parts;
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use crate::utils::http::get_contenttype;
 use crate::utils::paths::clean_path;
@@ -33,7 +32,6 @@ use request::ArchiveQueryData;
 
 use super::super::errors::HTTPError;
 use super::state::Global;
-use super::versions::get_stele_from_request;
 
 /// Module that maps the HTTP web request body to structs.
 pub mod request;
@@ -56,41 +54,8 @@ pub async fn get_blob(
     query: web::Query<ArchiveQueryData>,
     data: web::Data<PathBuf>,
     archive_data: web::Data<Arc<dyn Global>>,
-    is_guarded: web::Data<bool>,
 ) -> impl Responder {
-    let stele_name = match get_stele_from_request(&req, archive_data.archive()) {
-        Ok(stele) => stele,
-        Err(err) => {
-            tracing::error!("Error getting stele from request: {err}");
-            return HttpResponse::BadRequest().body(format!("Error: {err}"));
-        }
-    };
-    let (org, _) = match get_name_parts(&stele_name) {
-        Ok(parts) => parts,
-        Err(err) => return HttpResponse::BadRequest().body(format!("Error: {err}")),
-    };
     let (namespace, name) = path.into_inner();
-    let Ok(root_stele) = archive_data.archive().get_root() else {
-        return HttpResponse::NotFound().body("Can not find root stele in archive");
-    };
-    if **is_guarded && namespace == org {
-        match root_stele.get_repositories_for_commitish("HEAD") {
-            Ok(Some(repos))
-                if repos
-                    .repositories
-                    .contains_key(&format!("{namespace}/{name}")) =>
-            {
-                return HttpResponse::Forbidden().body("Forbidden repository");
-            }
-            Ok(Some(_) | None) => {
-                tracing::warn!("No matching repo found or root repositories empty");
-            }
-            Err(err) => {
-                tracing::error!("Error fetching root repositories: {err}");
-                return HttpResponse::BadRequest().body(format!("Error: {err}"));
-            }
-        }
-    };
     let query_data: ArchiveQueryData = query.into_inner();
     let commitish = query_data.commitish.unwrap_or_else(|| String::from("HEAD"));
     let file_path = query_data.path.unwrap_or_default();
@@ -101,6 +66,10 @@ pub async fn get_blob(
     else {
         return HttpResponse::BadRequest().body("Can not find stele in archive stelae");
     };
+
+    if stele.is_private_stelae() {
+        return HttpResponse::Forbidden().body("Can not access private stele");
+    }
     let repositories = match stele.get_repositories_for_commitish("HEAD") {
         Ok(Some(repos)) => repos,
         Ok(None) => {
