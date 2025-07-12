@@ -2,25 +2,32 @@ use actix_http::{Method, Request};
 use actix_service::Service;
 use actix_web::body::MessageBody;
 use actix_web::dev::ServiceResponse;
+use actix_web::http::header;
 use actix_web::{test, Error};
-// mod stelae_basic_test;
-// mod stelae_multihost_test;
+// Basic tests are currently unnecessary because the archive only contains a root folder,
+// and the archive API is not yet functional for individual repository.
+// Once we introduce public/private tags in the repository JSON, tests can be added.
+mod archive_basic_test;
+mod archive_multihost_test;
 
 /// Helper method which test all `file_paths`` in `org_name`/`repo_name` repository on `branch_name`` branch with `expected` result
-async fn test_stelae_paths(
+async fn test_archive_paths(
     org_name: &str,
     repo_name: &str,
     file_paths: Vec<&str>,
     branch_name: &str,
     app: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = Error>,
     is_success: bool,
+    header_name: &'static str,
+    header_value: &str,
 ) {
     for file_path in file_paths {
         let req = test::TestRequest::get()
             .uri(&format!(
-                "/_stelae/{}/{}?commitish={}&remainder={}",
+                "/_archive/{}/{}?commitish={}&path={}",
                 org_name, repo_name, branch_name, file_path
             ))
+            .insert_header((header::HeaderName::from_static(header_name), header_value))
             .to_request();
 
         let resp = test::call_service(&app, req).await;
@@ -45,7 +52,7 @@ async fn test_stelae_paths(
 }
 
 /// Helper method which test all `fille_paths`` in `org_name`/`repo_name` repository on `branch_name`` branch with `expected` result
-async fn test_stelae_paths_with_head_method(
+async fn test_archive_paths_with_head_method(
     org_name: &str,
     repo_name: &str,
     file_paths: Vec<&str>,
@@ -57,7 +64,7 @@ async fn test_stelae_paths_with_head_method(
         let req = test::TestRequest::default()
             .method(Method::HEAD)
             .uri(&format!(
-                "/_stelae/{}/{}?commitish={}&remainder={}",
+                "/_archive/{}/{}?commitish={}&path={}",
                 org_name, repo_name, branch_name, file_path
             ))
             .to_request();
