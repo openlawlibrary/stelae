@@ -7,7 +7,7 @@ use actix_web::{test, Error};
 // Basic tests are currently unnecessary because the archive only contains a root folder,
 // and the archive API is not yet functional for individual repository.
 // Once we introduce public/private tags in the repository JSON, tests can be added.
-//mod archive_basic_test;
+mod archive_basic_test;
 mod archive_multihost_test;
 
 /// Helper method which test all `file_paths`` in `org_name`/`repo_name` repository on `branch_name`` branch with `expected` result

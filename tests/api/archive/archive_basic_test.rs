@@ -2,13 +2,13 @@ use std::path::PathBuf;
 
 use actix_web::test;
 
-use crate::api::stelae::test_archive_paths;
 use crate::archive_testtools::config::{ArchiveType, Jurisdiction};
-use crate::archive_testtools::{get_repository, init_secret_repository};
+use crate::archive_testtools::{add_private_json_file, get_repository, init_secret_repository};
 use crate::common;
+use actix_http::StatusCode;
 use actix_web::http::header;
 
-use super::test_archive_paths_with_head_method;
+use super::{test_archive_paths, test_archive_paths_with_head_method};
 
 #[actix_web::test]
 async fn test_archive_api_on_all_repositories_with_full_path_expect_success() {
@@ -540,4 +540,41 @@ async fn test_archive_api_without_header_expect_error() {
     let actual = resp.status().is_client_error();
     let expected = true;
     assert_eq!(actual, expected);
+}
+
+#[actix_web::test]
+async fn test_archive_api_where_private_json_file_exists_expect_error() {
+    let archive_path =
+        common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
+    let stele_path: PathBuf = archive_path.path().join("test_org");
+    let auth_repo_path: PathBuf = archive_path.path().join("test_org/law");
+
+    let file_content = r#"
+    {
+      "private": true
+    }
+    "#
+    .to_string();
+
+    let _ = add_private_json_file(&auth_repo_path, file_content);
+    let _ = init_secret_repository(&stele_path);
+    let app = common::initialize_app(archive_path.path()).await;
+
+    let req = test::TestRequest::get()
+        .uri("/_archive/test_org/law-html?path=/index.html")
+        .insert_header((header::HeaderName::from_static("x-stelae"), "test_org/law"))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::FORBIDDEN,
+        "Expected 403 Forbidden"
+    );
+
+    let actual = test::read_body(resp).await;
+    let expected = "Can not access private stele";
+    assert!(
+        common::blob_to_string(actual.to_vec()).starts_with(expected),
+        "doesn't start with {expected}"
+    );
 }
