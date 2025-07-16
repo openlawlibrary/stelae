@@ -1,6 +1,26 @@
 //! API endpoint for serving git blobs.
-
+/// The `_archive` endpoint provides access to the contents of files stored within
+/// repositories.
+///
+/// This endpoint only permits access to files that belong to **public** repositories.
+/// Attempts to access files in private or restricted repositories will result in a
+/// `403 Forbidden` response.
+///
+/// # Overview
+/// - Resolves repositories and files based on the provided path and query parameters.
+/// - Verifies that the target repository is publicly accessible.
+/// - Returns the requested file content if access is allowed.
+///
+/// # Restrictions
+/// - Only public repositories are accessible.
+/// - Authorization headers or guards may further restrict access.
+///
+/// # Example
+/// ```http
+/// GET /_archive/org/repo?path=/README.md&commitish=main
+/// ```
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use crate::server::headers;
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
@@ -8,15 +28,20 @@ use crate::utils::http::get_contenttype;
 use crate::utils::paths::clean_path;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use git2::{self, ErrorCode};
-use request::StelaeQueryData;
+use request::ArchiveQueryData;
 
 use super::super::errors::HTTPError;
+use super::state::Global;
 
 /// Module that maps the HTTP web request body to structs.
 pub mod request;
 
+#[expect(
+    clippy::pattern_type_mismatch,
+    reason = "The pattern is clear and intentional; matching by reference adds unnecessary verbosity for this context."
+)]
 /// Return the content in the stelae archive in the `{namespace}/{name}`
-/// repo at the `commitish` commit at the `remainder` path.
+/// repo at the `commitish` commit at the `path` path.
 /// Return 404 if any are not found or there are any errors.
 #[tracing::instrument(name = "Retrieving a Git blob", skip(path, data, query))]
 #[expect(
@@ -26,16 +51,44 @@ pub mod request;
 pub async fn get_blob(
     req: HttpRequest,
     path: web::Path<(String, String)>,
-    query: web::Query<StelaeQueryData>,
+    query: web::Query<ArchiveQueryData>,
     data: web::Data<PathBuf>,
+    archive_data: web::Data<Arc<dyn Global>>,
 ) -> impl Responder {
     let (namespace, name) = path.into_inner();
-    let query_data: StelaeQueryData = query.into_inner();
+    let query_data: ArchiveQueryData = query.into_inner();
     let commitish = query_data.commitish.unwrap_or_else(|| String::from("HEAD"));
-    let remainder = query_data.remainder.unwrap_or_default();
+    let file_path = query_data.path.unwrap_or_default();
+    let stelae = archive_data.archive().get_stelae();
+    let Some((_, stele)) = stelae
+        .iter()
+        .find(|(s_name, _)| *s_name == format!("{namespace}/law"))
+    else {
+        return HttpResponse::BadRequest().body("Can not find stele in archive stelae");
+    };
+
+    if stele.is_private_stelae() {
+        return HttpResponse::Forbidden().body("Can not access private stele");
+    }
+    let repositories = match stele.get_repositories_for_commitish("HEAD") {
+        Ok(Some(repos)) => repos,
+        Ok(None) => {
+            tracing::error!("No repositories found");
+            return HttpResponse::BadRequest().body("No repositories found");
+        }
+        Err(err) => {
+            tracing::error!("Error fetching repositories: {err}");
+            return HttpResponse::BadRequest().body(format!("Error: {err}"));
+        }
+    };
+    let full_name = format!("{namespace}/{name}");
+    if !repositories.repositories.contains_key(&full_name) {
+        return HttpResponse::BadRequest()
+            .body("Repository is not in list of allowed repositories");
+    }
     let archive_path = &data;
-    let blob = Repo::find_blob(archive_path, &namespace, &name, &remainder, &commitish);
-    let blob_path = clean_path(&remainder);
+    let blob = Repo::find_blob(archive_path, &namespace, &name, &file_path, &commitish);
+    let blob_path = clean_path(&file_path);
     let contenttype = get_contenttype(&blob_path);
     match blob {
         Ok(found_blob) => {

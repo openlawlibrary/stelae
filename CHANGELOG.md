@@ -10,11 +10,16 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
+- Add `_archive` endpoint ([#81])
+- Restrict `_archive` endpoint access on private repositories ([#81])
+
 ### Changed
 
 ### Fixed
 
 ### Removed
+
+[#81]: https://github.com/openlawlibrary/stelae/pull/81
 
 ## [0.5.0]
 

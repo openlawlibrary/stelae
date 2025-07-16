@@ -21,7 +21,7 @@ jobs:
       - name: Install Just
         uses: extractions/setup-just@dd310ad5a97d8e7b41793f8ef055398d51ad4de6
 
-      - uses: taiki-e/install-action@6da51af62171044932d435033daa70a0eb3383ba
+      - uses: taiki-e/install-action@d12e869b89167df346dd0ff65da342d1fb1202fb
         with:
           tool: nextest
       - name: Run tests (nextest)

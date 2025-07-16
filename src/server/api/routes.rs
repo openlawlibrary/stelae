@@ -3,6 +3,7 @@
     clippy::exit,
     reason = "We exit with 1 error code on any application errors"
 )]
+use std::sync::Arc;
 use std::{process, sync::OnceLock};
 
 use crate::server::api::state;
@@ -14,13 +15,15 @@ use actix_web::{
     guard, web, App, Error, Scope,
 };
 
-// use super::stelae::get_blob;
+use super::archive::get_blob;
 use super::{serve::serve, state::Global, versions::versions};
 
 /// Name of the header to guard current documents
 static HEADER_NAME: OnceLock<String> = OnceLock::new();
 /// Values of the header to guard current documents
 static HEADER_VALUES: OnceLock<Vec<String>> = OnceLock::new();
+/// Name of the root stelae
+static ROOT_NAME_VALUE: OnceLock<String> = OnceLock::new();
 
 /// Central place to register all the App routing.
 ///
@@ -77,18 +80,7 @@ pub fn register_app<
         )
         .app_data(web::Data::new(state.clone()));
 
-    // TODO: re-enable once we guard the endpoint
-    // app = app
-    //     .app_data(web::Data::new(state.archive().path.clone()))
-    //     .service(
-    //         web::scope("_stelae").service(
-    //             web::resource("/{namespace}/{name}")
-    //                 .route(web::get().to(get_blob))
-    //                 .route(web::head().to(get_blob)),
-    //         ),
-    //     );
-
-    app = register_dynamic_routes(app, state)?;
+    app = register_guarded_and_unguarded_routes(app, state)?;
     Ok(app)
 }
 
@@ -99,7 +91,7 @@ pub fn register_app<
 ///
 /// # Errors
 /// Errors if unable to register dynamic routes (e.g. if git repository cannot be opened)
-fn register_dynamic_routes<
+fn register_guarded_and_unguarded_routes<
     T: MessageBody,
     U: ServiceFactory<
         ServiceRequest,
@@ -108,9 +100,10 @@ fn register_dynamic_routes<
         InitError = (),
         Error = Error,
     >,
+    V: Global + Clone + 'static,
 >(
     mut app: App<U>,
-    state: &impl Global,
+    state: &V,
 ) -> anyhow::Result<App<U>> {
     let config = state.archive().get_config()?;
     let stelae_guard = config
@@ -118,11 +111,110 @@ fn register_dynamic_routes<
         .and_then(|headers| headers.current_documents_guard);
 
     if let Some(guard) = stelae_guard {
+        app = initialize_guarded_archive_route(guard.clone(), app, state)?;
         app = initialize_guarded_dynamic_routes(guard, app, state)?;
     } else {
+        app = initialize_archive_route(app, state);
         app = initialize_dynamic_routes(app, state)?;
     };
     Ok(app)
+}
+
+#[expect(
+    clippy::expect_used,
+    reason = "If there is no root stelae, we should panic"
+)]
+/// Initialize all guarded archive routes for the given Archive.
+/// Routes are guarded by a header value specified in the config.toml file.
+///
+/// # Errors
+/// Errors if unable to register dynamic routes (e.g. if git repository cannot be opened)
+fn initialize_guarded_archive_route<
+    T: MessageBody,
+    U: ServiceFactory<
+        ServiceRequest,
+        Response = ServiceResponse<T>,
+        Config = (),
+        InitError = (),
+        Error = Error,
+    >,
+    V: Global + Clone + 'static,
+>(
+    guard: String,
+    mut app: App<U>,
+    state: &V,
+) -> anyhow::Result<App<U>> {
+    tracing::info!("Initializing guarded stelae routes with header: {}", guard);
+    HEADER_NAME.get_or_init(|| guard);
+    let archive = state.archive();
+    let guard_value = archive.get_root()?.get_qualified_name();
+    ROOT_NAME_VALUE.get_or_init(|| guard_value);
+    let data_state: Arc<dyn Global> = Arc::new(state.clone());
+    if let Some(guard_name) = HEADER_NAME.get() {
+        let stele = state
+            .archive()
+            .stelae
+            .get(&archive.get_root()?.get_qualified_name());
+        if let Some(_guarded_stele) = stele {
+            let mut archive_scope = web::scope("_archive");
+            archive_scope = archive_scope.guard(guard::Header(
+                guard_name,
+                ROOT_NAME_VALUE
+                    .get()
+                    .expect("ROOT_NAME_VALUE not initialized")
+                    .as_str(),
+            ));
+            app = app
+                .app_data(web::Data::new(state.archive().path.clone()))
+                .app_data(web::Data::new(Arc::clone(&data_state)))
+                .service(
+                    archive_scope.service(
+                        web::resource("/{namespace}/{name}")
+                            .route(web::get().to(get_blob))
+                            .route(web::head().to(get_blob)),
+                    ),
+                );
+        }
+    } else {
+        let err_msg =
+            "Failed to initialize guarded archive routes. Header name or value not found.";
+        tracing::error!(err_msg);
+        anyhow::bail!(err_msg);
+    }
+    Ok(app)
+}
+
+/// Initialize _archive routes for the given Archive.
+///
+/// # Errors
+/// Errors if unable to register stelae routes (e.g. if git repository cannot be opened)
+fn initialize_archive_route<
+    T: MessageBody,
+    U: ServiceFactory<
+        ServiceRequest,
+        Response = ServiceResponse<T>,
+        Config = (),
+        InitError = (),
+        Error = Error,
+    >,
+    V: Global + Clone + 'static,
+>(
+    mut app: App<U>,
+    state: &V,
+) -> actix_web::App<U> {
+    tracing::info!("Initializing archive routes");
+    let data_state: Arc<dyn Global> = Arc::new(state.clone());
+    app = app
+        .app_data(web::Data::new(state.archive().path.clone()))
+        .app_data(web::Data::new(data_state))
+        .service(
+            web::scope("_archive").service(
+                web::resource("/{namespace}/{name}")
+                    .route(web::get().to(get_blob))
+                    .route(web::head().to(get_blob)),
+            ),
+        );
+    app
 }
 
 /// Initialize all guarded dynamic routes for the given Archive.

@@ -1,5 +1,8 @@
 //! Centralized state management for the Actix web server
-use std::{fmt, path::PathBuf};
+use std::{
+    fmt::{self, Debug},
+    path::PathBuf,
+};
 
 use crate::{
     db,
@@ -8,7 +11,7 @@ use crate::{
 };
 
 /// Global, read-only state
-pub trait Global {
+pub trait Global: Debug {
     /// Fully initialized Stelae archive
     fn archive(&self) -> &Archive;
     /// Database connection

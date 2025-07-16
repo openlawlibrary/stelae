@@ -4,12 +4,17 @@ pub use stelae::stelae::types::repositories::{Custom, Repository};
 
 pub enum ArchiveType {
     Basic(Jurisdiction),
-    Multihost,
+    Multihost(MultihostConfig),
 }
 
 pub enum Jurisdiction {
     Single,
     Multi,
+}
+
+pub enum MultihostConfig {
+    Public,
+    Private,
 }
 
 #[derive(Debug)]
@@ -18,6 +23,7 @@ pub enum TestDataRepositoryType {
     Rdf,
     Xml,
     Pdf,
+    Private,
     Other(String),
 }
 
@@ -130,6 +136,11 @@ impl TestDataRepositoryContext {
         ];
         paths.iter().map(|&x| PathBuf::from(x)).collect()
     }
+
+    pub fn default_private_paths() -> Vec<PathBuf> {
+        let paths = &["./password.txt", "./private-key.txt", "./a/password.txt"];
+        paths.iter().map(|&x| PathBuf::from(x)).collect()
+    }
 }
 
 pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContext>> {
@@ -190,6 +201,27 @@ pub fn get_basic_test_data_repositories() -> Result<Vec<TestDataRepositoryContex
     ])
 }
 
+pub fn get_private_root_test_data_repositories() -> Result<Vec<TestDataRepositoryContext>> {
+    Ok(vec![
+        TestDataRepositoryContext::new(
+            "law-reader-assets-private".into(),
+            TestDataRepositoryContext::default_private_paths(),
+            TestDataRepositoryType::Private,
+            None,
+            Some(vec![".*".into()]),
+            false,
+        )?,
+        TestDataRepositoryContext::new(
+            "law-static-assets-private".into(),
+            TestDataRepositoryContext::default_private_paths(),
+            TestDataRepositoryType::Private,
+            None,
+            Some(vec![".*".into()]),
+            false,
+        )?,
+    ])
+}
+
 pub fn get_dependent_data_repositories_with_scopes(
     scopes: &Vec<String>,
 ) -> Result<Vec<TestDataRepositoryContext>> {
@@ -239,6 +271,11 @@ pub fn get_dependent_data_repositories_with_scopes(
                 route_glob_patterns = Some(vec![".*\\.pdf".into()]);
                 default_paths = TestDataRepositoryContext::default_pdf_paths();
             }
+            TestDataRepositoryType::Private => {
+                name = "private".into();
+                route_glob_patterns = Some(vec![".*".into()]);
+                default_paths = TestDataRepositoryContext::default_private_paths();
+            }
             TestDataRepositoryType::Other(_) => {
                 name = "law-other".into();
                 route_glob_patterns = Some(vec![".*_doc/.*".into(), "_prefix/.*".into()]);
@@ -287,6 +324,7 @@ impl From<&TestDataRepositoryContext> for Repository {
             TestDataRepositoryType::Rdf => "rdf".to_string(),
             TestDataRepositoryType::Xml => "xml".to_string(),
             TestDataRepositoryType::Pdf => "pdf".to_string(),
+            TestDataRepositoryType::Private => "static-assets".to_string(),
             TestDataRepositoryType::Other(_) => "other".to_string(),
         });
         custom.serve = "latest".to_string();
