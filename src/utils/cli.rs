@@ -41,8 +41,19 @@ pub struct Cli {
 /// Stelae subcommands
 #[derive(Clone, Debug)]
 pub enum StelaeSubcommands {
-    Git { port: u16 },
-    Serve { port: u16, individual: bool },
+    /// Serve git repositories in the Stelae archive
+    Git {
+        /// Port on which to run the git server.
+        port: u16,
+    },
+    /// Serve documents in a Stelae archive.
+    Serve {
+        /// Port on which to serve the archive.
+        port: u16,
+        /// Serve an individual stele instead of the Stele specified in config.toml.
+        individual: bool,
+    },
+    /// Update the archive
     Update,
 }
 
