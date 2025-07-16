@@ -64,24 +64,12 @@ impl Clone for Repo {
 }
 
 impl Repo {
-    /// Create a new Repo object with helpers for interacting with a Git Repo.
-    /// Expects a path to the archive, as well as the repo's org and name.
-    ///
-    /// # Errors
-    ///
-    /// Will return `Err` if git repository does not exist at `{org}/{name}`
-    /// in archive, or if there is something wrong with the git repository.
-    pub fn new(archive_path: &Path, org: &str, name: &str) -> anyhow::Result<Self> {
-        let archive_path_str = archive_path.to_string_lossy();
-        tracing::trace!(org, name, "Creating new Repo at {archive_path_str}");
-        let repo_path = format!("{archive_path_str}/{org}/{name}");
-        Ok(Self {
-            archive_path: archive_path_str.into(),
-            org: org.into(),
-            name: name.into(),
-            path: PathBuf::from(repo_path.clone()),
-            repo: Repository::open(repo_path)?,
-        })
+    /// Find something like `abc123:/path/to/something.txt` in the Git repo
+    fn find(&self, query: &str) -> anyhow::Result<Vec<u8>> {
+        tracing::trace!(query, "Git reverse parse search");
+        let obj = self.repo.revparse_single(query)?;
+        let blob = obj.as_blob().context("Couldn't cast Git object to blob")?;
+        Ok(blob.content().to_owned())
     }
 
     /// Do the work of looking for the requested Git object.
@@ -100,6 +88,25 @@ impl Repo {
         let blob_path = clean_path(remainder);
         let blob = repo.get_bytes_at_path(commitish, &blob_path)?;
         Ok(blob)
+    }
+    /// Create a new Repo object with helpers for interacting with a Git Repo.
+    /// Expects a path to the archive, as well as the repo's org and name.
+    ///
+    /// # Errors
+    ///
+    /// Will return `Err` if git repository does not exist at `{org}/{name}`
+    /// in archive, or if there is something wrong with the git repository.
+    pub fn new(archive_path: &Path, org: &str, name: &str) -> anyhow::Result<Self> {
+        let archive_path_str = archive_path.to_string_lossy();
+        tracing::trace!(org, name, "Creating new Repo at {archive_path_str}");
+        let repo_path = format!("{archive_path_str}/{org}/{name}");
+        Ok(Self {
+            archive_path: archive_path_str.into(),
+            org: org.into(),
+            name: name.into(),
+            path: PathBuf::from(repo_path.clone()),
+            repo: Repository::open(repo_path)?,
+        })
     }
 
     /// Returns bytes of blob found in the commit `commitish` at path `path`
@@ -132,14 +139,6 @@ impl Repo {
         }
         tracing::debug!(base_revision, "Couldn't find requested Git object");
         anyhow::bail!(GIT_REQUEST_NOT_FOUND)
-    }
-
-    /// Find something like `abc123:/path/to/something.txt` in the Git repo
-    fn find(&self, query: &str) -> anyhow::Result<Vec<u8>> {
-        tracing::trace!(query, "Git reverse parse search");
-        let obj = self.repo.revparse_single(query)?;
-        let blob = obj.as_blob().context("Couldn't cast Git object to blob")?;
-        Ok(blob.content().to_owned())
     }
 
     /// Instantiates a git revwalk from the beginning of the repository.

@@ -3,12 +3,16 @@
     clippy::exit,
     reason = "Allow exits because in this file we ideally handle all errors with known exit codes"
 )]
+#![expect(
+    clippy::module_name_repetitions,
+    reason = "This is a CLI module, so it is expected to have the same name as the crate"
+)]
 
-use crate::history::changes;
-use crate::server::app::serve_archive;
-use crate::server::errors::CliError;
-use crate::server::git::serve_git;
-use crate::utils::archive::find_archive_path;
+pub use crate::history::changes;
+pub use crate::server::app::serve_archive;
+pub use crate::server::errors::CliError;
+pub use crate::server::git::serve_git;
+pub use crate::utils::archive::find_archive_path;
 use clap::Parser;
 use std::env;
 use std::path::Path;
@@ -29,7 +33,7 @@ use tracing_subscriber::{
 /// path to archive.
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
-struct Cli {
+pub struct Cli {
     /// Path to the Stelae archive. Defaults to cwd.
     #[arg(short, long, default_value_t = String::from(".").to_owned())]
     archive_path: String,
@@ -41,9 +45,61 @@ struct Cli {
     subcommands: Subcommands,
 }
 
+/// Stelae subcommands
+#[derive(Clone, Debug)]
+pub enum StelaeSubcommands {
+
+    /// Serve git repositories in the Stelae archive
+    Git {
+        /// Port on which to run the git server.
+        port: u16,
+    },
+    /// Serve documents in a Stelae archive.
+    Serve {
+        /// Port on which to serve the archive.
+        port: u16,
+        /// Serve an individual stele instead of the Stele specified in config.toml.
+        individual: bool,
+    },
+    /// Update the archive
+    Update {
+        /// List of stelae to include in update
+        include: Vec<String>,
+        /// List of stelae to exclude in update
+        exclude: Vec<String>,
+    },
+}
+
+/// Trait that CLI structs must implement to work with `execute_command`
+pub trait CliProvider {
+    /// Get the archive path as a string
+    fn archive_path(&self) -> &str;
+
+    /// Convert the CLI's subcommands to the generic `StelaeSubcommand`
+    fn subcommand(&self) -> StelaeSubcommands;
+}
+
+// Implement CliProvider for the existing Cli struct for backward compatibility
+impl CliProvider for Cli {
+    fn archive_path(&self) -> &str {
+        &self.archive_path
+    }
+
+    fn subcommand(&self) -> StelaeSubcommands {
+        match &self.subcommands {
+            Subcommands::Git { port } => StelaeSubcommands::Git { port: *port },
+            Subcommands::Serve { port, individual } => StelaeSubcommands::Serve {
+                port: *port,
+                individual: *individual,
+            },
+            Subcommands::Update { include, exclude } => StelaeSubcommands::Update { include: include.to_vec(), exclude: exclude.to_vec() },
+        }
+    }
+}
+
 /// Subcommands for the Stelae CLI
 #[derive(Clone, clap::Subcommand)]
-enum Subcommands {
+pub enum Subcommands {
     /// Serve git repositories in the Stelae archive
     Git {
         /// Port on which to serve the archive.
@@ -82,11 +138,13 @@ enum Subcommands {
 /// `debug` log file contains all logs, `error` log file contains only `warn` and `error`
 /// NOTE: once `https://github.com/tokio-rs/tracing/pull/2497` is merged,
 /// update `init_tracing` to rotate log files based on size.
+/// # Panics
+/// This function panics if it fails to initialize tracing.
 #[expect(
     clippy::expect_used,
     reason = "Expect that console logging can be initialized"
 )]
-fn init_tracing(archive_path: &Path, log_path: Option<String>) {
+pub fn init_tracing(archive_path: &Path, log_path: Option<String>) {
     let log_dir: PathBuf = log_path.map_or_else(|| archive_path.join(".taf"), PathBuf::from);
 
     let debug_file_appender =
@@ -127,15 +185,14 @@ fn init_tracing(archive_path: &Path, log_path: Option<String>) {
 ///
 /// # Errors
 /// This function returns the generic `CliError`, based on which we exit with a known exit code.
-fn execute_command(cli: &Cli, archive_path: PathBuf) -> Result<(), CliError> {
-    match &cli.subcommands {
-        Subcommands::Git { port } => serve_git(&cli.archive_path, archive_path, *port),
-        Subcommands::Serve { port, individual } => {
-            serve_archive(&cli.archive_path, archive_path, *port, *individual)
+/// Generic `execute_command` function that works with any CLI implementing `CliProvider`
+pub fn execute_command<T: CliProvider>(cli: &T, archive_path: PathBuf) -> Result<(), CliError> {
+    match cli.subcommand() {
+        StelaeSubcommands::Git { port } => serve_git(cli.archive_path(), archive_path, port),
+        StelaeSubcommands::Serve { port, individual } => {
+            serve_archive(cli.archive_path(), archive_path, port, individual)
         }
-        Subcommands::Update { include, exclude } => {
-            changes::insert(&cli.archive_path, archive_path, include, exclude)
-        }
+        StelaeSubcommands::Update { include, exclude } => changes::insert(cli.archive_path(), archive_path, &include, &exclude),
     }
 }
 

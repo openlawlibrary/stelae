@@ -714,8 +714,8 @@ async fn insert_commit_hashes_from_auth_repository(
 /// # Errors
 /// Errors if the metadata target file cannot be found, the publication cannot be found,
 /// or the commit cannot be inserted into the database.
-async fn process_commit<'commit>(
-    commit: &git2::Commit<'commit>,
+async fn process_commit(
+    commit: &git2::Commit<'_>,
     stele: &Stele,
     data_repo: &Repository,
     stele_name: &str,

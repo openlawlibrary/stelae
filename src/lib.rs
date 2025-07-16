@@ -123,8 +123,16 @@
 "
 )]
 #![allow(
+    clippy::non_std_lazy_statics,
+    reason = "Even though we'd ideally like to transition to a more modern approach, lazy_static is okay for now."
+)]
+#![allow(
+    clippy::pub_use,
+    reason = "We re-export some items from other modules, so this is okay"
+)]
+#![allow(
     clippy::arbitrary_source_item_ordering,
-    reason = "Source item order differences are acceptable; code is generated or does not rely on item ordering"
+    reason = "We at present don't care mind the order of items in modules. In the future we may want to enforce some order, but for now this is okay"
 )]
 
 pub mod db;
