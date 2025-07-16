@@ -22,7 +22,7 @@ use super::{serve::serve, state::Global, versions::versions};
 static HEADER_NAME: OnceLock<String> = OnceLock::new();
 /// Values of the header to guard current documents
 static HEADER_VALUES: OnceLock<Vec<String>> = OnceLock::new();
-/// Namo of the root stelae
+/// Name of the root stelae
 static ROOT_NAME_VALUE: OnceLock<String> = OnceLock::new();
 
 /// Central place to register all the App routing.
