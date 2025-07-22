@@ -86,10 +86,8 @@ pub async fn versions(
         NaiveDate::parse_from_str(params.date.as_deref().unwrap_or_default(), "%Y-%m-%d")
             .map_or(current_date.clone(), |date| date.clone().to_string());
     let active_compare_to = params.compare_date.clone().map(|date| {
-        NaiveDate::parse_from_str(&date, "%Y-%m-%d").map_or_else(
-            |_| current_date.clone(),
-            |active_date| active_date.to_string(),
-        )
+        NaiveDate::parse_from_str(&date, "%Y-%m-%d")
+            .map_or_else(|_| date, |active_date| active_date.to_string())
     });
 
     if active_version == current_date {
@@ -193,7 +191,10 @@ async fn publication_versions(
 /// Extracts the stele from the request.
 /// If the `X-Stelae` header is present, it will return the value of the header.
 /// Otherwise, it will return the root stele.
-fn get_stele_from_request(req: &HttpRequest, archive: &Archive) -> anyhow::Result<String> {
+///
+/// # Errors
+/// Errors if X-Stelae is in invalid format
+pub fn get_stele_from_request(req: &HttpRequest, archive: &Archive) -> anyhow::Result<String> {
     let req_headers = req.headers();
     let stele = archive.get_root()?.get_qualified_name();
 

@@ -10,6 +10,21 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
+- Add `_archive` endpoint ([#81])
+- Restrict `_archive` endpoint access on private repositories ([#81])
+
+### Changed
+
+### Fixed
+
+### Removed
+
+[#81]: https://github.com/openlawlibrary/stelae/pull/81
+
+## [0.5.0]
+
+### Added
+
 - Add `build_date` and `codified_date` columns to `data_repo_commits` table ([#76])
 - Add `X-File-Path` header to `_stelae` and git microserver HTTP responses ([#70])
 - Added tests fot `stelae git` ([64])
@@ -189,7 +204,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/openlawlibrary/stelae/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/openlawlibrary/stelae/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/openlawlibrary/stelae/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/openlawlibrary/stelae/compare/v0.3.2...v0.4.0

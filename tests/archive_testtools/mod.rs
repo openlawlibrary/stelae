@@ -11,9 +11,11 @@ use stelae::stelae::types::dependencies::{Dependencies, Dependency};
 use stelae::stelae::types::repositories::{Repositories, Repository};
 use tempfile::TempDir;
 
+use crate::archive_testtools::config::get_private_root_test_data_repositories;
+
 use self::config::{
     get_basic_test_data_repositories, get_dependent_data_repositories_with_scopes, ArchiveType,
-    Jurisdiction, TestDataRepositoryContext,
+    Jurisdiction, MultihostConfig, TestDataRepositoryContext,
 };
 
 pub fn get_default_static_filename(file_extension: &str) -> &str {
@@ -136,7 +138,10 @@ pub fn initialize_archive_inner(archive_type: ArchiveType, td: &TempDir) -> Resu
     match archive_type {
         ArchiveType::Basic(Jurisdiction::Single) => initialize_archive_basic(td),
         ArchiveType::Basic(Jurisdiction::Multi) => initialize_archive_multijurisdiction(td),
-        ArchiveType::Multihost => initialize_archive_multihost(td),
+        ArchiveType::Multihost(MultihostConfig::Public) => initialize_archive_multihost(td),
+        ArchiveType::Multihost(MultihostConfig::Private) => {
+            initialize_private_archive_multihost(td)
+        }
     }
 }
 
@@ -156,6 +161,7 @@ fn initialize_archive_basic(td: &TempDir) -> Result<()> {
         td.path().to_path_buf(),
         org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
         None,
     )
     .unwrap();
@@ -181,6 +187,7 @@ fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
         root_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
         None,
+        None,
     )
     .unwrap();
 
@@ -194,6 +201,7 @@ fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
             .unwrap()
             .as_slice(),
         Some(&dependent_stele_1_scopes),
+        None,
     )
     .unwrap();
 
@@ -207,6 +215,7 @@ fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
             .unwrap()
             .as_slice(),
         Some(&dependent_stele_2_scopes),
+        None,
     )
     .unwrap();
 
@@ -214,6 +223,7 @@ fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
         td.path(),
         root_org_name,
         vec![dependent_stele_1_org_name, dependent_stele_2_org_name],
+        None,
     )?;
 
     // anyhow::bail!("Something went wrong!");
@@ -240,6 +250,7 @@ fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
         root_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
         None,
+        None,
     )
     .unwrap();
 
@@ -249,6 +260,7 @@ fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
         td.path().to_path_buf(),
         stele_1_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
         None,
     )
     .unwrap();
@@ -260,6 +272,7 @@ fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
         stele_2_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
         None,
+        None,
     )
     .unwrap();
 
@@ -267,6 +280,7 @@ fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
         td.path(),
         root_org_name,
         vec![stele_1_org_name, stele_2_org_name],
+        None,
     )?;
 
     let stele_1_1_org_name = "stele_1_1";
@@ -275,6 +289,7 @@ fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
         td.path().to_path_buf(),
         stele_1_1_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
         None,
     )
     .unwrap();
@@ -286,6 +301,7 @@ fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
         stele_1_2_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
         None,
+        None,
     )
     .unwrap();
 
@@ -294,6 +310,119 @@ fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
         td.path(),
         stele_1_org_name,
         vec![stele_1_1_org_name, stele_1_2_org_name],
+        None,
+    )?;
+    Ok(())
+}
+
+fn initialize_private_archive_multihost(td: &TempDir) -> Result<()> {
+    let root_org_name = "root_stele";
+
+    archive::init(
+        td.path().to_owned(),
+        "law-private".into(),
+        root_org_name.into(),
+        None,
+        false,
+        Some(Headers {
+            current_documents_guard: Some("X-Current-Documents-Guard".into()),
+        }),
+    )
+    .unwrap();
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        root_org_name,
+        get_private_root_test_data_repositories()
+            .unwrap()
+            .as_slice(),
+        None,
+        Some("law-private"),
+    )
+    .unwrap();
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        root_org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
+        None,
+    )
+    .unwrap();
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        root_org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
+        None,
+    )
+    .unwrap();
+
+    let stele_1_org_name = "stele_1";
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        stele_1_org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
+        None,
+    )
+    .unwrap();
+
+    let stele_2_org_name = "stele_2";
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        stele_2_org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
+        None,
+    )
+    .unwrap();
+
+    add_dependencies(
+        td.path(),
+        root_org_name,
+        vec![root_org_name],
+        Some("law-private"),
+    )?;
+
+    add_dependencies(
+        td.path(),
+        root_org_name,
+        vec![stele_1_org_name, stele_2_org_name],
+        None,
+    )?;
+
+    let stele_1_1_org_name = "stele_1_1";
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        stele_1_1_org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
+        None,
+    )
+    .unwrap();
+
+    let stele_1_2_org_name = "stele_1_2";
+
+    initialize_stele(
+        td.path().to_path_buf(),
+        stele_1_2_org_name,
+        get_basic_test_data_repositories().unwrap().as_slice(),
+        None,
+        None,
+    )
+    .unwrap();
+
+    // Add stele_1_1 and stele_1_2 as dependencies of stele_1
+    add_dependencies(
+        td.path(),
+        stele_1_org_name,
+        vec![stele_1_1_org_name, stele_1_2_org_name],
+        None,
     )?;
     Ok(())
 }
@@ -303,10 +432,11 @@ pub fn initialize_stele(
     org_name: &str,
     data_repositories: &[TestDataRepositoryContext],
     scopes: Option<&Vec<String>>,
+    auth_repo: Option<&str>,
 ) -> Result<()> {
     let path = path.join(org_name);
     init_data_repositories(&path, data_repositories)?;
-    init_auth_repository(&path, org_name, data_repositories, scopes)?;
+    init_auth_repository(&path, org_name, data_repositories, scopes, auth_repo)?;
     Ok(())
 }
 
@@ -315,9 +445,12 @@ pub fn init_auth_repository(
     org_name: &str,
     data_repositories: &[TestDataRepositoryContext],
     scopes: Option<&Vec<String>>,
+    auth_repo: Option<&str>,
 ) -> Result<GitRepository> {
     let mut path = path.to_path_buf();
-    path.push("law");
+    // Default auth repo name is `law`
+    let auth_repo = auth_repo.unwrap_or("law");
+    path.push(auth_repo);
     std::fs::create_dir_all(&path).unwrap();
 
     let repo = GitRepository::init(&path).unwrap();
@@ -373,6 +506,30 @@ fn init_data_repository(
     Ok(())
 }
 
+pub fn init_secret_repository(test_path: &Path) -> Result<()> {
+    // Create full path: test_path/test_org/secret_repo
+    let path = test_path.join("secret_repo");
+    std::fs::create_dir_all(&path).unwrap();
+    let repo = GitRepository::init(&path).unwrap();
+
+    let password_content = String::from("Super Secret Password");
+
+    repo.add_file(&path, "password.txt", &password_content)
+        .unwrap();
+    repo.commit(None, "Add password.txt").unwrap();
+    Ok(())
+}
+
+pub fn add_private_json_file(auth_repo_path: &Path, file_content: String) -> Result<()> {
+    let repo = GitRepository::open(auth_repo_path).unwrap();
+    // Create full path: auth_repo_path/targets
+    let path = auth_repo_path.join("targets");
+
+    repo.add_file(&path, "private.json", &file_content).unwrap();
+    repo.commit(None, "Add access file").unwrap();
+    Ok(())
+}
+
 fn add_fixture_file_to_git_repo(git_repo: &GitRepository, path: &Path) -> Result<()> {
     let filename = path.file_name().unwrap().to_str().unwrap();
     let static_file_path = get_static_file_path(filename);
@@ -403,9 +560,10 @@ pub fn add_dependencies(
     path: &Path,
     root_org_name: &str,
     dependent_stele_org_names: Vec<&str>,
+    auth_repo: Option<&str>,
 ) -> Result<()> {
-    let root_repo = get_repository(path, &format!("{root_org_name}/law"));
-
+    let auth_repo = auth_repo.unwrap_or("law");
+    let root_repo = get_repository(path, &format!("{root_org_name}/{auth_repo}"));
     let dependencies = Dependencies {
         dependencies: {
             let mut dependencies = HashMap::new();
@@ -432,7 +590,7 @@ pub fn add_dependencies(
         .add_file(
             &path
                 .to_path_buf()
-                .join(format!("{root_org_name}/law/targets")),
+                .join(format!("{root_org_name}/{auth_repo}/targets")),
             "dependencies.json",
             &content,
         )
