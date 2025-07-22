@@ -64,17 +64,18 @@ pub async fn get_blob(
         .iter()
         .find(|(s_name, _)| *s_name == format!("{namespace}/law"))
     else {
-        return HttpResponse::BadRequest().body("Can not find stele in archive stelae");
+        return HttpResponse::NotFound().body(format!("repo {namespace}/{name} does not exist"));
     };
 
     if stele.is_private_stelae() {
-        return HttpResponse::Forbidden().body("Can not access private stele");
+        return HttpResponse::NotFound().body(format!("repo {namespace}/{name} does not exist"));
     }
     let repositories = match stele.get_repositories_for_commitish("HEAD") {
         Ok(Some(repos)) => repos,
         Ok(None) => {
             tracing::error!("No repositories found");
-            return HttpResponse::BadRequest().body("No repositories found");
+            return HttpResponse::NotFound()
+                .body(format!("repo {namespace}/{name} does not exist"));
         }
         Err(err) => {
             tracing::error!("Error fetching repositories: {err}");
@@ -83,8 +84,7 @@ pub async fn get_blob(
     };
     let full_name = format!("{namespace}/{name}");
     if !repositories.repositories.contains_key(&full_name) {
-        return HttpResponse::BadRequest()
-            .body("Repository is not in list of allowed repositories");
+        return HttpResponse::NotFound().body(format!("repo {namespace}/{name} does not exist"));
     }
     let archive_path = &data;
     let blob = Repo::find_blob(archive_path, &namespace, &name, &file_path, &commitish);
