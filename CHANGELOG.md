@@ -13,6 +13,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 - Add `build_date` and `codified_date` columns to `data_repo_commits` table ([#76])
 - Add `X-File-Path` header to `_stelae` and git microserver HTTP responses ([#70])
 - Added tests fot `stelae git` ([64])
+- Added bind_to argument in serve command ([#78])
 
 ### Changed
 
@@ -27,6 +28,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 [#76]: https://github.com/openlawlibrary/stelae/pull/76
 [#70]: https://github.com/openlawlibrary/stelae/pull/70
 [#64]: https://github.com/openlawlibrary/stelae/pull/64
+[#78]: https://github.com/openlawlibrary/stelae/pull/78
 
 ## [0.4.2]
 
