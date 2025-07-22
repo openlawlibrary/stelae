@@ -147,12 +147,12 @@ async fn test_archive_api_where_private_json_file_exists_expect_error() {
     let resp = test::call_service(&app, req).await;
     assert_eq!(
         resp.status(),
-        StatusCode::FORBIDDEN,
-        "Expected 403 Forbidden"
+        StatusCode::NOT_FOUND,
+        "Expected 404 Not Found"
     );
 
     let actual = test::read_body(resp).await;
-    let expected = "Can not access private stele";
+    let expected = "repo stele_1/law-html does not exist";
     assert!(
         common::blob_to_string(actual.to_vec()).starts_with(expected),
         "doesn't start with {expected}"
@@ -177,12 +177,12 @@ async fn test_archive_api_where_repo_name_is_not_in_repository_json_file_expect_
     let resp = test::call_service(&app, req).await;
     assert_eq!(
         resp.status(),
-        StatusCode::BAD_REQUEST,
-        "Expected 400 Bad Request"
+        StatusCode::NOT_FOUND,
+        "Expected 404 Not Found"
     );
 
     let actual = test::read_body(resp).await;
-    let expected = "Repository is not in list of allowed repositories";
+    let expected = "repo stele_1/secret_repo does not exist";
     assert!(
         common::blob_to_string(actual.to_vec()).starts_with(expected),
         "doesn't start with {expected}"
@@ -213,12 +213,12 @@ async fn test_archive_api_with_empty_private_json_file_exists_expect_error() {
     let resp = test::call_service(&app, req).await;
     assert_eq!(
         resp.status(),
-        StatusCode::FORBIDDEN,
-        "Expected 403 Forbidden"
+        StatusCode::NOT_FOUND,
+        "Expected 404 Not Found"
     );
 
     let actual = test::read_body(resp).await;
-    let expected = "Can not access private stele";
+    let expected = "repo stele_1/law-html does not exist";
     assert!(
         common::blob_to_string(actual.to_vec()).starts_with(expected),
         "doesn't start with {expected}"

@@ -497,7 +497,7 @@ async fn test_archive_api_where_org_name_does_not_exists_expect_error() {
         ))
         .to_request();
     let actual = test::call_and_read_body(&app, req).await;
-    let expected = "Can not find stele in archive stelae";
+    let expected = "repo unknown_org/law-html does not exist";
     println!("{}", common::blob_to_string(actual.to_vec()));
     assert!(
         common::blob_to_string(actual.to_vec()).starts_with(expected),
@@ -518,7 +518,7 @@ async fn test_archive_api_where_repo_name_is_not_in_repository_json_file_expect_
         .insert_header((header::HeaderName::from_static("x-stelae"), "test_org/law"))
         .to_request();
     let actual = test::call_and_read_body(&app, req).await;
-    let expected = "Repository is not in list of allowed repositories";
+    let expected = "repo test_org/secret_repo does not exist";
     assert!(
         common::blob_to_string(actual.to_vec()).starts_with(expected),
         "doesn't start with {expected}"
@@ -567,12 +567,12 @@ async fn test_archive_api_where_private_json_file_exists_expect_error() {
     let resp = test::call_service(&app, req).await;
     assert_eq!(
         resp.status(),
-        StatusCode::FORBIDDEN,
-        "Expected 403 Forbidden"
+        StatusCode::NOT_FOUND,
+        "Expected 404 Not Found"
     );
 
     let actual = test::read_body(resp).await;
-    let expected = "Can not access private stele";
+    let expected = "repo test_org/law-html does not exist";
     assert!(
         common::blob_to_string(actual.to_vec()).starts_with(expected),
         "doesn't start with {expected}"
