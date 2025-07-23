@@ -3,6 +3,10 @@
     clippy::exit,
     reason = "Allow exits because in this file we ideally handle all errors with known exit codes"
 )]
+#![expect(
+    clippy::module_name_repetitions,
+    reason = "This is a CLI module, so it is expected to have the same name as the crate"
+)]
 
 pub use crate::history::changes;
 pub use crate::server::app::serve_archive;
@@ -39,7 +43,7 @@ pub struct Cli {
 }
 
 /// Stelae subcommands
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum StelaeSubcommands {
     /// Serve git repositories in the Stelae archive
     Git {
@@ -57,12 +61,12 @@ pub enum StelaeSubcommands {
     Update,
 }
 
-/// Trait that CLI structs must implement to work with execute_command
+/// Trait that CLI structs must implement to work with `execute_command`
 pub trait CliProvider {
     /// Get the archive path as a string
     fn archive_path(&self) -> &str;
 
-    /// Convert the CLI's subcommands to the generic StelaeSubcommand
+    /// Convert the CLI's subcommands to the generic `StelaeSubcommand`
     fn subcommand(&self) -> StelaeSubcommands;
 }
 
@@ -73,12 +77,11 @@ impl CliProvider for Cli {
     }
 
     fn subcommand(&self) -> StelaeSubcommands {
-        match &self.subcommands {
-            Subcommands::Git { port } => StelaeSubcommands::Git { port: *port },
-            Subcommands::Serve { port, individual } => StelaeSubcommands::Serve {
-                port: *port,
-                individual: *individual,
-            },
+        match self.subcommands {
+            Subcommands::Git { port } => StelaeSubcommands::Git { port },
+            Subcommands::Serve { port, individual } => {
+                StelaeSubcommands::Serve { port, individual }
+            }
             Subcommands::Update => StelaeSubcommands::Update,
         }
     }
@@ -118,6 +121,8 @@ pub enum Subcommands {
 /// `debug` log file contains all logs, `error` log file contains only `warn` and `error`
 /// NOTE: once `https://github.com/tokio-rs/tracing/pull/2497` is merged,
 /// update `init_tracing` to rotate log files based on size.
+/// # Panics
+/// This function panics if it fails to initialize tracing.
 #[expect(
     clippy::expect_used,
     reason = "Expect that console logging can be initialized"
@@ -159,7 +164,7 @@ pub fn init_tracing(archive_path: &Path) {
 ///
 /// # Errors
 /// This function returns the generic `CliError`, based on which we exit with a known exit code.
-/// Generic execute_command function that works with any CLI implementing CliProvider
+/// Generic `execute_command` function that works with any CLI implementing `CliProvider`
 pub fn execute_command<T: CliProvider>(cli: &T, archive_path: PathBuf) -> Result<(), CliError> {
     match cli.subcommand() {
         StelaeSubcommands::Git { port } => serve_git(cli.archive_path(), archive_path, port),

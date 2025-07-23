@@ -116,7 +116,7 @@ pub async fn versions(
     }
     if let Some(ver) = versions.first_mut() {
         ver.display.push_str(" (last modified)");
-    };
+    }
 
     let current_version = response::Version::new(
         CURRENT_VERSION_DATE.to_owned(),

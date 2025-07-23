@@ -3,6 +3,10 @@
     clippy::exit,
     reason = "We exit with 1 error code on any application errors"
 )]
+#![expect(
+    clippy::literal_string_with_formatting_args,
+    reason = "We use Actix web's wildcard .* to match all paths"
+)]
 use std::sync::Arc;
 use std::{process, sync::OnceLock};
 
@@ -116,7 +120,7 @@ fn register_guarded_and_unguarded_routes<
     } else {
         app = initialize_archive_route(app, state);
         app = initialize_dynamic_routes(app, state)?;
-    };
+    }
     Ok(app)
 }
 
