@@ -153,7 +153,7 @@ pub fn run() {
         );
         process::exit(1);
     };
-    
+
     let log_path = cli.log_path.clone();
     init_tracing(&archive_path, log_path);
 
