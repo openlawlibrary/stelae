@@ -168,12 +168,11 @@ impl Stele {
     /// Returns the first fallback repository found, or None if no fallback repository is found.
     #[must_use]
     pub fn get_fallback_repo(&self) -> Option<&Repository> {
-        self.repositories.as_ref().and_then(|repositories| {
-            repositories
-                .repositories
-                .values()
-                .find(|repository| repository.custom.is_fallback.unwrap_or(false))
-        })
+        let repositories = self.repositories.as_ref()?;
+        repositories
+            .repositories
+            .values()
+            .find(|repository| repository.custom.is_fallback.unwrap_or(false))
     }
 
     /// See if Stele is a root Stele.

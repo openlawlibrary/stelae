@@ -122,6 +122,10 @@
     So we disallow single chars, and allow renamed_function_params.
 "
 )]
+#![allow(
+    clippy::arbitrary_source_item_ordering,
+    reason = "Source item order differences are acceptable; code is generated or does not rely on item ordering"
+)]
 
 pub mod db;
 pub mod history;

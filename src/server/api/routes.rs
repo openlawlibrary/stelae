@@ -25,6 +25,10 @@ static HEADER_VALUES: OnceLock<Vec<String>> = OnceLock::new();
 /// Name of the root stelae
 static ROOT_NAME_VALUE: OnceLock<String> = OnceLock::new();
 
+#[expect(
+    clippy::literal_string_with_formatting_args,
+    reason = "Actix Web resource path uses `{param}` syntax which is not formatting but route pattern matching"
+)]
 /// Central place to register all the App routing.
 ///
 /// Registers all routes for the given Archive
@@ -116,7 +120,7 @@ fn register_guarded_and_unguarded_routes<
     } else {
         app = initialize_archive_route(app, state);
         app = initialize_dynamic_routes(app, state)?;
-    };
+    }
     Ok(app)
 }
 

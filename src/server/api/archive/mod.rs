@@ -40,6 +40,10 @@ pub mod request;
     clippy::pattern_type_mismatch,
     reason = "The pattern is clear and intentional; matching by reference adds unnecessary verbosity for this context."
 )]
+#[expect(
+    clippy::similar_names,
+    reason = "Variable names are intentionally similar to reflect singular/plural distinction"
+)]
 /// Return the content in the stelae archive in the `{namespace}/{name}`
 /// repo at the `commitish` commit at the `path` path.
 /// Return 404 if any are not found or there are any errors.
