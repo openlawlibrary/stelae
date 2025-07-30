@@ -15,11 +15,14 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Changed
 
+- Bump rust-version to `1.88` ([86])
+
 ### Fixed
 
 ### Removed
 
 [#81]: https://github.com/openlawlibrary/stelae/pull/81
+[#86]: https://github.com/openlawlibrary/stelae/pull/86
 
 ## [0.5.0]
 
