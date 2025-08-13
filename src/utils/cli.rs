@@ -63,7 +63,14 @@ enum Subcommands {
     ///
     ///  - Populates the database with change objects loaded in from RDF repository
     ///  - By default inserts historical information for the root and all referenced stele in the archive
-    Update,
+    Update {
+        /// List of stelae to include in update
+        #[arg(short = 'i', long = "include", num_args(1..))]
+        include: Vec<String>,
+        /// List of stelae to exclude in update
+        #[arg(short = 'e', long = "exclude", num_args(1..))]
+        exclude: Vec<String>,
+    },
 }
 
 /// Place to initialize tracing
@@ -109,17 +116,23 @@ fn init_tracing(archive_path: &Path) {
     }
 }
 
+#[expect(
+    clippy::pattern_type_mismatch,
+    reason = "Matching on a reference (&cli.subcommands) instead of by value; the match patterns borrow fields, which is intentional to avoid moving data."
+)]
 /// Central place to execute commands
 ///
 /// # Errors
 /// This function returns the generic `CliError`, based on which we exit with a known exit code.
 fn execute_command(cli: &Cli, archive_path: PathBuf) -> Result<(), CliError> {
-    match cli.subcommands {
-        Subcommands::Git { port } => serve_git(&cli.archive_path, archive_path, port),
+    match &cli.subcommands {
+        Subcommands::Git { port } => serve_git(&cli.archive_path, archive_path, *port),
         Subcommands::Serve { port, individual } => {
-            serve_archive(&cli.archive_path, archive_path, port, individual)
+            serve_archive(&cli.archive_path, archive_path, *port, *individual)
         }
-        Subcommands::Update => changes::insert(&cli.archive_path, archive_path),
+        Subcommands::Update { include, exclude } => {
+            changes::insert(&cli.archive_path, archive_path, include, exclude)
+        }
     }
 }
 
