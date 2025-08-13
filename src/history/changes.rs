@@ -101,7 +101,7 @@ async fn insert_changes_archive(
     )?;
     let mut errors = Vec::new();
     for (name, mut stele) in archive.get_stelae() {
-        if exclude.contains(&name) || !include.contains(&name) {
+        if exclude.contains(&name) || (!include.is_empty() && !include.contains(&name)) {
             tracing::debug!("Skip update for {:?}", name);
             continue;
         }
