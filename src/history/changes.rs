@@ -54,16 +54,22 @@ use std::{
 /// # Errors
 /// Errors if the changes cannot be inserted into the archive
 #[actix_web::main]
-#[tracing::instrument(name = "Stelae update", skip(raw_archive_path, archive_path))]
+#[tracing::instrument(
+    name = "Stelae update",
+    skip(raw_archive_path, archive_path, include, exclude)
+)]
 pub async fn insert(
     raw_archive_path: &str,
     archive_path: PathBuf,
     include: &Vec<String>,
     exclude: &Vec<String>,
 ) -> Result<(), CliError> {
-    tracing::debug!("Following stelae are in the include list: {:?}", include);
-    tracing::debug!("Following stelae are in the exclude list: {:?}", exclude);
-
+    if !include.is_empty() {
+        tracing::info!("Following stele are included: {:#?}", include);
+    }
+    if !exclude.is_empty() {
+        tracing::info!("Following stele are excluded: {:#?}", exclude);
+    }
     let conn = match db::init::connect(&archive_path).await {
         Ok(conn) => conn,
         Err(err) => {
@@ -102,7 +108,7 @@ async fn insert_changes_archive(
     let mut errors = Vec::new();
     for (name, mut stele) in archive.get_stelae() {
         if exclude.contains(&name) || (!include.is_empty() && !include.contains(&name)) {
-            tracing::debug!("Skip update for {:?}", name);
+            tracing::info!("Skipping update for {:?}", name);
             continue;
         }
         let mut tx = DatabaseTransaction {
