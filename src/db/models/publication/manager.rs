@@ -114,7 +114,7 @@ impl super::TxManager for DatabaseTransaction {
         &mut self,
         name: &str,
         stele: &str,
-    ) -> anyhow::Result<Publication> {
+    ) -> anyhow::Result<Option<Publication>> {
         let statement = "
             SELECT *
             FROM publication
@@ -124,7 +124,8 @@ impl super::TxManager for DatabaseTransaction {
             .bind(name)
             .bind(stele)
             .fetch_one(&mut *self.tx)
-            .await?;
+            .await
+            .ok();
         Ok(row)
     }
 

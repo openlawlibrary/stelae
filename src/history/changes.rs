@@ -289,8 +289,14 @@ async fn load_delta_from_publications(
             referenced_publication_information(&pub_graph);
         let publication_hash = md5::compute(format!("{}{}", pub_name.clone(), stele));
         let last_inserted_pub_id = if let Some(valid_pub_name) = last_valid_pub_name {
-            let last_inserted_pub =
-                publication::TxManager::find_by_name_and_stele(tx, &valid_pub_name, stele).await?;
+            let Some(last_inserted_pub) =
+                publication::TxManager::find_by_name_and_stele(tx, &valid_pub_name, stele).await?
+            else {
+                tracing::debug!(
+                    "[{stele}] | Publication {pub_name} not found in database after creation, which indicates revocation"
+                );
+                continue;
+            };
             Some(last_inserted_pub.id)
         } else {
             None
@@ -305,8 +311,14 @@ async fn load_delta_from_publications(
             last_valid_codified_date,
         )
         .await?;
-        let publication =
-            publication::TxManager::find_by_name_and_stele(tx, &pub_name, stele).await?;
+        let Some(publication) =
+            publication::TxManager::find_by_name_and_stele(tx, &pub_name, stele).await?
+        else {
+            tracing::debug!(
+                    "[{stele}] | Publication {pub_name} not found in database after creation, which indicates revocation"
+                );
+            continue;
+        };
         load_delta_for_publication(tx, publication, &pub_graph, last_inserted_date).await?;
         // reset last inserted date for next publication
         last_inserted_date = None;
