@@ -153,9 +153,8 @@ impl Repo {
         revwalk.push_head()?;
         Ok(revwalk
             .filter_map(|found_oid| {
-                found_oid
-                    .ok()
-                    .and_then(|oid| self.repo.find_commit(oid).ok())
+                let oid = found_oid.ok()?;
+                self.repo.find_commit(oid).ok()
             })
             .collect::<Vec<Commit>>()
             .into_iter())

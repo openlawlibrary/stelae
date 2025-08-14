@@ -90,6 +90,10 @@ pub async fn insert(
         })
 }
 
+#[expect(
+    clippy::cognitive_complexity,
+    reason = "Splitting would reduce readability"
+)]
 /// Insert changes from the archive into the database
 async fn insert_changes_archive(
     conn: &DatabaseConnection,
@@ -627,6 +631,10 @@ async fn revoke_same_date_publications(
     Ok(())
 }
 
+#[expect(
+    clippy::cognitive_complexity,
+    reason = "Splitting would reduce readability"
+)]
 /// Walks the authentication repository commits and processes commit hashes that are inserted into the database.
 ///
 /// # Errors
@@ -688,6 +696,10 @@ async fn insert_commit_hashes_from_auth_repository(
     Ok(())
 }
 
+#[expect(
+    clippy::elidable_lifetime_names,
+    reason = "Explicit lifetime improves clarity and consistency"
+)]
 /// Process the auth commit.
 ///
 /// The commit is used to get the metadata target file for the data repository.

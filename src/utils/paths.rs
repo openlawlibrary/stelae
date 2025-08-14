@@ -15,6 +15,10 @@ pub fn fix_unc_path(absolute_path: &Path) -> PathBuf {
     absolute_path.to_path_buf()
 }
 
+#[expect(
+    clippy::non_std_lazy_statics,
+    reason = "Using lazy_static for compatibility and simplicity"
+)]
 #[expect(clippy::expect_used, reason = "Expect to compile regex")]
 #[must_use]
 /// Remove leading and trailing `/`s from the `path` string.
