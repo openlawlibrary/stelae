@@ -16,6 +16,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Fixed
 
+- Fix(history, changes): skip iterating over publication when revoked ([#88])
+
 ### Removed
 
 [#88]: https://github.com/openlawlibrary/stelae/pull/88
