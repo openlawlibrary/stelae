@@ -10,11 +10,15 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
+- Add `--include/-i` and `--exclude/-e` to `stelae update` ([#88])
+
 ### Changed
 
 ### Fixed
 
 ### Removed
+
+[#88]: https://github.com/openlawlibrary/stelae/pull/88
 
 ## [0.5.0]
 
