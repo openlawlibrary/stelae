@@ -220,6 +220,10 @@ async fn load_delta_for_stele(
     clippy::too_many_lines,
     reason = "It's a complex function that handles multiple operations in a single step"
 )]
+#[expect(
+    clippy::cognitive_complexity,
+    reason = "It's a complex function that handles multiple operations in a single step"
+)]
 async fn load_delta_from_publications(
     tx: &mut DatabaseTransaction,
     rdf_repo: &Repo,
