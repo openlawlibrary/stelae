@@ -54,8 +54,22 @@ use std::{
 /// # Errors
 /// Errors if the changes cannot be inserted into the archive
 #[actix_web::main]
-#[tracing::instrument(name = "Stelae update", skip(raw_archive_path, archive_path))]
-pub async fn insert(raw_archive_path: &str, archive_path: PathBuf) -> Result<(), CliError> {
+#[tracing::instrument(
+    name = "Stelae update",
+    skip(raw_archive_path, archive_path, include, exclude)
+)]
+pub async fn insert(
+    raw_archive_path: &str,
+    archive_path: PathBuf,
+    include: &Vec<String>,
+    exclude: &Vec<String>,
+) -> Result<(), CliError> {
+    if !include.is_empty() {
+        tracing::info!("Following stele are included: {:#?}", include);
+    }
+    if !exclude.is_empty() {
+        tracing::info!("Following stele are excluded: {:#?}", exclude);
+    }
     let conn = match db::init::connect(&archive_path).await {
         Ok(conn) => conn,
         Err(err) => {
@@ -67,7 +81,7 @@ pub async fn insert(raw_archive_path: &str, archive_path: PathBuf) -> Result<(),
             return Err(CliError::DatabaseConnectionError);
         }
     };
-    insert_changes_archive(&conn, raw_archive_path, &archive_path)
+    insert_changes_archive(&conn, raw_archive_path, &archive_path, include, exclude)
         .await
         .map_err(|err| {
             tracing::error!("Failed to update stele in the archive");
@@ -85,6 +99,8 @@ async fn insert_changes_archive(
     conn: &DatabaseConnection,
     raw_archive_path: &str,
     archive_path: &Path,
+    include: &[String],
+    exclude: &[String],
 ) -> anyhow::Result<()> {
     tracing::debug!("Inserting history into archive");
 
@@ -93,9 +109,12 @@ async fn insert_changes_archive(
         &PathBuf::from(raw_archive_path),
         false,
     )?;
-
     let mut errors = Vec::new();
     for (name, mut stele) in archive.get_stelae() {
+        if exclude.contains(&name) || (!include.is_empty() && !include.contains(&name)) {
+            tracing::info!("Skipping update for {:?}", name);
+            continue;
+        }
         let mut tx = DatabaseTransaction {
             tx: conn.pool.begin().await?,
         };
@@ -197,6 +216,14 @@ async fn load_delta_for_stele(
 ///
 /// # Errors
 /// Errors if the delta cannot be loaded from the publications
+#[expect(
+    clippy::too_many_lines,
+    reason = "It's a complex function that handles multiple operations in a single step"
+)]
+#[expect(
+    clippy::cognitive_complexity,
+    reason = "It's a complex function that handles multiple operations in a single step"
+)]
 async fn load_delta_from_publications(
     tx: &mut DatabaseTransaction,
     rdf_repo: &Repo,
@@ -280,8 +307,14 @@ async fn load_delta_from_publications(
             referenced_publication_information(&pub_graph);
         let publication_hash = md5::compute(format!("{}{}", pub_name.clone(), stele));
         let last_inserted_pub_id = if let Some(valid_pub_name) = last_valid_pub_name {
-            let last_inserted_pub =
-                publication::TxManager::find_by_name_and_stele(tx, &valid_pub_name, stele).await?;
+            let Some(last_inserted_pub) =
+                publication::TxManager::find_by_name_and_stele(tx, &valid_pub_name, stele).await?
+            else {
+                tracing::debug!(
+                    "[{stele}] | Publication {pub_name} not found in database after creation, which indicates revocation"
+                );
+                continue;
+            };
             Some(last_inserted_pub.id)
         } else {
             None
@@ -296,8 +329,14 @@ async fn load_delta_from_publications(
             last_valid_codified_date,
         )
         .await?;
-        let publication =
-            publication::TxManager::find_by_name_and_stele(tx, &pub_name, stele).await?;
+        let Some(publication) =
+            publication::TxManager::find_by_name_and_stele(tx, &pub_name, stele).await?
+        else {
+            tracing::debug!(
+                    "[{stele}] | Publication {pub_name} not found in database after creation, which indicates revocation"
+                );
+            continue;
+        };
         load_delta_for_publication(tx, publication, &pub_graph, last_inserted_date).await?;
         // reset last inserted date for next publication
         last_inserted_date = None;

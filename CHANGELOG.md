@@ -21,8 +21,24 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-[#81]: https://github.com/openlawlibrary/stelae/pull/81
 [#86]: https://github.com/openlawlibrary/stelae/pull/86
+[#81]: https://github.com/openlawlibrary/stelae/pull/81
+
+## [0.5.1]
+
+### Added
+
+- Add `--include/-i` and `--exclude/-e` to `stelae update` ([#88])
+
+### Changed
+
+### Fixed
+
+- Fix(history, changes): skip iterating over publication when revoked ([#88])
+
+### Removed
+
+[#88]: https://github.com/openlawlibrary/stelae/pull/88
 
 ## [0.5.0]
 
@@ -205,7 +221,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/openlawlibrary/stelae/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/openlawlibrary/stelae/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/openlawlibrary/stelae/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/openlawlibrary/stelae/compare/v0.4.0...v0.4.1
