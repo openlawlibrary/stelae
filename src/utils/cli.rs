@@ -48,7 +48,6 @@ pub struct Cli {
 /// Stelae subcommands
 #[derive(Clone, Debug)]
 pub enum StelaeSubcommands {
-
     /// Serve git repositories in the Stelae archive
     Git {
         /// Port on which to run the git server.
@@ -85,6 +84,10 @@ impl CliProvider for Cli {
         &self.archive_path
     }
 
+    #[expect(
+        clippy::pattern_type_mismatch,
+        reason = "Matching on a reference (&cli.subcommands) instead of by value; the match patterns borrow fields, which is intentional to avoid moving data."
+    )]
     fn subcommand(&self) -> StelaeSubcommands {
         match &self.subcommands {
             Subcommands::Git { port } => StelaeSubcommands::Git { port: *port },
@@ -92,7 +95,10 @@ impl CliProvider for Cli {
                 port: *port,
                 individual: *individual,
             },
-            Subcommands::Update { include, exclude } => StelaeSubcommands::Update { include: include.to_vec(), exclude: exclude.to_vec() },
+            Subcommands::Update { include, exclude } => StelaeSubcommands::Update {
+                include: include.clone(),
+                exclude: exclude.clone(),
+            },
         }
     }
 }
@@ -187,12 +193,14 @@ pub fn init_tracing(archive_path: &Path, log_path: Option<String>) {
 /// This function returns the generic `CliError`, based on which we exit with a known exit code.
 /// Generic `execute_command` function that works with any CLI implementing `CliProvider`
 pub fn execute_command<T: CliProvider>(cli: &T, archive_path: PathBuf) -> Result<(), CliError> {
-    match cli.subcommand() {
-        StelaeSubcommands::Git { port } => serve_git(cli.archive_path(), archive_path, port),
+    match &cli.subcommand() {
+        StelaeSubcommands::Git { port } => serve_git(cli.archive_path(), archive_path, *port),
         StelaeSubcommands::Serve { port, individual } => {
-            serve_archive(cli.archive_path(), archive_path, port, individual)
+            serve_archive(cli.archive_path(), archive_path, *port, *individual)
         }
-        StelaeSubcommands::Update { include, exclude } => changes::insert(cli.archive_path(), archive_path, &include, &exclude),
+        StelaeSubcommands::Update { include, exclude } => {
+            changes::insert(cli.archive_path(), archive_path, include, exclude)
+        }
     }
 }
 
