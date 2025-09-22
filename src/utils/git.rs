@@ -109,6 +109,35 @@ impl Repo {
         })
     }
 
+    /// Create a new Repo object from a full path to the repo in the archive.
+    ///
+    /// # Errors
+    /// Will return `Err` if the path does not contain at least org and name,
+    /// or if git repository does not exist at `{org}/{name}` in archive, or
+    /// if there is something wrong with the git repository.
+    pub fn from_path(path: &Path) -> anyhow::Result<Self> {
+        let components: Vec<&str> = path
+            .components()
+            .filter_map(|component| component.as_os_str().to_str())
+            .collect();
+        if components.len() < 2 {
+            anyhow::bail!("Path must contain at least org and name");
+        }
+        let name = (*components
+            .last()
+            .ok_or_else(|| anyhow::anyhow!("Missing repo name"))?)
+        .to_owned();
+        let org = (*components
+            .get(components.len() - 2)
+            .ok_or_else(|| anyhow::anyhow!("Missing repo org"))?)
+        .to_owned();
+        let archive_path_slice = components.get(..components.len() - 2).ok_or_else(|| {
+            anyhow::anyhow!("Path does not contain enough components for archive_path")
+        })?;
+        let archive_path = archive_path_slice.iter().collect::<PathBuf>();
+        Self::new(&archive_path, &org, &name)
+    }
+
     /// Returns bytes of blob found in the commit `commitish` at path `path`
     /// if a blob is not found at path, it will try adding ".html", "index.html,
     /// and "/index.html".
