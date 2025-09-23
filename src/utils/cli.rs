@@ -150,8 +150,10 @@ pub enum Subcommands {
     clippy::expect_used,
     reason = "Expect that console logging can be initialized"
 )]
-pub fn init_tracing(archive_path: &Path, log_path: Option<String>) {
-    let log_dir: PathBuf = log_path.map_or_else(|| archive_path.join(".taf"), PathBuf::from);
+pub fn init_tracing(archive_path: &Path, log_path: &Option<String>) {
+    let log_dir: PathBuf = log_path
+        .as_ref()
+        .map_or_else(|| archive_path.join(".taf"), PathBuf::from);
 
     let debug_file_appender =
         rolling::never(&log_dir, "stelae-debug.log").with_max_level(Level::DEBUG);
@@ -220,7 +222,7 @@ pub fn run() {
     };
 
     let log_path = cli.log_path.clone();
-    init_tracing(&archive_path, log_path);
+    init_tracing(&archive_path, &log_path);
 
     match execute_command(&cli, archive_path) {
         Ok(()) => process::exit(0),
