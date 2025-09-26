@@ -10,17 +10,20 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
+- Make CLI more generic, any Rust project that depends on stelae can now re-export CLI ([#89])
+- Add `from_path` associated function to init `Repo` ([#89])
 - Add `_archive` endpoint ([#81])
 - Restrict `_archive` endpoint access on private repositories ([#81])
 
 ### Changed
 
-- Bump rust-version to `1.88` ([86])
+- Bump rust-version to `1.88` ([#86])
 
 ### Fixed
 
 ### Removed
 
+[#89]: https://github.com/openlawlibrary/stelae/pull/89
 [#86]: https://github.com/openlawlibrary/stelae/pull/86
 [#81]: https://github.com/openlawlibrary/stelae/pull/81
 
