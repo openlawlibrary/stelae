@@ -182,7 +182,7 @@ impl Stele {
     }
 }
 
-///Config object for a Stele
+/// Config object for a Stele
 #[derive(Deserialize, Serialize)]
 pub struct Config {
     /// Name of the authentication repo (e.g. law).

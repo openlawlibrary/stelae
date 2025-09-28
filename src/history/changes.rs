@@ -700,10 +700,6 @@ async fn insert_commit_hashes_from_auth_repository(
     Ok(())
 }
 
-#[expect(
-    clippy::elidable_lifetime_names,
-    reason = "Explicit lifetime improves clarity and consistency"
-)]
 /// Process the auth commit.
 ///
 /// The commit is used to get the metadata target file for the data repository.
@@ -714,8 +710,8 @@ async fn insert_commit_hashes_from_auth_repository(
 /// # Errors
 /// Errors if the metadata target file cannot be found, the publication cannot be found,
 /// or the commit cannot be inserted into the database.
-async fn process_commit<'commit>(
-    commit: &git2::Commit<'commit>,
+async fn process_commit(
+    commit: &git2::Commit<'_>,
     stele: &Stele,
     data_repo: &Repository,
     stele_name: &str,
