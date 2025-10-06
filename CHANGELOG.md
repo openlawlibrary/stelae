@@ -10,11 +10,15 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
+- Added bind_to argument in serve command ([#78])
+
 ### Changed
 
 ### Fixed
 
 ### Removed
+
+[#78]: https://github.com/openlawlibrary/stelae/pull/78
 
 ## [v0.6.0]
 
