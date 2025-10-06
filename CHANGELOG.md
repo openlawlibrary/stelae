@@ -16,7 +16,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-## [0.6.0]
+## [v0.6.0]
 
 ### Added
 
@@ -37,7 +37,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 [#86]: https://github.com/openlawlibrary/stelae/pull/86
 [#81]: https://github.com/openlawlibrary/stelae/pull/81
 
-## [0.5.1]
+## [v0.5.1]
 
 ### Added
 
@@ -53,7 +53,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 [#88]: https://github.com/openlawlibrary/stelae/pull/88
 
-## [0.5.0]
+## [v0.5.0]
 
 ### Added
 
@@ -75,7 +75,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 [#70]: https://github.com/openlawlibrary/stelae/pull/70
 [#64]: https://github.com/openlawlibrary/stelae/pull/64
 
-## [0.4.2]
+## [v0.4.2]
 
 ### Added
 
@@ -92,7 +92,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 [#73]: https://github.com/openlawlibrary/stelae/pull/73
 
 
-## [0.4.1]
+## [v0.4.1]
 
 ### Added
 
@@ -106,7 +106,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 [#68]: https://github.com/openlawlibrary/stelae/pull/68
 
-## [0.4.0]
+## [v0.4.0]
 
 ### Added
 
@@ -126,7 +126,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 [#61]: https://github.com/openlawlibrary/stelae/pull/61
 [#58]: https://github.com/openlawlibrary/stelae/pull/58
 
-## [0.3.2]
+## [v0.3.2]
 
 ### Added
 
@@ -140,7 +140,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 [#56]: https://github.com/openlawlibrary/stelae/pull/56
 
-## [0.3.1]
+## [v0.3.1]
 
 ### Added
 
@@ -154,7 +154,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 [#52]: https://github.com/openlawlibrary/stelae/pull/52
 
-## [0.3.0]
+## [v0.3.0]
 
 ### Added
 
@@ -179,7 +179,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 [#33]: https://github.com/openlawlibrary/stelae/pull/33
 [#32]: https://github.com/openlawlibrary/stelae/pull/32
 
-## [0.2.1]
+## [v0.2.1]
 
 ### Added
 
@@ -195,7 +195,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 [#26]: https://github.com/openlawlibrary/stelae/pull/26
 
-## [0.2.0]
+## [v0.2.0]
 
 ### Added
 
@@ -209,7 +209,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 [#25]: https://github.com/openlawlibrary/stelae/pull/25
 
-## [0.1.1]
+## [v0.1.1]
 
 ### Added
 
@@ -221,7 +221,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-## [0.1.0]
+## [v0.1.0]
 
 ### Added
 
@@ -235,19 +235,19 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 ### Removed
 
 [Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.6.0...HEAD
-[0.6.0]: https://github.com/openlawlibrary/stelae/compare/v0.5.1...v0.6.0
-[0.5.1]: https://github.com/openlawlibrary/stelae/compare/v0.5.0...v0.5.1
-[0.5.0]: https://github.com/openlawlibrary/stelae/compare/v0.4.2...v0.5.0
-[0.4.2]: https://github.com/openlawlibrary/stelae/compare/v0.4.1...v0.4.2
-[0.4.1]: https://github.com/openlawlibrary/stelae/compare/v0.4.0...v0.4.1
-[0.4.0]: https://github.com/openlawlibrary/stelae/compare/v0.3.2...v0.4.0
-[0.3.2]: https://github.com/openlawlibrary/stelae/compare/v0.3.1...v0.3.2
-[0.3.1]: https://github.com/openlawlibrary/stelae/compare/v0.3.0...v0.3.1
-[0.3.0]: https://github.com/openlawlibrary/stelae/compare/v0.2.1...v0.3.0
-[0.2.1]: https://github.com/openlawlibrary/stelae/compare/v0.2.0...v0.2.1
-[0.2.0]: https://github.com/openlawlibrary/stelae/compare/v0.1.1...v0.2.0
-[0.1.1]: https://github.com/openlawlibrary/stelae/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/openlawlibrary/stelae/compare/2b01423c06369f5f0f168ae4c4698371d713ede7...v0.1.0
+[v0.6.0]: https://github.com/openlawlibrary/stelae/compare/v0.5.1...v0.6.0
+[v0.5.1]: https://github.com/openlawlibrary/stelae/compare/v0.5.0...v0.5.1
+[v0.5.0]: https://github.com/openlawlibrary/stelae/compare/v0.4.2...v0.5.0
+[v0.4.2]: https://github.com/openlawlibrary/stelae/compare/v0.4.1...v0.4.2
+[v0.4.1]: https://github.com/openlawlibrary/stelae/compare/v0.4.0...v0.4.1
+[v0.4.0]: https://github.com/openlawlibrary/stelae/compare/v0.3.2...v0.4.0
+[v0.3.2]: https://github.com/openlawlibrary/stelae/compare/v0.3.1...v0.3.2
+[v0.3.1]: https://github.com/openlawlibrary/stelae/compare/v0.3.0...v0.3.1
+[v0.3.0]: https://github.com/openlawlibrary/stelae/compare/v0.2.1...v0.3.0
+[v0.2.1]: https://github.com/openlawlibrary/stelae/compare/v0.2.0...v0.2.1
+[v0.2.0]: https://github.com/openlawlibrary/stelae/compare/v0.1.1...v0.2.0
+[v0.1.1]: https://github.com/openlawlibrary/stelae/compare/v0.1.0...v0.1.1
+[v0.1.0]: https://github.com/openlawlibrary/stelae/compare/2b01423c06369f5f0f168ae4c4698371d713ede7...v0.1.0
 
 [keepachangelog]: https://keepachangelog.com/en/1.0.0/
 [semver]: https://semver.org/spec/v2.0.0.html
