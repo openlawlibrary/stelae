@@ -59,6 +59,8 @@ pub enum StelaeSubcommands {
         port: u16,
         /// Serve an individual stele instead of the Stele specified in config.toml.
         individual: bool,
+        /// Bind to specify ip address instead of 127.0.0.1.
+        bind_to: String,
     },
     /// Update the archive
     Update {
@@ -91,9 +93,14 @@ impl CliProvider for Cli {
     fn subcommand(&self) -> StelaeSubcommands {
         match &self.subcommands {
             Subcommands::Git { port } => StelaeSubcommands::Git { port: *port },
-            Subcommands::Serve { port, individual } => StelaeSubcommands::Serve {
+            Subcommands::Serve {
+                port,
+                individual,
+                bind_to,
+            } => StelaeSubcommands::Serve {
                 port: *port,
                 individual: *individual,
+                bind_to: bind_to.clone(),
             },
             Subcommands::Update { include, exclude } => StelaeSubcommands::Update {
                 include: include.clone(),
@@ -120,6 +127,9 @@ pub enum Subcommands {
         #[arg(short, long, default_value_t = false)]
         /// Serve an individual stele instead of the Stele specified in config.toml.
         individual: bool,
+        /// Bind to specify ip address instead of 127.0.0.1
+        #[arg(short, long, default_value = "127.0.0.1")]
+        bind_to: String,
     },
     /// Update the archive
     ///
@@ -197,9 +207,17 @@ pub fn init_tracing(archive_path: &Path, log_path: &Option<String>) {
 pub fn execute_command<T: CliProvider>(cli: &T, archive_path: PathBuf) -> Result<(), CliError> {
     match &cli.subcommand() {
         StelaeSubcommands::Git { port } => serve_git(cli.archive_path(), archive_path, *port),
-        StelaeSubcommands::Serve { port, individual } => {
-            serve_archive(cli.archive_path(), archive_path, *port, *individual)
-        }
+        StelaeSubcommands::Serve {
+            port,
+            individual,
+            bind_to,
+        } => serve_archive(
+            cli.archive_path(),
+            archive_path,
+            *port,
+            *individual,
+            bind_to,
+        ),
         StelaeSubcommands::Update { include, exclude } => {
             changes::insert(cli.archive_path(), archive_path, include, exclude)
         }
