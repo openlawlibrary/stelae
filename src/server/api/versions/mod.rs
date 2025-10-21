@@ -102,7 +102,7 @@ pub async fn versions(
         &active_compare_to,
     );
 
-    if active_publication_name == current_publication.name.clone() {
+    if active_publication_name.to_lowercase() == current_publication.name.clone().to_lowercase() {
         CURRENT_PUBLICATION_NAME.clone_into(&mut active_publication_name);
     }
 
