@@ -60,19 +60,21 @@ pub async fn versions(
         return HttpResponse::NotFound().body("No publications found.");
     };
 
-    let mut active_publication_name = params
+    let active_publication_name = params
         .publication
         .clone()
-        .unwrap_or_else(|| current_publication.name.clone());
+        .unwrap_or_else(|| current_publication.name.clone())
+        .to_lowercase();
 
     let active_publication = publications
         .iter()
         .find(|pb| pb.name == active_publication_name);
 
     let url = clean_url_path(&params.path.clone().unwrap_or_default());
-
     let mut versions = if let Some(publication) = active_publication {
         publication_versions(db, publication, url.clone()).await
+    } else if active_publication_name == "current" {
+        publication_versions(db, current_publication, url.clone()).await
     } else {
         vec![]
     };
@@ -101,10 +103,6 @@ pub async fn versions(
         &params.date,
         &active_compare_to,
     );
-
-    if active_publication_name.to_lowercase() == current_publication.name.clone().to_lowercase() {
-        CURRENT_PUBLICATION_NAME.clone_into(&mut active_publication_name);
-    }
 
     response::Version::insert_if_not_present(&mut versions, params.date.clone());
     response::Version::insert_if_not_present(&mut versions, active_compare_to.clone());

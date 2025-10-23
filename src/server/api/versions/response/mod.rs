@@ -118,7 +118,8 @@ impl Versions {
                     sorted_publications.insert(
                         Reverse(pb.name.clone()),
                         Publication {
-                            active: pb.name.to_lowercase() == active_publication_name.to_lowercase(),
+                            active: pb.name.to_lowercase()
+                                == active_publication_name.to_lowercase(),
                             date: pb.date.clone(),
                             display: Self::format_display_date(
                                 &pb.name,
@@ -127,7 +128,8 @@ impl Versions {
                             ),
                             name: pb.name.clone(),
                             versions: {
-                                if pb.name.to_lowercase() == active_publication_name.to_lowercase() {
+                                if pb.name.to_lowercase() == active_publication_name.to_lowercase()
+                                {
                                     versions.to_vec()
                                 } else {
                                     vec![]
