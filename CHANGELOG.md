@@ -10,20 +10,31 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
-- Added bind_to argument in serve command ([#78])
-
 ### Changed
 
 ### Fixed
 
 ### Removed
 
-[#78]: https://github.com/openlawlibrary/stelae/pull/78
+## [v0.6.1]
+
+### Added
+
+### Changed
+
+### Fixed
+
+- Resolve `_api/versions` inconsistencies ([#92])
+
+### Removed
+
+[#92]: https://github.com/openlawlibrary/stelae/pull/92
 
 ## [v0.6.0]
 
 ### Added
 
+- Added bind_to argument in serve command ([#78])
 - Make CLI more generic, any Rust project that depends on stelae can now re-export CLI ([#89])
 - Add `from_path` associated function to init `Repo` ([#89])
 - Add `_archive` endpoint ([#81])
@@ -40,6 +51,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 [#89]: https://github.com/openlawlibrary/stelae/pull/89
 [#86]: https://github.com/openlawlibrary/stelae/pull/86
 [#81]: https://github.com/openlawlibrary/stelae/pull/81
+[#78]: https://github.com/openlawlibrary/stelae/pull/78
 
 ## [v0.5.1]
 
@@ -238,7 +250,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.6.1...HEAD
+[v0.6.1]: https://github.com/openlawlibrary/stelae/compare/v0.6.0...v0.6.1
 [v0.6.0]: https://github.com/openlawlibrary/stelae/compare/v0.5.1...v0.6.0
 [v0.5.1]: https://github.com/openlawlibrary/stelae/compare/v0.5.0...v0.5.1
 [v0.5.0]: https://github.com/openlawlibrary/stelae/compare/v0.4.2...v0.5.0
