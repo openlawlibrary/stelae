@@ -102,6 +102,7 @@ pub async fn versions(
         &active_publication_name,
         &params.date,
         &active_compare_to,
+        active_publication.is_some(),
     );
 
     response::Version::insert_if_not_present(&mut versions, params.date.clone());

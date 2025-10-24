@@ -53,6 +53,8 @@ pub struct Features {
 pub struct Publication {
     /// Whether the publication is currently active.
     pub active: bool,
+    /// Whether the publication is revoked.
+    pub revoked: bool,
     /// Date of the publication.
     pub date: String,
     /// Display name of the publication.
@@ -120,6 +122,7 @@ impl Versions {
                         Publication {
                             active: pb.name.to_lowercase()
                                 == active_publication_name.to_lowercase(),
+                            revoked: pb.revoked != 0,
                             date: pb.date.clone(),
                             display: Self::format_display_date(
                                 &pb.name,
@@ -145,12 +148,26 @@ impl Versions {
     }
 
     /// Returns a formatted display date.
+    ///
     /// If the `date` is current, returns the date with `(current)` appended.
+    /// Append publication number suffix if present (in the form YYYY-MM-DD-N)
     fn format_display_date(name: &str, date: &str, current_date: &str) -> String {
         if name == CURRENT_PUBLICATION_NAME {
             CURRENT_PUBLICATION_NAME.to_owned()
         } else {
             let mut formatted_date = format_date(date);
+            if name.matches('-').count() == 3 {
+                if let Some(last_dash) = name.rfind('-') {
+                    if let Some(publication_number_suffix) = name.get(last_dash..) {
+                        let pub_number = publication_number_suffix
+                            .trim_start_matches('-')
+                            .parse::<usize>()
+                            .unwrap_or_default();
+                        let with_space = format!(" ({pub_number})");
+                        formatted_date.push_str(&with_space);
+                    }
+                }
+            }
             if date == current_date {
                 formatted_date.push_str(" (current)");
             }
