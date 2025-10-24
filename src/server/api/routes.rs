@@ -206,7 +206,6 @@ fn initialize_archive_route<
     mut app: App<U>,
     state: &V,
 ) -> actix_web::App<U> {
-    tracing::info!("Initializing archive routes");
     let data_state: Arc<dyn Global> = Arc::new(state.clone());
     app = app
         .app_data(web::Data::new(state.archive().path.clone()))

@@ -28,6 +28,7 @@ pub fn historical(
     active_publication_name: &str,
     version_date: &Option<String>,
     compare_to_date: &Option<String>,
+    publication_exists: bool,
 ) -> Historical {
     let current_version: &str = versions
         .first()
@@ -38,6 +39,7 @@ pub fn historical(
         active_publication_name,
         current_publication_name,
         current_version,
+        publication_exists,
     );
     let version = version_date.as_ref().and_then(|found_version_date| {
         version_message(
@@ -69,9 +71,15 @@ fn publication_message(
     active_publication_name: &str,
     current_publication_name: &str,
     current_version: &str,
+    publication_exists: bool,
 ) -> Option<String> {
-    if active_publication_name == current_publication_name {
+    if active_publication_name == current_publication_name || active_publication_name == "current" {
         return None;
+    }
+    if !publication_exists {
+        return Some(
+            "You have selected an invalid publication. Please select a valid one.".to_owned(),
+        );
     }
     Some(publication_message_template(current_version))
 }
@@ -210,6 +218,7 @@ mod tests {
                 "date": "2023-12-30",
                 "display": "2023-12-30",
                 "name": "2023-12-30",
+                "revoked": false,
                 "versions": [
                     {"date": "2023-12-30", "display": "2023-12-30", "version": 0},
                     {"date": "2023-12-11", "display": "2023-12-11", "version": 0},
@@ -226,6 +235,7 @@ mod tests {
                 "date": "2023-10-22",
                 "display": "2023-10-22",
                 "name": "2023-10-22",
+                "revoked": false,
                 "versions": [
                     {"date": "2023-10-22", "display": "2023-10-22", "version": 0},
                     {"date": "2023-08-12", "display": "2023-08-12", "version": 0},
@@ -264,6 +274,7 @@ mod tests {
             &active_publication_name,
             &version_date,
             &compare_to_date,
+            true,
         );
         let expected = Historical {
             publication: None,
@@ -300,6 +311,7 @@ mod tests {
                 &active_publication_name,
                 &version_date,
                 &compare_to_date,
+                true,
             );
             let expected = Historical {
                 publication: Some(publication_message_template(&versions[0].date)),
@@ -338,6 +350,7 @@ mod tests {
                 &active_publication_name,
                 &Some(version_date.to_string()),
                 &compare_to_date,
+                true,
             );
             let expected = Historical {
                 publication: Some(publication_message_template(&versions[0].date)),
@@ -380,6 +393,7 @@ mod tests {
                 &active_publication_name,
                 &Some(version_date.to_string()),
                 &compare_to_date,
+                true,
             );
 
             let expected_comparison_message = messages_between_template(
@@ -438,6 +452,7 @@ mod tests {
                 &active_publication_name,
                 &Some(version_date.to_string()),
                 &Some(compare_to_date.to_string()),
+                true,
             );
 
             let expected_comparison_message = messages_between_template(
