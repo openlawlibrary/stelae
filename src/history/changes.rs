@@ -783,3 +783,43 @@ fn is_commit_in_loaded_auth_commits(
         .iter()
         .any(|ac| ac.auth_commit_hash == commit_hash)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_valid_publication_date() {
+        let input = "publication/12-03-2025";
+        let result = date_from_publication_parts(input);
+        assert_eq!(result, Some("12-03-2025".to_string()));
+    }
+
+    #[test]
+    fn test_missing_date_part() {
+        let input = "publication/";
+        let result = date_from_publication_parts(input);
+        assert_eq!(result, Some("".to_string())); // because nth(1) = Some("")
+    }
+
+    #[test]
+    fn test_no_slash_in_string() {
+        let input = "publication";
+        let result = date_from_publication_parts(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_extra_path_components() {
+        let input = "publication/12-03-2025/extra";
+        let result = date_from_publication_parts(input);
+        assert_eq!(result, Some("12-03-2025".to_string()));
+    }
+
+    #[test]
+    fn test_unrelated_string() {
+        let input = "foo/bar";
+        let result = date_from_publication_parts(input);
+        assert_eq!(result, Some("bar".to_string()));
+    }
+}
