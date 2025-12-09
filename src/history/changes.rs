@@ -725,13 +725,17 @@ async fn process_commit(
         //Skip commits without metadata target file
         return Ok(());
     };
-    let Some(publication_date) = targets_metadata.build_date.as_ref() else {
+    let Some(publication_name) = date_from_publication_parts(&targets_metadata.branch) else {
         // Skip commits that aren't on a publication
+        tracing::debug!(
+            "[{stele_name}] | Skipping commits without publication branch date {}",
+            &targets_metadata.branch
+        );
         return Ok(());
     };
-    let Ok(publication) = publication::TxManager::find_first_by_date_and_stele_non_revoked(
+    let Ok(publication) = publication::TxManager::find_first_by_name_and_stele_non_revoked(
         tx,
-        publication_date,
+        &publication_name,
         stele_name,
     )
     .await
@@ -739,7 +743,7 @@ async fn process_commit(
         tracing::debug!(
             "[{stele_name}] | Skipping commit {} without publication on date {}",
             &auth_commit_hash,
-            publication_date
+            publication_name
         );
         return Ok(());
     };
@@ -759,6 +763,16 @@ async fn process_commit(
     Ok(())
 }
 
+/// Get the date of the `branch` entry from targets metadata.
+///
+/// E.g.
+/// "branch": "publication/dd-MM-YYYY"
+/// returns:
+///     -> dd-MM-YYYY
+///
+fn date_from_publication_parts(publication: &str) -> Option<String> {
+    publication.split('/').nth(1).map(ToOwned::to_owned)
+}
 /// Checks whether the passed in commit if it is already in the database
 fn is_commit_in_loaded_auth_commits(
     commit: &git2::Commit,

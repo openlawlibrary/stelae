@@ -133,18 +133,18 @@ impl super::TxManager for DatabaseTransaction {
     ///
     /// # Errors
     /// Errors if can't establish a connection to the database.
-    async fn find_first_by_date_and_stele_non_revoked(
+    async fn find_first_by_name_and_stele_non_revoked(
         &mut self,
-        date: &str,
+        name: &str,
         stele: &str,
     ) -> anyhow::Result<Publication> {
         let statement = "
             SELECT *
             FROM publication
-            WHERE date = $1 AND stele = $2 AND revoked = 0
+            WHERE name = $1 AND stele = $2 AND revoked = 0
         ";
         let row = sqlx::query_as::<_, Publication>(statement)
-            .bind(date)
+            .bind(name)
             .bind(stele)
             .fetch_one(&mut *self.tx)
             .await?;
