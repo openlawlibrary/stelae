@@ -42,10 +42,10 @@ pub trait TxManager {
         name: &str,
         stele: &str,
     ) -> anyhow::Result<Option<Publication>>;
-    /// Find the first publication by date and stele that is not revoked.
-    async fn find_first_by_date_and_stele_non_revoked(
+    /// Find the first publication by name and stele that is not revoked.
+    async fn find_first_by_name_and_stele_non_revoked(
         &mut self,
-        date: &str,
+        name: &str,
         stele: &str,
     ) -> anyhow::Result<Publication>;
     /// Find all by date and stele and sort by name in descending order.
