@@ -16,6 +16,20 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
+## [v0.6.3]
+
+### Added
+
+### Changed
+
+### Fixed
+
+- Fix(history, changes) fix publication search ([#95])
+
+[#95]: https://github.com/openlawlibrary/stelae/pull/95
+
+### Removed
+
 ## [v0.6.2]
 
 ### Added
@@ -264,7 +278,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.6.3...HEAD
+[v0.6.3]: https://github.com/openlawlibrary/stelae/compare/v0.6.2...v0.6.3
 [v0.6.2]: https://github.com/openlawlibrary/stelae/compare/v0.6.1...v0.6.2
 [v0.6.1]: https://github.com/openlawlibrary/stelae/compare/v0.6.0...v0.6.1
 [v0.6.0]: https://github.com/openlawlibrary/stelae/compare/v0.5.1...v0.6.0
