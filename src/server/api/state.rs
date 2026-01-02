@@ -1,7 +1,8 @@
 //! Centralized state management for the Actix web server
 use std::{
+    collections::HashMap,
     fmt::{self, Debug},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use crate::{
@@ -9,6 +10,8 @@ use crate::{
     stelae::{archive::Archive, stele::Stele, types::repositories::Repository},
     utils::archive::get_name_parts,
 };
+
+use crate::utils::git::Repo;
 
 /// Global, read-only state
 pub trait Global: Debug {
@@ -51,6 +54,8 @@ pub struct RepoData {
     // pub repo_path: PathBuf;
     ///Latest or historical
     pub serve: String,
+    /// redirects
+    pub redirects: HashMap<String, String>,
 }
 
 impl RepoData {
@@ -59,12 +64,19 @@ impl RepoData {
     pub fn new(archive_path: &str, org: &str, name: &str, serve: &str) -> Self {
         let mut repo_path = archive_path.to_owned();
         repo_path = format!("{repo_path}/{org}/{name}");
+        let archive_path_pth = Path::new(archive_path);
+        let redirects = match Repo::find_blob(archive_path_pth, org, name, "redirects.json", "HEAD")
+        {
+            Ok(blob) => convert_vec_u8_to_hashmap(&blob.content).unwrap_or_default(),
+            Err(_) => HashMap::new(),
+        };
         Self {
             archive_path: PathBuf::from(archive_path),
             path: PathBuf::from(&repo_path),
             org: org.to_owned(),
             name: name.to_owned(),
             serve: serve.to_owned(),
+            redirects,
         }
     }
 }
@@ -113,6 +125,7 @@ impl Clone for RepoData {
             org: self.org.clone(),
             name: self.name.clone(),
             serve: self.serve.clone(),
+            redirects: self.redirects.clone(),
         }
     }
 }
@@ -166,4 +179,18 @@ pub fn init_shared(stele: &Stele) -> anyhow::Result<Shared> {
         })
         .transpose()?;
     Ok(Shared { fallback })
+}
+
+/// Converts json blob data into `HashMap`<String, String>
+///
+/// # Errors
+/// Will error if unable to parse blob to `HashMap`
+fn convert_vec_u8_to_hashmap(blob: &[u8]) -> Result<HashMap<String, String>, serde_json::Error> {
+    let pairs: Vec<[String; 2]> = serde_json::from_slice(blob)?;
+    let mut map: HashMap<String, String> = HashMap::new();
+
+    for [from, to] in pairs {
+        map.insert(from, to);
+    }
+    Ok(map)
 }
