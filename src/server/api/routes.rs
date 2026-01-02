@@ -361,6 +361,13 @@ fn register_root_routes(cfg: &mut web::ServiceConfig, stele: &Stele) -> anyhow::
         for repository in sorted_repositories {
             let custom = &repository.custom;
             let repo_state = state::init_repo(repository, stele)?;
+            #[expect(
+                clippy::iter_over_hash_type,
+                reason = "We exit with 1 error code on any application errors"
+            )]
+            for (from, to) in repo_state.redirects.clone() {
+                root_scope = root_scope.service(web::redirect(from, to));
+            }
             for route in custom.routes.iter().flat_map(|routes| routes.iter()) {
                 let actix_route = format!("/{{tail:{}}}", &route);
                 root_scope = root_scope.service(

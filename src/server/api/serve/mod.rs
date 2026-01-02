@@ -24,12 +24,12 @@ pub async fn serve(
     shared: web::Data<SharedState>,
     data: web::Data<RepoState>,
 ) -> impl Responder {
-    let req_path = req.path();
-    if let Some(target) = data.redirects.get(req_path) {
-        return HttpResponse::Found()
-            .append_header(("Location", target.as_str()))
-            .finish();
-    }
+    //    let req_path = req.path();
+    //    if let Some(target) = data.redirects.get(req_path) {
+    //        return HttpResponse::Found()
+    //            .append_header(("Location", target.as_str()))
+    //            .finish();
+    //    }
 
     let prefix = req
         .match_info()

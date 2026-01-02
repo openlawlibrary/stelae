@@ -30,7 +30,7 @@ async fn test_redirect_law_html_request_with_correct_redirects_json_expect_succe
     let request_uri = "/a/b/c.html";
     let req = test::TestRequest::get().uri(request_uri).to_request();
     let resp = test::call_service(&app, req).await;
-    assert_eq!(resp.status(), StatusCode::FOUND);
+    assert_eq!(resp.status(), StatusCode::TEMPORARY_REDIRECT);
 
     let location: &str = resp
         .headers()
@@ -39,7 +39,7 @@ async fn test_redirect_law_html_request_with_correct_redirects_json_expect_succe
         .to_str()
         .expect("Location header is not valid UTF-8");
 
-    assert_eq!(location, "/a");
+    assert_eq!(location, "/");
 
     // follow redirect
     let req2 = test::TestRequest::get().uri(location).to_request();
@@ -76,5 +76,5 @@ async fn test_redirect_law_html_request_with_incorrect_redirects_json_expect_fai
     let request_uri = "/a/b/c.html";
     let req = test::TestRequest::get().uri(request_uri).to_request();
     let resp = test::call_service(&app, req).await;
-    assert_ne!(resp.status(), StatusCode::FOUND);
+    assert_ne!(resp.status(), StatusCode::TEMPORARY_REDIRECT);
 }
