@@ -1,10 +1,9 @@
+use crate::archive_testtools::add_redirects_json_file;
 use crate::archive_testtools::config::{ArchiveType, Jurisdiction};
 use crate::common::{self};
-use actix_web::test;
-use crate::archive_testtools::add_redirects_json_file;
 use actix_http::StatusCode;
+use actix_web::test;
 use std::path::PathBuf;
-
 
 #[actix_web::test]
 async fn test_resolve_law_html_request_with_full_path_expect_success() {

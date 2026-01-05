@@ -414,6 +414,13 @@ fn register_dependent_routes(
         for repository in &sorted_repositories {
             let custom = &repository.custom;
             let repo_state = state::init_repo(repository, stele)?;
+            #[expect(
+                clippy::iter_over_hash_type,
+                reason = "We exit with 1 error code on any application errors"
+            )]
+            for (from, to) in repo_state.redirects.clone() {
+                actix_scope = actix_scope.service(web::redirect(from, to));
+            }
             for route in custom.routes.iter().flat_map(|routes| routes.iter()) {
                 if route.starts_with('_') {
                     // Ignore routes in dependent Stele that start with underscore
