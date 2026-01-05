@@ -1,9 +1,13 @@
 use std::path::PathBuf;
 
+use actix_http::header::IF_NONE_MATCH;
 use actix_web::test;
+use stelae::server::headers::HTTP_E_TAG;
 
 use crate::archive_testtools::config::{ArchiveType, Jurisdiction};
-use crate::archive_testtools::{add_private_json_file, get_repository, init_secret_repository};
+use crate::archive_testtools::{
+    add_private_json_file, get_repository, init_secret_repository, write_to_file,
+};
 use crate::common;
 use actix_http::StatusCode;
 use actix_web::http::header;
@@ -577,4 +581,111 @@ async fn test_archive_api_where_private_json_file_exists_expect_error() {
         common::blob_to_string(actual.to_vec()).starts_with(expected),
         "doesn't start with {expected}"
     );
+}
+
+#[actix_web::test]
+async fn get_law_other_request_with_no_if_no_match_header_expect_new_etag() {
+    let archive_path =
+        common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
+    let app = common::initialize_app(archive_path.path()).await;
+    let req = test::TestRequest::get()
+        .uri("/_archive/test_org/law-other?commitish=HEAD&path=example.json")
+        .insert_header((header::HeaderName::from_static("x-stelae"), "test_org/law"))
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+
+    let etag = resp.headers().get(HTTP_E_TAG);
+    assert!(etag.is_some(), "ETag header is missing");
+}
+
+#[actix_web::test]
+async fn get_law_other_request_with_if_no_match_header_expect_not_modified() {
+    let archive_path =
+        common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
+    let app = common::initialize_app(archive_path.path()).await;
+    let file_hash = "6676f3b75a7caaafa8c2539c0e256723cf220c13";
+    let req = test::TestRequest::get()
+        .uri("/_archive/test_org/law-other?commitish=HEAD&path=example.json")
+        .append_header((IF_NONE_MATCH, file_hash))
+        .insert_header((header::HeaderName::from_static("x-stelae"), "test_org/law"))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    let etag = resp.headers().get(HTTP_E_TAG);
+    assert!(etag.is_some(), "ETag header is missing");
+
+    assert_eq!(
+        resp.status(),
+        StatusCode::NOT_MODIFIED,
+        "Expected 304 Not Modified"
+    );
+    assert_eq!(etag.expect("error"), file_hash);
+}
+
+#[actix_web::test]
+async fn get_law_other_request_with_old_if_no_match_header_expect_new_tag() {
+    let archive_path =
+        common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
+    let app = common::initialize_app(archive_path.path()).await;
+    let file_hash = "6676f3b75a7caaafa8c2539c0e256723cf220c13";
+    let old_file_hash = "0000000000000000000000000000000000000000000";
+    let req = test::TestRequest::get()
+        .uri("/_archive/test_org/law-other?commitish=HEAD&path=example.json")
+        .append_header((IF_NONE_MATCH, old_file_hash))
+        .insert_header((header::HeaderName::from_static("x-stelae"), "test_org/law"))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    let etag = resp.headers().get(HTTP_E_TAG);
+    assert!(etag.is_some(), "ETag header is missing");
+
+    assert_eq!(resp.status(), StatusCode::OK, "Expected 200 OK");
+    assert_eq!(etag.expect("error"), file_hash);
+}
+
+#[actix_web::test]
+async fn get_law_other_file_with_edit_expect_new_etag() {
+    let archive_path =
+        common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
+    let app = common::initialize_app(archive_path.path()).await;
+    let file_hash = "6676f3b75a7caaafa8c2539c0e256723cf220c13";
+    let old_file_hash = "0000000000000000000000000000000000000000000";
+    let req = test::TestRequest::get()
+        .uri("/_archive/test_org/law-other?commitish=HEAD&path=example.json")
+        .append_header((IF_NONE_MATCH, old_file_hash))
+        .insert_header((header::HeaderName::from_static("x-stelae"), "test_org/law"))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    let etag = resp.headers().get(HTTP_E_TAG);
+    assert!(etag.is_some(), "ETag header is missing");
+
+    assert_eq!(resp.status(), StatusCode::OK, "Expected 200 OK");
+    assert_eq!(etag.expect("error"), file_hash);
+    let repo_path: PathBuf = archive_path.path().join("test_org/law-other");
+    let file_content = r#"
+    {
+      "this_is_new_content": true
+    }
+    "#
+    .to_string();
+    let _ = write_to_file(&repo_path, file_content, "example.json".to_string());
+
+    let req = test::TestRequest::get()
+        .uri("/_archive/test_org/law-other?commitish=HEAD&path=example.json")
+        .append_header((IF_NONE_MATCH, file_hash))
+        .insert_header((header::HeaderName::from_static("x-stelae"), "test_org/law"))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    let etag = resp.headers().get(HTTP_E_TAG);
+    assert!(etag.is_some(), "ETag header is missing");
+
+    assert_eq!(
+        resp.status(),
+        StatusCode::NOT_MODIFIED,
+        "Expected 304 NOT MODIFIED"
+    );
+    assert_eq!(etag.expect("error"), file_hash);
 }

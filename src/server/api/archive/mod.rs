@@ -26,6 +26,7 @@ use crate::server::headers;
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use crate::utils::http::get_contenttype;
 use crate::utils::paths::clean_path;
+use actix_http::header::IF_NONE_MATCH;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use git2::{self, ErrorCode};
 use request::ArchiveQueryData;
@@ -98,9 +99,22 @@ pub async fn get_blob(
         Ok(found_blob) => {
             let content = found_blob.content;
             let filepath = found_blob.path;
+            let blob_hash = found_blob.blob_hash;
+            if let Some(inm) = req.headers().get(IF_NONE_MATCH) {
+                if inm
+                    .to_str()
+                    .ok()
+                    .is_some_and(|val| matches_if_none_match(val, blob_hash.to_string().as_str()))
+                {
+                    return HttpResponse::NotModified()
+                        .insert_header((headers::HTTP_E_TAG, blob_hash.to_string()))
+                        .body("");
+                }
+            }
             HttpResponse::Ok()
                 .insert_header(contenttype)
                 .insert_header((headers::HTTP_X_FILE_PATH, filepath))
+                .insert_header((headers::HTTP_E_TAG, blob_hash.to_string()))
                 .body(content)
         }
         Err(error) => blob_error_response(&error, &namespace, &name),
@@ -128,4 +142,35 @@ fn blob_error_response(error: &anyhow::Error, namespace: &str, name: &str) -> Ht
         }
         _ => HttpResponse::InternalServerError().body(HTTPError::InternalServerError.to_string()),
     }
+}
+
+/// Checks if a given `ETag` matches any of the values in an `If-None-Match` header.
+///
+/// This function splits the `If-None-Match` header by commas (to support multiple `ETags`),
+/// trims whitespace, and compares each value to the provided `etag`.
+///
+/// # Arguments
+///
+/// * `header` - The value of the `If-None-Match` HTTP request header.
+///   May contain one or more comma-separated `ETags`.
+/// * `etag` - The server's current `ETag` for the resource.
+///
+/// # Returns
+///
+/// `true` if the provided `etag` matches any of the values in `header`.
+/// `false` otherwise.
+///
+/// # Example
+///
+/// ```rust
+/// use stelae::server::api::archive::matches_if_none_match;
+/// let etag = "\"abc123\"";
+/// assert!(matches_if_none_match("\"abc123\"", etag));
+/// assert!(matches_if_none_match("\"xyz\", \"abc123\"", etag));
+/// assert!(!matches_if_none_match("\"xyz\"", etag));
+/// assert!(!matches_if_none_match("", etag));
+/// ```
+#[must_use]
+pub fn matches_if_none_match(header: &str, etag: &str) -> bool {
+    header.split(',').any(|tag| tag.trim() == etag)
 }

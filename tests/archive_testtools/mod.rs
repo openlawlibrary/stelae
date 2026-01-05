@@ -530,6 +530,15 @@ pub fn add_private_json_file(auth_repo_path: &Path, file_content: String) -> Res
     Ok(())
 }
 
+pub fn write_to_file(repo_path: &Path, file_content: String, file_path: String) -> Result<()> {
+    let repo = GitRepository::open(repo_path).unwrap();
+    let path = repo_path.join("targets");
+
+    repo.add_file(&path, &file_path, &file_content).unwrap();
+    repo.commit(None, "edit file").unwrap();
+    Ok(())
+}
+
 fn add_fixture_file_to_git_repo(git_repo: &GitRepository, path: &Path) -> Result<()> {
     let filename = path.file_name().unwrap().to_str().unwrap();
     let static_file_path = get_static_file_path(filename);
