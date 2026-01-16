@@ -14,6 +14,12 @@ pub trait TxManager {
     ) -> anyhow::Result<Vec<DataRepoCommits>>;
     /// Insert a bulk of data repo commits.
     async fn insert_bulk(&mut self, data_repo_commits: Vec<DataRepoCommits>) -> anyhow::Result<()>;
+    /// Find the latest commit for a publication, constrained by a valid ISO version date.
+    async fn find_commit_by_pub_id_and_version_date(
+        &mut self,
+        publication_id: &str,
+        version_date: &str,
+    ) -> anyhow::Result<DataRepoCommits>;
 }
 
 #[derive(Debug, Deserialize, Serialize)]
