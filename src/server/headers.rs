@@ -16,7 +16,7 @@ pub const HTTP_X_FILE_PATH: &str = "X-File-Path";
 
 /// Provides an HTTP `ETag` value derived from the Git blob hash of the requested file.
 ///
-/// This header is included in responses from the `git` microserver and the `_stelae` endpoint,
+/// This header is included in responses from the `git` microserver and the `_archive` endpoint,
 /// allowing clients and intermediaries to efficiently validate cached content.
 ///
 /// The `ETag` is generated from the blob’s object ID, ensuring that the value changes whenever
