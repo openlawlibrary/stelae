@@ -23,6 +23,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::server::headers;
+use crate::server::headers::matches_if_none_match;
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use crate::utils::http::get_contenttype;
 use crate::utils::paths::clean_path;
@@ -142,35 +143,4 @@ fn blob_error_response(error: &anyhow::Error, namespace: &str, name: &str) -> Ht
         }
         _ => HttpResponse::InternalServerError().body(HTTPError::InternalServerError.to_string()),
     }
-}
-
-/// Checks if a given `ETag` matches any of the values in an `If-None-Match` header.
-///
-/// This function splits the `If-None-Match` header by commas (to support multiple `ETags`),
-/// trims whitespace, and compares each value to the provided `etag`.
-///
-/// # Arguments
-///
-/// * `header` - The value of the `If-None-Match` HTTP request header.
-///   May contain one or more comma-separated `ETags`.
-/// * `etag` - The server's current `ETag` for the resource.
-///
-/// # Returns
-///
-/// `true` if the provided `etag` matches any of the values in `header`.
-/// `false` otherwise.
-///
-/// # Example
-///
-/// ```rust
-/// use stelae::server::api::archive::matches_if_none_match;
-/// let etag = "\"abc123\"";
-/// assert!(matches_if_none_match("\"abc123\"", etag));
-/// assert!(matches_if_none_match("\"xyz\", \"abc123\"", etag));
-/// assert!(!matches_if_none_match("\"xyz\"", etag));
-/// assert!(!matches_if_none_match("", etag));
-/// ```
-#[must_use]
-pub fn matches_if_none_match(header: &str, etag: &str) -> bool {
-    header.split(',').any(|tag| tag.trim() == etag)
 }

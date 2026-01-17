@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use tracing_actix_web::TracingLogger;
 
 use super::errors::{CliError, HTTPError, StelaeError};
-use crate::server::api::archive::matches_if_none_match;
 use crate::server::headers;
+use crate::server::headers::matches_if_none_match;
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use crate::utils::http::get_contenttype;
 use crate::{server::tracing::StelaeRootSpanBuilder, utils::paths::clean_path};

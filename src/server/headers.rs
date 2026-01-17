@@ -34,33 +34,33 @@ pub const HTTP_X_FILE_PATH: &str = "X-File-Path";
 /// `ETag: "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"`
 pub const HTTP_E_TAG: &str = "ETAG";
 
-/// Controls client- and proxy-side caching behavior for responses served by the application.
+/// Checks if a given `ETag` matches any of the values in an `If-None-Match` header.
 ///
-/// The `Cache-Control` header may be included in client requests to influence how intermediary
-/// caches (such as NGINX) and origin services handle cached responses.
+/// This function splits the `If-None-Match` header by commas (to support multiple `ETags`),
+/// trims whitespace, and compares each value to the provided `etag`.
 ///
-/// When present in a request, this header can be used to bypass upstream caches and force
-/// revalidation or refetching of content from the origin service.
+/// # Arguments
 ///
-/// Example:
+/// * `header` - The value of the `If-None-Match` HTTP request header.
+///   May contain one or more comma-separated `ETags`.
+/// * `etag` - The server's current `ETag` for the resource.
 ///
-/// To require cached content to be revalidated before use, the client may send:
+/// # Returns
 ///
-/// `Cache-Control: must-revalidate`
+/// `true` if the provided `etag` matches any of the values in `header`.
+/// `false` otherwise.
 ///
-/// This ensures that intermediaries do not serve stale cached responses without first
-/// confirming freshness with the origin.
+/// # Example
 ///
-/// Common directives:
-/// - `no-cache`: Forces caches to revalidate with the origin before serving a response
-/// - `no-store`: Prevents caches from storing the response
-/// - `max-age=0`: Indicates that cached responses are immediately stale
-/// - `must-revalidate`: Requires strict revalidation once a response becomes stale
-///
-/// # Notes
-///
-/// - In this system, the presence of a `Cache-Control` header may cause upstream caches
-///   (such as NGINX proxy or uWSGI caches) to be bypassed entirely.
-/// - Actual cache behavior depends on both request directives and server-side cache
-///   configuration.
-pub const HTTP_CACHE_CONTROL: &str = "Cache-Control";
+/// ```rust
+/// use stelae::server::api::archive::matches_if_none_match;
+/// let etag = "\"abc123\"";
+/// assert!(matches_if_none_match("\"abc123\"", etag));
+/// assert!(matches_if_none_match("\"xyz\", \"abc123\"", etag));
+/// assert!(!matches_if_none_match("\"xyz\"", etag));
+/// assert!(!matches_if_none_match("", etag));
+/// ```
+#[must_use]
+pub fn matches_if_none_match(header: &str, etag: &str) -> bool {
+    header.split(',').any(|tag| tag.trim() == etag)
+}

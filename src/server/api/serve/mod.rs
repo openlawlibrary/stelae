@@ -4,8 +4,8 @@ use actix_web::{web, HttpRequest, HttpResponse, Responder};
 
 use crate::{
     server::{
-        api::archive::matches_if_none_match,
         errors::HTTPError,
+        headers::matches_if_none_match,
         headers::{self, HTTP_E_TAG},
     },
     utils::{

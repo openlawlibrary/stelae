@@ -10,11 +10,15 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
+- Added support for ETags ([#98])
+
 ### Changed
 
 ### Fixed
 
 ### Removed
+
+[#98]: https://github.com/openlawlibrary/stelae/pull/98
 
 ## [v0.6.3]
 
