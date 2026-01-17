@@ -365,7 +365,7 @@ fn register_root_routes(cfg: &mut web::ServiceConfig, stele: &Stele) -> anyhow::
                 clippy::iter_over_hash_type,
                 reason = "We exit with 1 error code on any application errors"
             )]
-            for (from, to) in repo_state.redirects.clone() {
+            for (from, to) in repo_state.get_redirects() {
                 root_scope = root_scope.service(web::redirect(from, to));
             }
             for route in custom.routes.iter().flat_map(|routes| routes.iter()) {
@@ -418,7 +418,7 @@ fn register_dependent_routes(
                 clippy::iter_over_hash_type,
                 reason = "We exit with 1 error code on any application errors"
             )]
-            for (from, to) in repo_state.redirects.clone() {
+            for (from, to) in repo_state.get_redirects() {
                 actix_scope = actix_scope.service(web::redirect(from, to));
             }
             for route in custom.routes.iter().flat_map(|routes| routes.iter()) {

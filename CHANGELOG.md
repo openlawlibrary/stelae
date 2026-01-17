@@ -10,11 +10,15 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
+- Add redirects for dynamic routes ([#97])
+
 ### Changed
 
 ### Fixed
 
 ### Removed
+
+[#97] https://github.com/openlawlibrary/stelae/pull/97
 
 ## [v0.6.3]
 
