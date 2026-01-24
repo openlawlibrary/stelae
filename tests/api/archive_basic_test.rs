@@ -1,6 +1,9 @@
 use crate::archive_testtools::config::{ArchiveType, Jurisdiction};
 use crate::common::{self};
+use actix_http::header::IF_NONE_MATCH;
+use actix_http::StatusCode;
 use actix_web::test;
+use stelae::server::headers::HTTP_E_TAG;
 
 #[actix_web::test]
 async fn test_resolve_law_html_request_with_full_path_expect_success() {
@@ -188,4 +191,59 @@ async fn get_law_pdf_request_with_incorrect_path_expect_not_found() {
     let actual = resp.status().is_client_error();
     let expected = true;
     assert_eq!(actual, expected);
+}
+
+#[actix_web::test]
+async fn get_law_html_request_with_no_if_no_match_header_expect_new_etag() {
+    let archive_path =
+        common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
+    let app = common::initialize_app(archive_path.path()).await;
+    let req = test::TestRequest::get().uri("/a/b/c.html").to_request();
+    let resp = test::call_service(&app, req).await;
+
+    let etag = resp.headers().get(HTTP_E_TAG);
+    assert!(etag.is_some(), "ETag header is missing");
+}
+
+#[actix_web::test]
+async fn get_law_html_request_with_if_no_match_header_expect_not_modified() {
+    let archive_path =
+        common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
+    let app = common::initialize_app(archive_path.path()).await;
+    let file_hash = "d8356a575732fe015dddcf3fa2f23f2ace98b712";
+    let req = test::TestRequest::get()
+        .uri("/a/b/c.html")
+        .append_header((IF_NONE_MATCH, file_hash))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    let etag = resp.headers().get(HTTP_E_TAG);
+    assert!(etag.is_some(), "ETag header is missing");
+
+    assert_eq!(
+        resp.status(),
+        StatusCode::NOT_MODIFIED,
+        "Expected 304 Not Modified"
+    );
+    assert_eq!(etag.expect("error"), file_hash);
+}
+
+#[actix_web::test]
+async fn get_law_html_request_with_old_if_no_match_header_expect_new_tag() {
+    let archive_path =
+        common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
+    let app = common::initialize_app(archive_path.path()).await;
+    let file_hash = "d8356a575732fe015dddcf3fa2f23f2ace98b712";
+    let old_file_hash = "0000000000000000000000000000000000000000000";
+    let req = test::TestRequest::get()
+        .uri("/a/d/")
+        .append_header((IF_NONE_MATCH, old_file_hash))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    let etag = resp.headers().get(HTTP_E_TAG);
+    assert!(etag.is_some(), "ETag header is missing");
+
+    assert_eq!(resp.status(), StatusCode::OK, "Expected 200 OK");
+    assert_eq!(etag.expect("error"), file_hash);
 }

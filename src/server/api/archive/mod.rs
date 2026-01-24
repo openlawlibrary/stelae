@@ -23,9 +23,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::server::headers;
+use crate::server::headers::matches_if_none_match;
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use crate::utils::http::get_contenttype;
 use crate::utils::paths::clean_path;
+use actix_http::header::IF_NONE_MATCH;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use git2::{self, ErrorCode};
 use request::ArchiveQueryData;
@@ -98,9 +100,22 @@ pub async fn get_blob(
         Ok(found_blob) => {
             let content = found_blob.content;
             let filepath = found_blob.path;
+            let blob_hash = found_blob.blob_hash;
+            if let Some(inm) = req.headers().get(IF_NONE_MATCH) {
+                if inm
+                    .to_str()
+                    .ok()
+                    .is_some_and(|val| matches_if_none_match(val, blob_hash.to_string().as_str()))
+                {
+                    return HttpResponse::NotModified()
+                        .insert_header((headers::HTTP_E_TAG, blob_hash.to_string()))
+                        .body("");
+                }
+            }
             HttpResponse::Ok()
                 .insert_header(contenttype)
                 .insert_header((headers::HTTP_X_FILE_PATH, filepath))
+                .insert_header((headers::HTTP_E_TAG, blob_hash.to_string()))
                 .body(content)
         }
         Err(error) => blob_error_response(&error, &namespace, &name),

@@ -92,3 +92,12 @@ fn test_get_bytes_at_path_when_invalid_path_expect_error() {
         "\"{actual}\" doesn't contain {expected}"
     );
 }
+
+#[test]
+fn test_get_bytes_at_path_expect_etag() {
+    common::initialize_git();
+    let test_archive_path = common::get_test_archive_path(BASIC_MODULE_NAME);
+    let repo = Repo::new(&test_archive_path, "test", "law-html").unwrap();
+    let actual = repo.get_bytes_at_path(COMMIT, "").unwrap();
+    assert!(!actual.blob_hash.to_string().is_empty(), "empty etag");
+}

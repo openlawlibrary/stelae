@@ -1,8 +1,13 @@
 //! API endpoint for serving current documents from Stele repositories.
+use actix_http::header::IF_NONE_MATCH;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 
 use crate::{
-    server::errors::HTTPError,
+    server::{
+        errors::HTTPError,
+        headers::matches_if_none_match,
+        headers::{self, HTTP_E_TAG},
+    },
     utils::{
         git::{Blob, Repo},
         http::get_contenttype,
@@ -35,9 +40,22 @@ pub async fn serve(
     let contenttype = get_contenttype(&path);
     let blob = find_current_blob(&data, &shared, &path);
     match blob {
-        Ok(found_blob) => HttpResponse::Ok()
-            .insert_header(contenttype)
-            .body(found_blob.content),
+        Ok(found_blob) => {
+            if let Some(inm) = req.headers().get(IF_NONE_MATCH) {
+                if inm.to_str().ok().is_some_and(|val| {
+                    matches_if_none_match(val, found_blob.blob_hash.to_string().as_str())
+                }) {
+                    return HttpResponse::NotModified()
+                        .insert_header((headers::HTTP_E_TAG, found_blob.blob_hash.to_string()))
+                        .body("");
+                }
+            }
+
+            HttpResponse::Ok()
+                .insert_header(contenttype)
+                .insert_header((HTTP_E_TAG, found_blob.blob_hash.to_string()))
+                .body(found_blob.content)
+        }
         Err(error) => {
             tracing::debug!("{path}: {error}",);
             HttpResponse::NotFound().body(HTTPError::NotFound.to_string())
