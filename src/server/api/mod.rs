@@ -1,5 +1,6 @@
 //! This module contains the API endpoints for the server.
 pub mod archive;
+pub mod date;
 pub mod routes;
 pub mod serve;
 pub mod state;

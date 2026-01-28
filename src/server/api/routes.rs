@@ -16,6 +16,7 @@ use actix_web::{
 };
 
 use super::archive::get_blob;
+use super::date::date;
 use super::{serve::serve, state::Global, versions::versions};
 
 /// Name of the header to guard current documents
@@ -81,6 +82,22 @@ pub fn register_app<
                     .service(web::resource("/{path:.*}").to(versions))
                     .service(web::resource("").to(versions)),
             ),
+        )
+        .app_data(web::Data::new(state.clone()));
+
+    app = app
+        .service(
+            web::scope("/_date")
+                .service(
+                    web::resource("/{version_date}/{path:.*}")
+                        .route(web::get().to(date))
+                        .route(web::head().to(date)),
+                )
+                .service(
+                    web::resource("/{version_date}")
+                        .route(web::get().to(date))
+                        .route(web::head().to(date)),
+                ),
         )
         .app_data(web::Data::new(state.clone()));
 
