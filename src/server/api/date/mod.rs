@@ -1,23 +1,25 @@
-//! API endpoint for serving git blobs.
-/// The `_archive` endpoint provides access to the contents of files stored within
-/// repositories.
+//! API endpoint for serving **historical (versioned)** git blobs.
 ///
-/// This endpoint only permits access to files that belong to **public** repositories.
-/// Attempts to access files in private or restricted repositories will result in a
-/// `403 Forbidden` response.
+/// The `_date` endpoint provides access to file contents as they existed on a
+/// specific version date. It allows clients to retrieve historical document
+/// states rather than only the latest revision.
 ///
 /// # Overview
-/// - Resolves repositories and files based on the provided path and query parameters.
-/// - Verifies that the target repository is publicly accessible.
-/// - Returns the requested file content if access is allowed.
+/// - Resolves the repository and file path from the request.
+/// - Maps the provided version date to the corresponding commit in the data
+///   repository.
+/// - Retrieves the file blob from that commit.
+/// - Rewrites internal document references (HTML/JSON) so links point to the
+///   same historical date context.
 ///
-/// # Restrictions
-/// - Only public repositories are accessible.
-/// - Authorization headers or guards may further restrict access.
+/// # Behavior
+/// - If the requested date matches the current version, the latest content is served.
+/// - If no commit exists for the given date, the closest prior version is used.
+/// - Content type is inferred from the file path.
 ///
 /// # Example
 /// ```http
-/// GET /_archive/org/repo?path=/README.md&commitish=main
+/// GET /_date/2025-03-04/org/repo/path/to/document.html
 /// ```
 pub mod request;
 
