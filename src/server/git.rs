@@ -7,7 +7,7 @@ use tracing_actix_web::TracingLogger;
 
 use super::errors::{CliError, HTTPError, StelaeError};
 use crate::server::headers;
-use crate::server::headers::matches_if_none_match;
+use crate::server::headers::etag_matches_if_none_match;
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use crate::utils::http::get_contenttype;
 use crate::{server::tracing::StelaeRootSpanBuilder, utils::paths::clean_path};
@@ -62,11 +62,9 @@ async fn get_blob(
             let filepath = found_blob.path;
             let blob_hash = found_blob.blob_hash;
             if let Some(inm) = req.headers().get(IF_NONE_MATCH) {
-                if inm
-                    .to_str()
-                    .ok()
-                    .is_some_and(|val| matches_if_none_match(val, blob_hash.to_string().as_str()))
-                {
+                if inm.to_str().ok().is_some_and(|val| {
+                    etag_matches_if_none_match(val, blob_hash.to_string().as_str())
+                }) {
                     return HttpResponse::NotModified()
                         .insert_header((headers::HTTP_E_TAG, blob_hash.to_string()))
                         .body("");

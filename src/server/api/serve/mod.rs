@@ -5,7 +5,7 @@ use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use crate::{
     server::{
         errors::HTTPError,
-        headers::matches_if_none_match,
+        headers::etag_matches_if_none_match,
         headers::{self, HTTP_E_TAG},
     },
     utils::{
@@ -43,7 +43,7 @@ pub async fn serve(
         Ok(found_blob) => {
             if let Some(inm) = req.headers().get(IF_NONE_MATCH) {
                 if inm.to_str().ok().is_some_and(|val| {
-                    matches_if_none_match(val, found_blob.blob_hash.to_string().as_str())
+                    etag_matches_if_none_match(val, found_blob.blob_hash.to_string().as_str())
                 }) {
                     return HttpResponse::NotModified()
                         .insert_header((headers::HTTP_E_TAG, found_blob.blob_hash.to_string()))
