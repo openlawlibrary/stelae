@@ -2,10 +2,10 @@ use crate::archive_testtools::add_redirects_json_file;
 use crate::archive_testtools::config::{ArchiveType, Jurisdiction};
 use crate::common::{self};
 use actix_http::header::IF_NONE_MATCH;
-use stelae::server::headers::HTTP_E_TAG;
 use actix_http::StatusCode;
 use actix_web::test;
 use std::path::PathBuf;
+use stelae::server::headers::HTTP_E_TAG;
 
 #[actix_web::test]
 async fn test_resolve_law_html_request_with_full_path_expect_success() {
@@ -248,6 +248,8 @@ async fn get_law_html_request_with_old_if_no_match_header_expect_new_tag() {
 
     assert_eq!(resp.status(), StatusCode::OK, "Expected 200 OK");
     assert_eq!(etag.expect("error"), file_hash);
+}
+
 async fn test_redirect_law_html_request_with_correct_redirects_json_expect_success() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
