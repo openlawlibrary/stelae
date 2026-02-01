@@ -3,4 +3,5 @@ pub mod archive;
 pub mod routes;
 pub mod serve;
 pub mod state;
+pub mod utils;
 pub mod versions;

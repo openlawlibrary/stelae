@@ -536,6 +536,11 @@ pub fn write_to_file(repo_path: &Path, file_content: String, file_path: String) 
 
     repo.add_file(&path, &file_path, &file_content).unwrap();
     repo.commit(None, "edit file").unwrap();
+pub fn add_redirects_json_file(html_repo_path: &Path, file_content: String) -> Result<()> {
+    let repo = GitRepository::open(html_repo_path).unwrap();
+    repo.add_file(&html_repo_path, "redirects.json", &file_content)
+        .unwrap();
+    repo.commit(None, "Add redirects file").unwrap();
     Ok(())
 }
 
