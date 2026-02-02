@@ -10,6 +10,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
+- Added support for ETags ([#98])
 - Add redirects for dynamic routes ([#97])
 
 ### Changed
@@ -18,6 +19,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
+[#98]: https://github.com/openlawlibrary/stelae/pull/98
 [#97] https://github.com/openlawlibrary/stelae/pull/97
 
 ## [v0.6.3]

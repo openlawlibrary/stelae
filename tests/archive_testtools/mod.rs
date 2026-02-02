@@ -530,6 +530,15 @@ pub fn add_private_json_file(auth_repo_path: &Path, file_content: String) -> Res
     Ok(())
 }
 
+pub fn write_to_file(repo_path: &Path, file_content: String, file_path: String) -> Result<()> {
+    let repo = GitRepository::open(repo_path).unwrap();
+    let path = repo_path.join("targets");
+
+    repo.add_file(&path, &file_path, &file_content).unwrap();
+    repo.commit(None, "edit file").unwrap();
+    Ok(())
+}
+
 pub fn add_redirects_json_file(html_repo_path: &Path, file_content: String) -> Result<()> {
     let repo = GitRepository::open(html_repo_path).unwrap();
     repo.add_file(&html_repo_path, "redirects.json", &file_content)

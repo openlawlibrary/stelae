@@ -2,6 +2,8 @@
 //! in the Stelae Archive.
 use crate::utils::paths::clean_path;
 use anyhow::Context as _;
+use anyhow::Result;
+use git2::Oid;
 use git2::{Commit, Repository, Sort};
 use std::{
     fmt,
@@ -34,6 +36,8 @@ pub struct Blob {
     pub content: Vec<u8>,
     /// Path to the blob
     pub path: String,
+    /// Blob hash
+    pub blob_hash: Oid,
 }
 
 impl fmt::Debug for Repo {
@@ -159,17 +163,52 @@ impl Repo {
             let blob = self.find(&query);
             if let Ok(content) = blob {
                 let filepath = format!("{path}{postfix}");
+                let blob_hash = self.get_file_blob_hash(commitish, &filepath)?;
                 tracing::trace!(query, "Found Git object");
                 return Ok(Blob {
                     content,
                     path: filepath,
+                    blob_hash,
                 });
             }
         }
         tracing::debug!(base_revision, "Couldn't find requested Git object");
         anyhow::bail!(GIT_REQUEST_NOT_FOUND)
     }
-
+    /// Returns the Git blob hash (OID) of a file found in the commit `commitish`
+    /// at path `path`.
+    ///
+    /// The `commitish` parameter may be any Git revision specifier, such as:
+    /// a full or short commit hash, branch name, tag, or a relative reference
+    /// like `HEAD~1`.
+    ///
+    /// The lookup is performed using Git’s native `<commitish>:<path>` resolution,
+    /// matching the behavior of `git show`.
+    ///
+    /// # Example
+    ///
+    ///
+    /// let oid = `repo.get_blob_hash_at_path`(
+    ///     "0f2f1ef9fa213dcf83e269bc832ab63435cbd4b1",
+    ///     "us/ca/cities/san-mateo",
+    /// )?;
+    ///
+    /// println!("Blob hash: {}", oid);
+    ///
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - `commitish` cannot be resolved in the repository
+    /// - no blob exists at the specified path or any fallback path
+    /// - the resolved object is not a blob
+    /// - there is an error reading from the repository
+    pub fn get_file_blob_hash(&self, commitish: &str, path: &str) -> Result<Oid> {
+        let query = format!("{commitish}:{path}");
+        let obj = self.repo.revparse_single(&query)?;
+        let blob = obj.peel_to_blob()?;
+        Ok(blob.id())
+    }
     /// Instantiates a git revwalk from the beginning of the repository.
     /// Return an iterator over the commits.
     ///
