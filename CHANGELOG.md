@@ -16,6 +16,20 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
+## [v0.6.4]
+
+### Added
+
+### Changed
+
+### Fixed
+
+- Fix current version name/date case sensitivity
+
+### Removed
+
+[#102]: https://github.com/openlawlibrary/stelae/pull/102
+
 ## [v0.6.3]
 
 ### Added
