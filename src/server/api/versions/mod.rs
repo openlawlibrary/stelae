@@ -24,9 +24,9 @@ use self::response::messages;
 use super::state::{App as AppState, Global as _};
 
 /// Name of the current publication.
-pub const CURRENT_PUBLICATION_NAME: &str = "Current";
+pub const CURRENT_PUBLICATION_NAME: &str = "current";
 /// Name of the current version.
-pub const CURRENT_VERSION_NAME: &str = "Current";
+pub const CURRENT_VERSION_NAME: &str = "current";
 /// Date of the current version.
 pub const CURRENT_VERSION_DATE: &str = "current";
 
