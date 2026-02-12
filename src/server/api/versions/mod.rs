@@ -84,9 +84,18 @@ pub async fn versions(
         .first()
         .map_or(String::new(), |ver| ver.date.clone());
     // active version is the version the user is looking at right now
-    let active_version =
-        NaiveDate::parse_from_str(params.date.as_deref().unwrap_or_default(), "%Y-%m-%d")
-            .map_or(current_date, |date| date.clone().to_string());
+    let active_version = {
+        let param_date = params
+            .date
+            .as_deref()
+            .unwrap_or_default()
+            .to_lowercase();
+        if param_date == "current" {
+            param_date
+        } else {
+            NaiveDate::parse_from_str(&param_date, "%Y-%m-%d").map_or_else(|_| current_date.clone(), |date| date.to_string())
+        }
+    };
     let active_compare_to = params.compare_date.clone().map(|date| {
         NaiveDate::parse_from_str(&date, "%Y-%m-%d")
             .map_or_else(|_| date, |active_date| active_date.to_string())
