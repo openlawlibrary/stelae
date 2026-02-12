@@ -152,7 +152,7 @@ impl Versions {
     /// If the `date` is current, returns the date with `(current)` appended.
     /// Append publication number suffix if present (in the form YYYY-MM-DD-N)
     fn format_display_date(name: &str, date: &str, current_date: &str) -> String {
-        if name == CURRENT_PUBLICATION_NAME {
+        if name.to_lowercase() == CURRENT_PUBLICATION_NAME.to_lowercase() {
             CURRENT_PUBLICATION_NAME.to_owned()
         } else {
             let mut formatted_date = format_date(date);

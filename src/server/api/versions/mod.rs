@@ -24,9 +24,9 @@ use self::response::messages;
 use super::state::{App as AppState, Global as _};
 
 /// Name of the current publication.
-pub const CURRENT_PUBLICATION_NAME: &str = "current";
+pub const CURRENT_PUBLICATION_NAME: &str = "Current";
 /// Name of the current version.
-pub const CURRENT_VERSION_NAME: &str = "current";
+pub const CURRENT_VERSION_NAME: &str = "Current";
 /// Date of the current version.
 pub const CURRENT_VERSION_DATE: &str = "current";
 
@@ -108,7 +108,9 @@ pub async fn versions(
     );
 
     if active_publication_name == current_publication.name.clone() && params.publication.is_none() {
-        CURRENT_PUBLICATION_NAME.clone_into(&mut active_publication_name);
+        CURRENT_PUBLICATION_NAME
+            .to_lowercase()
+            .clone_into(&mut active_publication_name);
     }
 
     response::Version::insert_if_not_present(&mut versions, params.date.clone());
@@ -137,7 +139,7 @@ pub async fn versions(
         0,
         Publication::new(
             current_publication.id.clone(),
-            CURRENT_PUBLICATION_NAME.to_owned(),
+            CURRENT_PUBLICATION_NAME.to_lowercase(),
             current_publication.date.clone(),
             current_publication.stele.clone(),
         ),
