@@ -79,22 +79,16 @@ pub async fn versions(
         vec![]
     };
 
-    // latest date in active publication
-    let current_date = versions
-        .first()
-        .map_or(String::new(), |ver| ver.date.clone());
     // active version is the version the user is looking at right now
-    let mut active_version =
+    let active_version =
         NaiveDate::parse_from_str(params.date.as_deref().unwrap_or_default(), "%Y-%m-%d")
-            .map_or(current_date.clone(), |date| date.clone().to_string());
+            .map_or(CURRENT_VERSION_DATE.to_owned(), |date| {
+                date.clone().to_string()
+            });
     let active_compare_to = params.compare_date.clone().map(|date| {
         NaiveDate::parse_from_str(&date, "%Y-%m-%d")
             .map_or_else(|_| date, |active_date| active_date.to_string())
     });
-
-    if active_version == current_date {
-        CURRENT_VERSION_DATE.clone_into(&mut active_version);
-    }
 
     let messages = messages::historical(
         &versions,
@@ -106,7 +100,9 @@ pub async fn versions(
     );
 
     if active_publication_name == current_publication.name.clone() && params.publication.is_none() {
-        CURRENT_PUBLICATION_NAME.clone_into(&mut active_publication_name);
+        CURRENT_PUBLICATION_NAME
+            .to_lowercase()
+            .clone_into(&mut active_publication_name);
     }
 
     response::Version::insert_if_not_present(&mut versions, params.date.clone());
@@ -135,7 +131,7 @@ pub async fn versions(
         0,
         Publication::new(
             current_publication.id.clone(),
-            CURRENT_PUBLICATION_NAME.to_owned(),
+            CURRENT_PUBLICATION_NAME.to_lowercase(),
             current_publication.date.clone(),
             current_publication.stele.clone(),
         ),
