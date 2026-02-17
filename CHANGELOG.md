@@ -24,6 +24,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Fixed
 
+- Fix database connection parameters
 - Fix `current` version and publication name case sensitivity
 
 ### Removed
