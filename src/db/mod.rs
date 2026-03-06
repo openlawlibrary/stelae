@@ -2,11 +2,14 @@
 use async_trait::async_trait;
 use sqlx::Transaction;
 use std::str::FromStr as _;
+use std::time;
+
+use std::thread::available_parallelism;
 
 use sqlx::any::{self, AnyPoolOptions};
 use sqlx::AnyPool;
 use sqlx::ConnectOptions as _;
-use tracing::instrument;
+use tracing::{instrument, log};
 
 /// Database initialization.
 pub mod init;
@@ -65,9 +68,14 @@ impl Db for DatabaseConnection {
     #[instrument(level = "trace")]
     async fn connect(db_url: &str) -> anyhow::Result<Self> {
         any::install_default_drivers();
-        let options = any::AnyConnectOptions::from_str(db_url)?.disable_statement_logging();
+        let num_cpus = match available_parallelism() {
+            Ok(cpus) => u32::try_from(cpus.get())?,
+            Err(_) => 4,
+        };
+        let options = any::AnyConnectOptions::from_str(db_url)?
+            .log_slow_statements(log::LevelFilter::Warn, time::Duration::from_secs(1));
         let pool = AnyPoolOptions::new()
-            .max_connections(50)
+            .max_connections(2 * num_cpus)
             .connect_with(options)
             .await?;
         let connection = match db_url {
@@ -77,6 +85,11 @@ impl Db for DatabaseConnection {
             },
             _ => anyhow::bail!("Unsupported database URL: {}", db_url),
         };
+        // Set journal mode to WAL. This way we support concurrent reads/writes without
+        // locking the database.
+        sqlx::query("PRAGMA journal_mode=WAL;")
+            .execute(&connection.pool)
+            .await?;
 
         Ok(connection)
     }
