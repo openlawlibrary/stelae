@@ -22,6 +22,22 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 [#98]: https://github.com/openlawlibrary/stelae/pull/98
 [#97] https://github.com/openlawlibrary/stelae/pull/97
 
+## [v0.6.4]
+
+### Added
+
+### Changed
+
+### Fixed
+
+- Fix database connection parameters
+- Fix `current` version and publication name case sensitivity
+
+### Removed
+
+[#102]: https://github.com/openlawlibrary/stelae/pull/102
+
+
 ## [v0.6.3]
 
 ### Added
@@ -284,7 +300,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.6.3...HEAD
+[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.6.4...HEAD
+[v0.6.4]: https://github.com/openlawlibrary/stelae/compare/v0.6.3...v0.6.4
 [v0.6.3]: https://github.com/openlawlibrary/stelae/compare/v0.6.2...v0.6.3
 [v0.6.2]: https://github.com/openlawlibrary/stelae/compare/v0.6.1...v0.6.2
 [v0.6.1]: https://github.com/openlawlibrary/stelae/compare/v0.6.0...v0.6.1
