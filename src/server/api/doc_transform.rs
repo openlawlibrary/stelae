@@ -895,4 +895,205 @@ mod tests {
         let output = update_json_content(json_input, path, version_date, "");
         assert_eq!(output, expected_output_fmt.to_owned());
     }
+
+    #[test]
+    fn test_build_url_prefix_both() {
+        assert_eq!(
+            build_url_prefix("my-pub", "2025-03-04"),
+            "/_publication/my-pub/_date/2025-03-04"
+        );
+    }
+
+    #[test]
+    fn test_build_url_prefix_date_only() {
+        assert_eq!(build_url_prefix("", "2025-03-04"), "/_date/2025-03-04");
+    }
+
+    #[test]
+    fn test_build_url_prefix_pub_only() {
+        assert_eq!(build_url_prefix("my-pub", ""), "/_publication/my-pub");
+    }
+
+    #[test]
+    fn test_build_url_prefix_neither() {
+        assert_eq!(build_url_prefix("", ""), "");
+    }
+
+    #[test]
+    fn test_format_date_display_valid() {
+        assert_eq!(format_date_display("2025-03-04"), "March 04, 2025");
+    }
+
+    #[test]
+    fn test_format_date_display_invalid_passthrough() {
+        assert_eq!(format_date_display("not-a-date"), "not-a-date");
+    }
+
+    #[test]
+    fn test_version_start_end_exact_match() {
+        let versions = vec![
+            "2024-01-01".to_owned(),
+            "2024-06-01".to_owned(),
+            "2025-01-01".to_owned(),
+        ];
+        let (start, end, current) = get_version_start_end_current(&versions, "2024-06-01");
+        assert_eq!(start, Some("2024-06-01".to_owned()));
+        assert_eq!(end, Some("2025-01-01".to_owned()));
+        assert_eq!(current, Some("2025-01-01".to_owned()));
+    }
+
+    #[test]
+    fn test_version_start_end_between_versions() {
+        let versions = vec![
+            "2024-01-01".to_owned(),
+            "2024-06-01".to_owned(),
+            "2025-01-01".to_owned(),
+        ];
+        let (start, end, current) = get_version_start_end_current(&versions, "2024-09-01");
+        assert_eq!(start, Some("2024-06-01".to_owned()));
+        assert_eq!(end, Some("2025-01-01".to_owned()));
+        assert_eq!(current, Some("2025-01-01".to_owned()));
+    }
+
+    #[test]
+    fn test_version_start_end_latest() {
+        let versions = vec![
+            "2024-01-01".to_owned(),
+            "2024-06-01".to_owned(),
+            "2025-01-01".to_owned(),
+        ];
+        let (start, end, current) = get_version_start_end_current(&versions, "2025-01-01");
+        assert_eq!(start, Some("2025-01-01".to_owned()));
+        assert_eq!(end, None);
+        assert_eq!(current, Some("2025-01-01".to_owned()));
+    }
+
+    #[test]
+    fn test_version_start_end_newer_than_all() {
+        let versions = vec!["2024-01-01".to_owned(), "2024-06-01".to_owned()];
+        let (start, end, current) = get_version_start_end_current(&versions, "2099-01-01");
+        assert_eq!(start, current.clone());
+        assert_eq!(end, None);
+        assert_eq!(current, Some("2024-06-01".to_owned()));
+    }
+
+    #[test]
+    fn test_version_start_end_empty_list() {
+        let versions: Vec<String> = vec![];
+        let (start, end, current) = get_version_start_end_current(&versions, "2025-01-01");
+        assert_eq!(start, None);
+        assert_eq!(end, None);
+        assert_eq!(current, None);
+    }
+
+    #[test]
+    fn test_insert_notification_basic() {
+        let html = r#"<html><body>
+    <main id="area__content">
+      <p>content</p>
+    </main>
+  </body></html>"#;
+        let notification = r#"<div class="banner">Notice</div>"#;
+        let result = insert_notification(html, notification);
+        assert!(result.contains(r#"<main id="area__content">"#));
+        assert!(result.contains(r#"<div class="banner">Notice</div>"#));
+        // notification must appear before existing content
+        let main_pos = result.find(r#"<main id="area__content""#).unwrap();
+        let banner_pos = result.find(r#"<div class="banner">"#).unwrap();
+        let content_pos = result.find("<p>content</p>").unwrap();
+        assert!(main_pos < banner_pos);
+        assert!(banner_pos < content_pos);
+    }
+
+    #[test]
+    fn test_insert_notification_single_quote_attr() {
+        let html = r#"<html><body>
+    <main id='area__content'>
+      <p>content</p>
+    </main>
+  </body></html>"#;
+        let notification = r#"<div class="banner">Notice</div>"#;
+        let result = insert_notification(html, notification);
+        assert!(result.contains(r#"<div class="banner">Notice</div>"#));
+    }
+
+    #[test]
+    fn test_insert_notification_no_match_returns_unchanged() {
+        let html = "<html><body><main id=\"other\"><p>content</p></main></body></html>";
+        let notification = "<div>Notice</div>";
+        let result = insert_notification(html, notification);
+        assert_eq!(result, html);
+    }
+
+    // --- update_doc_urls with pub_name ---
+
+    #[test]
+    fn test_update_doc_urls_with_pub_name() {
+        let html_input = r#"
+<!DOCTYPE html SYSTEM "about:legacy-compat">
+<html lang="en-US">
+  <head></head>
+  <body>
+    <a href="/us/ca/cities/san-mateo/ordinances/2020/19">link</a>
+  </body>
+</html>
+        "#;
+        let result = update_doc_urls(
+            html_input,
+            "/us/ca/cities/san-mateo/ordinances/2020/19",
+            "2025-03-04",
+            "2020-01-01",
+        )
+        .expect("should succeed");
+        assert!(
+            result.contains("/_publication/2020-01-01/_date/2025-03-04/us/ca/cities/san-mateo/ordinances/2020/19"),
+            "expected pub+date prefixed href in: {result}"
+        );
+        assert!(
+            result.contains(r#"content="/_publication/2020-01-01/_date/2025-03-04""#),
+            "expected historical-prefix meta in: {result}"
+        );
+    }
+
+    // --- update_json_content with pub_name ---
+
+    #[test]
+    fn test_json_update_index_with_pub_name() {
+        let json_input = r#"{"p":"/us/ca/test","j":"/us/ca/test.json"}"#;
+        let output = update_json_content(
+            json_input,
+            "/us/ca/test/index.json",
+            "2025-03-04",
+            "2013-01-31",
+        );
+        let parsed: Value = serde_json::from_str(&output).expect("valid json");
+        assert_eq!(
+            parsed["p"].as_str().unwrap(),
+            "/_publication/2013-01-31/_date/2025-03-04/us/ca/test"
+        );
+        assert_eq!(
+            parsed["j"].as_str().unwrap(),
+            "/_publication/2013-01-31/_date/2025-03-04/us/ca/test.json"
+        );
+    }
+
+    #[test]
+    fn test_json_update_manifest_with_pub_name() {
+        let json_input = r#"{"start_url":"/","scope":"/","icons":[{"src":"/img/icon.png"}]}"#;
+        let output =
+            update_json_content(json_input, "/manifest.json", "2025-03-04", "2013-01-31");
+        let parsed: Value = serde_json::from_str(&output).expect("valid json");
+        assert_eq!(
+            parsed["start_url"].as_str().unwrap(),
+            "/_publication/2013-01-31/_date/2025-03-04/"
+        );
+        assert_eq!(
+            parsed["scope"].as_str().unwrap(),
+            "/_publication/2013-01-31/_date/2025-03-04/"
+        );
+        assert_eq!(
+            parsed["icons"][0]["src"].as_str().unwrap(),
+            "/_publication/2013-01-31/_date/2025-03-04/img/icon.png"
+        );
+    }
 }
