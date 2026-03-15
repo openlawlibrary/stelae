@@ -150,7 +150,10 @@ pub async fn versions(
 }
 
 /// Get all the versions of a publication.
-#[expect(clippy::module_name_repetitions, reason = "publication_versions is more descriptive than versions_publication")]
+#[expect(
+    clippy::module_name_repetitions,
+    reason = "publication_versions is more descriptive than versions_publication"
+)]
 pub async fn publication_versions(
     db: &DatabaseConnection,
     publication: &Publication,

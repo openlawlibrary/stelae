@@ -114,7 +114,11 @@ pub fn get_version_start_end_current(
     };
     if version_at_idx.as_str() > date {
         // date falls between versions[idx-1] and versions[idx]
-        let start = if idx == 0 { None } else { versions.get(idx - 1).cloned() };
+        let start = if idx == 0 {
+            None
+        } else {
+            versions.get(idx - 1).cloned()
+        };
         (start, Some(version_at_idx.clone()), current)
     } else {
         // Exact match: versions[idx] == date
@@ -135,11 +139,18 @@ pub fn get_version_start_end_current(
 #[must_use]
 pub fn insert_notification(html_str: &str, notification_html: &str) -> String {
     let mut search_start = 0;
-    while let Some(rel_pos) = html_str.get(search_start..).and_then(|html_slice| html_slice.find("<main")) {
+    while let Some(rel_pos) = html_str
+        .get(search_start..)
+        .and_then(|html_slice| html_slice.find("<main"))
+    {
         let pos = search_start + rel_pos;
-        let Some(suffix) = html_str.get(pos..) else { break };
+        let Some(suffix) = html_str.get(pos..) else {
+            break;
+        };
         if let Some(tag_end_offset) = suffix.find('>') {
-            let Some(tag) = html_str.get(pos..=(pos + tag_end_offset)) else { break };
+            let Some(tag) = html_str.get(pos..=(pos + tag_end_offset)) else {
+                break;
+            };
             if tag.contains(r#"id="area__content""#) || tag.contains("id='area__content'") {
                 let insert_pos = pos + tag_end_offset + 1;
                 // Count leading spaces on the <main> line and apply the same
@@ -164,8 +175,12 @@ pub fn insert_notification(html_str: &str, notification_html: &str) -> String {
                     })
                     .collect::<Vec<_>>()
                     .join("\n");
-                let Some(before) = html_str.get(..insert_pos) else { break };
-                let Some(after) = html_str.get(insert_pos..) else { break };
+                let Some(before) = html_str.get(..insert_pos) else {
+                    break;
+                };
+                let Some(after) = html_str.get(insert_pos..) else {
+                    break;
+                };
                 let mut result =
                     String::with_capacity(html_str.len() + indented_notification.len() + 1);
                 result.push_str(before);
@@ -1080,8 +1095,7 @@ mod tests {
     #[test]
     fn test_json_update_manifest_with_pub_name() {
         let json_input = r#"{"start_url":"/","scope":"/","icons":[{"src":"/img/icon.png"}]}"#;
-        let output =
-            update_json_content(json_input, "/manifest.json", "2025-03-04", "2013-01-31");
+        let output = update_json_content(json_input, "/manifest.json", "2025-03-04", "2013-01-31");
         let parsed: Value = serde_json::from_str(&output).expect("valid json");
         assert_eq!(
             parsed["start_url"].as_str().unwrap(),

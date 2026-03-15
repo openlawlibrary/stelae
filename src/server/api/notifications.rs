@@ -21,12 +21,7 @@ pub fn outdated_doc_message(date: &str, start_date: &str, end_date: &str) -> Str
 /// Used by the `date` endpoint when the requested `version_date` is not the
 /// latest version of the document.
 #[must_use]
-pub fn outdated_doc(
-    date: &str,
-    start_date: &str,
-    end_date: &str,
-    current_doc_url: &str,
-) -> String {
+pub fn outdated_doc(date: &str, start_date: &str, end_date: &str, current_doc_url: &str) -> String {
     format!(
         r#"
 <div class="message message--info" role="region" tabindex="0">
@@ -119,9 +114,7 @@ pub fn one_change_since(start_date: &str) -> String {
 /// Renders the plain-text message when there are multiple changes since `start_date`.
 #[must_use]
 pub fn multiple_changes_since_message(num_of_changes: usize, start_date: &str) -> String {
-    format!(
-        "There have been <strong>{num_of_changes} updates</strong> since {start_date}."
-    )
+    format!("There have been <strong>{num_of_changes} updates</strong> since {start_date}.")
 }
 
 /// Renders the full HTML banner when there are multiple changes since `start_date`.
@@ -142,9 +135,7 @@ pub fn multiple_changes_since(num_of_changes: usize, start_date: &str) -> String
 /// Renders the plain-text message when there are no changes between two dates.
 #[must_use]
 pub fn no_changes_between_message(start_date: &str, end_date: &str) -> String {
-    format!(
-        "There have been <strong>no updates</strong> between {start_date} and {end_date}."
-    )
+    format!("There have been <strong>no updates</strong> between {start_date} and {end_date}.")
 }
 
 /// Renders the full HTML banner when there are no changes between two dates.
@@ -165,9 +156,7 @@ pub fn no_changes_between(start_date: &str, end_date: &str) -> String {
 /// Renders the plain-text message when there is exactly one change between two dates.
 #[must_use]
 pub fn one_change_between_message(start_date: &str, end_date: &str) -> String {
-    format!(
-        "There has been <strong>1 update</strong> between {start_date} and {end_date}."
-    )
+    format!("There has been <strong>1 update</strong> between {start_date} and {end_date}.")
 }
 
 /// Renders the full HTML banner when there is exactly one change between two dates.
