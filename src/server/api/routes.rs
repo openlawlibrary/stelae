@@ -101,6 +101,32 @@ pub fn register_app<
         )
         .app_data(web::Data::new(state.clone()));
 
+    app = app
+        .service(
+            web::scope("/_publication")
+                .service(
+                    web::resource("/{pub_name}/_date/{version_date}/{path:.*}")
+                        .route(web::get().to(date))
+                        .route(web::head().to(date)),
+                )
+                .service(
+                    web::resource("/{pub_name}/_date/{version_date}")
+                        .route(web::get().to(date))
+                        .route(web::head().to(date)),
+                )
+                .service(
+                    web::resource("/{pub_name}/{path:.*}")
+                        .route(web::get().to(date))
+                        .route(web::head().to(date)),
+                )
+                .service(
+                    web::resource("/{pub_name}")
+                        .route(web::get().to(date))
+                        .route(web::head().to(date)),
+                ),
+        )
+        .app_data(web::Data::new(state.clone()));
+
     app = register_guarded_and_unguarded_routes(app, state)?;
     Ok(app)
 }
