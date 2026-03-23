@@ -48,10 +48,11 @@ impl super::TxManager for DatabaseTransaction {
         stele: &str,
         last_valid_publication_id: Option<String>,
         last_valid_version: Option<String>,
+        html_data_repo_name: Option<String>,
     ) -> anyhow::Result<Option<i64>> {
         let statement = "
-            INSERT OR IGNORE INTO publication ( id, name, date, stele, revoked, last_valid_publication_id, last_valid_version )
-            VALUES ( $1, $2, $3, $4, FALSE, $5, $6)
+            INSERT OR IGNORE INTO publication ( id, name, date, stele, revoked, last_valid_publication_id, last_valid_version, html_data_repo_name )
+            VALUES ( $1, $2, $3, $4, FALSE, $5, $6, $7)
         ";
         let id = sqlx::query(statement)
             .bind(hash_id)
@@ -60,6 +61,7 @@ impl super::TxManager for DatabaseTransaction {
             .bind(stele)
             .bind(last_valid_publication_id)
             .bind(last_valid_version)
+            .bind(html_data_repo_name)
             .execute(&mut *self.tx)
             .await?
             .last_insert_id();
@@ -149,6 +151,31 @@ impl super::TxManager for DatabaseTransaction {
             .fetch_one(&mut *self.tx)
             .await?;
         Ok(row)
+    }
+
+    /// Set `html_data_repo_name` on all publications for the given stele whose date is
+    /// strictly earlier than `boundary_date`.
+    ///
+    /// # Errors
+    /// Errors if the update cannot be executed.
+    async fn set_html_data_repo_name_for_prior_publications(
+        &mut self,
+        stele: &str,
+        boundary_date: &NaiveDate,
+        html_data_repo_name: &str,
+    ) -> anyhow::Result<()> {
+        let statement = "
+            UPDATE publication
+            SET html_data_repo_name = $1
+            WHERE stele = $2 AND date < $3
+        ";
+        sqlx::query(statement)
+            .bind(html_data_repo_name)
+            .bind(stele)
+            .bind(boundary_date.to_string())
+            .execute(&mut *self.tx)
+            .await?;
+        Ok(())
     }
 
     /// Find all publication names by date and stele.
