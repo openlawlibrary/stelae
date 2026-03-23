@@ -19,6 +19,10 @@ pub trait Manager {
 #[async_trait]
 pub trait TxManager {
     /// Create a new publication.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Publication has many required fields; a dedicated builder struct can be added later."
+    )]
     async fn create(
         &mut self,
         hash_id: &str,

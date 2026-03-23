@@ -174,8 +174,8 @@ async fn process_stele(
     let current_html_repo_name = repositories
         .get_all_by_custom_type("html")
         .into_iter()
-        .find(|r| !r.is_archived())
-        .map(|r| r.name.clone());
+        .find(|repo| !repo.is_archived())
+        .map(|repo| repo.name.clone());
     insert_changes_from_rdf_repository(tx, rdf, name, current_html_repo_name.as_deref()).await?;
     // Insert commit hashes for data repositories with serve type 'historical'
     let data_repos = repositories.get_all_by_serve_type("historical");
@@ -212,7 +212,14 @@ async fn load_delta_for_stele(
     stele::TxManager::create(tx, stele).await?;
     if let Some(publication) = publication::TxManager::find_last_inserted(tx, stele).await? {
         tracing::info!("[{stele}] | Inserting RDF changes from last inserted publication");
-        load_delta_from_publications(tx, rdf_repo, stele, Some(publication), current_html_repo_name).await?;
+        load_delta_from_publications(
+            tx,
+            rdf_repo,
+            stele,
+            Some(publication),
+            current_html_repo_name,
+        )
+        .await?;
     } else {
         tracing::info!("[{stele}] | Inserting RDF changes from beginning...");
         load_delta_from_publications(tx, rdf_repo, stele, None, current_html_repo_name).await?;
@@ -352,7 +359,7 @@ async fn load_delta_from_publications(
         .await?;
         // If this is the boundary publication, backfill all earlier publications for
         // this stele with the same archived HTML repo name.
-        if let Some(ref archived_repo) = archived_html_repo {
+        if let Some(archived_repo) = archived_html_repo.as_deref() {
             publication::TxManager::set_html_data_repo_name_for_prior_publications(
                 tx,
                 stele,
