@@ -127,7 +127,11 @@ pub async fn serve_git(
                 archive_path: archive_path.clone(),
             }))
     })
-    .bind((bind, port))?
+    .bind((bind, port))
+    .map_err(|err| {
+        tracing::error!("Failed to bind Git server to {bind}:{port}: {err}");
+        CliError::GenericError
+    })?
     .run()
     .await
     .map_err(|err| {
