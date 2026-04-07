@@ -10,23 +10,33 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
+- Added support for ETags ([#98])
+- Add redirects for dynamic routes ([#97])
+- Added _date endpoint from portal into stele ([#100]) 
+
 ### Changed
 
 ### Fixed
 
 ### Removed
+
+[#100]: https://github.com/openlawlibrary/stelae/pull/100
+[#98]: https://github.com/openlawlibrary/stelae/pull/98
+[#97] https://github.com/openlawlibrary/stelae/pull/97
 
 ## [v0.6.5]
 
 ### Added
 
-- Track html data repo per publication for multi-repo support
+- Track html data repo per publication for multi-repo support ([#106]) 
 
 ### Changed
 
 ### Fixed
 
 ### Removed
+
+[#106]: https://github.com/openlawlibrary/stelae/pull/106
 
 ## [v0.6.4]
 
@@ -42,6 +52,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 ### Removed
 
 [#102]: https://github.com/openlawlibrary/stelae/pull/102
+
 
 ## [v0.6.3]
 
