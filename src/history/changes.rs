@@ -170,7 +170,13 @@ async fn process_stele(
         );
         return Ok(());
     }
-    insert_changes_from_rdf_repository(tx, rdf, name).await?;
+    // Find the current (non-archived) HTML repo name to stamp on each publication record.
+    let current_html_repo_name = repositories
+        .get_all_by_custom_type("html")
+        .into_iter()
+        .find(|repo| !repo.is_archived())
+        .map(|repo| repo.name.clone());
+    insert_changes_from_rdf_repository(tx, rdf, name, current_html_repo_name.as_deref()).await?;
     // Insert commit hashes for data repositories with serve type 'historical'
     let data_repos = repositories.get_all_by_serve_type("historical");
     for data_repo in data_repos {
@@ -188,10 +194,11 @@ async fn insert_changes_from_rdf_repository(
     tx: &mut DatabaseTransaction,
     rdf_repo: Repo,
     stele_id: &str,
+    current_html_repo_name: Option<&str>,
 ) -> anyhow::Result<()> {
     tracing::debug!("Inserting changes from RDF repository: {}", stele_id);
     tracing::debug!("RDF repository path: {}", rdf_repo.path.display());
-    load_delta_for_stele(tx, &rdf_repo, stele_id).await?;
+    load_delta_for_stele(tx, &rdf_repo, stele_id, current_html_repo_name).await?;
     Ok(())
 }
 
@@ -200,14 +207,22 @@ async fn load_delta_for_stele(
     tx: &mut DatabaseTransaction,
     rdf_repo: &Repo,
     stele: &str,
+    current_html_repo_name: Option<&str>,
 ) -> anyhow::Result<()> {
     stele::TxManager::create(tx, stele).await?;
     if let Some(publication) = publication::TxManager::find_last_inserted(tx, stele).await? {
         tracing::info!("[{stele}] | Inserting RDF changes from last inserted publication");
-        load_delta_from_publications(tx, rdf_repo, stele, Some(publication)).await?;
+        load_delta_from_publications(
+            tx,
+            rdf_repo,
+            stele,
+            Some(publication),
+            current_html_repo_name,
+        )
+        .await?;
     } else {
         tracing::info!("[{stele}] | Inserting RDF changes from beginning...");
-        load_delta_from_publications(tx, rdf_repo, stele, None).await?;
+        load_delta_from_publications(tx, rdf_repo, stele, None, current_html_repo_name).await?;
     }
     Ok(())
 }
@@ -229,6 +244,7 @@ async fn load_delta_from_publications(
     rdf_repo: &Repo,
     stele: &str,
     last_inserted_publication: Option<Publication>,
+    current_html_repo_name: Option<&str>,
 ) -> anyhow::Result<()> {
     let head_commit = rdf_repo.repo.head()?.peel_to_commit()?;
     let tree = head_commit.tree()?;
@@ -273,6 +289,9 @@ async fn load_delta_from_publications(
         let pub_date =
             pub_graph.literal_from_triple_matching(None, Some(dcterms::available), None)?;
         let pub_date = NaiveDate::parse_from_str(pub_date.as_str(), "%Y-%m-%d")?;
+        let archived_html_repo: Option<String> = pub_graph
+            .literal_from_triple_matching(None, Some(oll::archivedHtml), None)
+            .ok();
         // continue from last inserted publication, since that publication can contain
         // new changes (versions) that are not in db
         if let Some(last_inserted_publication_date) = last_inserted_pub_date {
@@ -319,6 +338,14 @@ async fn load_delta_from_publications(
         } else {
             None
         };
+        // Determine which HTML data repo this publication belongs to.
+        // If the RDF carries oll:archivedHtml it's the boundary publication: use the
+        // archived repo name it declares.  Otherwise use the current HTML repo name.
+        let html_data_repo_name: Option<String> = if archived_html_repo.is_some() {
+            archived_html_repo.clone()
+        } else {
+            current_html_repo_name.map(ToOwned::to_owned)
+        };
         publication::TxManager::create(
             tx,
             &publication_hash,
@@ -327,8 +354,20 @@ async fn load_delta_from_publications(
             stele,
             last_inserted_pub_id,
             last_valid_codified_date,
+            html_data_repo_name,
         )
         .await?;
+        // If this is the boundary publication, backfill all earlier publications for
+        // this stele with the same archived HTML repo name.
+        if let Some(archived_repo) = archived_html_repo.as_deref() {
+            publication::TxManager::set_html_data_repo_name_for_prior_publications(
+                tx,
+                stele,
+                &pub_date,
+                archived_repo,
+            )
+            .await?;
+        }
         let Some(publication) =
             publication::TxManager::find_by_name_and_stele(tx, &pub_name, stele).await?
         else {

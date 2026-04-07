@@ -24,6 +24,20 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 [#98]: https://github.com/openlawlibrary/stelae/pull/98
 [#97] https://github.com/openlawlibrary/stelae/pull/97
 
+## [v0.6.5]
+
+### Added
+
+- Track html data repo per publication for multi-repo support ([#106]) 
+
+### Changed
+
+### Fixed
+
+### Removed
+
+[#106]: https://github.com/openlawlibrary/stelae/pull/106
+
 ## [v0.6.4]
 
 ### Added
@@ -302,7 +316,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.6.4...HEAD
+[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.6.5...HEAD
+[v0.6.5]: https://github.com/openlawlibrary/stelae/compare/v0.6.4...v0.6.5
 [v0.6.4]: https://github.com/openlawlibrary/stelae/compare/v0.6.3...v0.6.4
 [v0.6.3]: https://github.com/openlawlibrary/stelae/compare/v0.6.2...v0.6.3
 [v0.6.2]: https://github.com/openlawlibrary/stelae/compare/v0.6.1...v0.6.2
