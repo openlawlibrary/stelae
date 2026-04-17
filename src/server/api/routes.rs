@@ -16,6 +16,7 @@ use actix_web::{
 };
 
 use super::archive::get_blob;
+use super::date::date;
 use super::{serve::serve, state::Global, versions::versions};
 
 /// Name of the header to guard current documents
@@ -81,6 +82,22 @@ pub fn register_app<
                     .service(web::resource("/{path:.*}").to(versions))
                     .service(web::resource("").to(versions)),
             ),
+        )
+        .app_data(web::Data::new(state.clone()));
+
+    app = app
+        .service(
+            web::scope("/_date")
+                .service(
+                    web::resource("/{version_date}/{path:.*}")
+                        .route(web::get().to(date))
+                        .route(web::head().to(date)),
+                )
+                .service(
+                    web::resource("/{version_date}")
+                        .route(web::get().to(date))
+                        .route(web::head().to(date)),
+                ),
         )
         .app_data(web::Data::new(state.clone()));
 
@@ -361,6 +378,13 @@ fn register_root_routes(cfg: &mut web::ServiceConfig, stele: &Stele) -> anyhow::
         for repository in sorted_repositories {
             let custom = &repository.custom;
             let repo_state = state::init_repo(repository, stele)?;
+            #[expect(
+                clippy::iter_over_hash_type,
+                reason = "We exit with 1 error code on any application errors"
+            )]
+            for (from, to) in repo_state.get_redirects() {
+                root_scope = root_scope.service(web::redirect(from, to));
+            }
             for route in custom.routes.iter().flat_map(|routes| routes.iter()) {
                 let actix_route = format!("/{{tail:{}}}", &route);
                 root_scope = root_scope.service(
@@ -407,6 +431,13 @@ fn register_dependent_routes(
         for repository in &sorted_repositories {
             let custom = &repository.custom;
             let repo_state = state::init_repo(repository, stele)?;
+            #[expect(
+                clippy::iter_over_hash_type,
+                reason = "We exit with 1 error code on any application errors"
+            )]
+            for (from, to) in repo_state.get_redirects() {
+                actix_scope = actix_scope.service(web::redirect(from, to));
+            }
             for route in custom.routes.iter().flat_map(|routes| routes.iter()) {
                 if route.starts_with('_') {
                     // Ignore routes in dependent Stele that start with underscore
