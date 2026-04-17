@@ -7,10 +7,11 @@ pub mod manager;
 /// Trait for managing transactional data repo commits.
 #[async_trait]
 pub trait TxManager {
-    /// Find all authentication commits for a given stele.
-    async fn find_all_auth_commits_for_stele(
+    /// Find all authentication commits for a given stele and data repository.
+    async fn find_all_auth_commits_for_stele_and_data_repo(
         &mut self,
         stele_id: &str,
+        data_repo_name: &str,
     ) -> anyhow::Result<Vec<DataRepoCommits>>;
     /// Insert a bulk of data repo commits.
     async fn insert_bulk(&mut self, data_repo_commits: Vec<DataRepoCommits>) -> anyhow::Result<()>;

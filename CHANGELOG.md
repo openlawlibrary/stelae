@@ -24,6 +24,14 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 [#98]: https://github.com/openlawlibrary/stelae/pull/98
 [#97] https://github.com/openlawlibrary/stelae/pull/97
 
+## [v0.6.6]
+
+### Fixed
+
+- Fix commit insertion for multiple data repos of the same type ([#107])
+
+[#107]: https://github.com/openlawlibrary/stelae/pull/107
+
 ## [v0.6.5]
 
 ### Added
@@ -316,7 +324,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.6.5...HEAD
+[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.6.6...HEAD
+[v0.6.6]: https://github.com/openlawlibrary/stelae/compare/v0.6.5...v0.6.6
 [v0.6.5]: https://github.com/openlawlibrary/stelae/compare/v0.6.4...v0.6.5
 [v0.6.4]: https://github.com/openlawlibrary/stelae/compare/v0.6.3...v0.6.4
 [v0.6.3]: https://github.com/openlawlibrary/stelae/compare/v0.6.2...v0.6.3
