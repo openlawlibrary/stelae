@@ -693,7 +693,12 @@ async fn insert_commit_hashes_from_auth_repository(
     let mut data_repo_commits_bulk: Vec<DataRepoCommits> = vec![];
 
     let loaded_auth_commits =
-        data_repo_commits::TxManager::find_all_auth_commits_for_stele(tx, &stele_name).await?;
+        data_repo_commits::TxManager::find_all_auth_commits_for_stele_and_data_repo(
+            tx,
+            &stele_name,
+            &data_repo.name,
+        )
+        .await?;
 
     if loaded_auth_commits.is_empty() {
         tracing::info!("[{stele_name}] | Inserting commit hashes from the beginning...");

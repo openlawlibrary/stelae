@@ -8,13 +8,14 @@ use super::DataRepoCommits;
 
 #[async_trait]
 impl super::TxManager for DatabaseTransaction {
-    /// Find all authentication commits for a given stele.
+    /// Find all authentication commits for a given stele and data repository.
     ///
     /// # Errors
     /// Errors if the commits cannot be found.
-    async fn find_all_auth_commits_for_stele(
+    async fn find_all_auth_commits_for_stele_and_data_repo(
         &mut self,
         stele_id: &str,
+        data_repo_name: &str,
     ) -> anyhow::Result<Vec<DataRepoCommits>> {
         let query = "
             SELECT dc.*
@@ -22,9 +23,11 @@ impl super::TxManager for DatabaseTransaction {
             LEFT JOIN publication p ON dc.publication_id = p.id
             LEFT JOIN stele s ON p.stele = s.name
             WHERE s.name = $1
+            AND p.html_data_repo_name = $2
         ";
         let data_repo_commits = sqlx::query_as::<_, DataRepoCommits>(query)
             .bind(stele_id)
+            .bind(data_repo_name)
             .fetch_all(&mut *self.tx)
             .await?;
         Ok(data_repo_commits)
