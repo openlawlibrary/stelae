@@ -71,7 +71,11 @@ pub async fn serve_archive(
             process::exit(1)
         })
     })
-    .bind((bind_to, port))?
+    .bind((bind_to, port))
+    .map_err(|err| {
+        tracing::error!("Failed to bind server to {bind_to}:{port}: {err}");
+        CliError::GenericError
+    })?
     .run()
     .await
     .map_err(|err| {
