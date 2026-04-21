@@ -178,6 +178,23 @@ impl super::TxManager for DatabaseTransaction {
         Ok(())
     }
 
+    /// Count the number of non-revoked publications for a given stele.
+    ///
+    /// # Errors
+    /// Errors if can't establish a connection to the database.
+    async fn count_non_revoked(&mut self, stele: &str) -> anyhow::Result<usize> {
+        let statement = "
+            SELECT COUNT(*) as count
+            FROM publication
+            WHERE revoked = 0 AND stele = $1
+        ";
+        let row: (i64,) = sqlx::query_as(statement)
+            .bind(stele)
+            .fetch_one(&mut *self.tx)
+            .await?;
+        Ok(usize::try_from(row.0).unwrap_or(0))
+    }
+
     /// Find all publication names by date and stele.
     ///
     /// # Errors

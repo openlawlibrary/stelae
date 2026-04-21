@@ -13,6 +13,14 @@ pub trait TxManager {
         stele_id: &str,
         data_repo_name: &str,
     ) -> anyhow::Result<Vec<DataRepoCommits>>;
+    /// Find the most-recently-recorded authentication commit hash for a given stele
+    /// and data repository, ordered by `auth_commit_timestamp` descending.
+    /// Returns `None` if no commits have been recorded yet.
+    async fn find_last_auth_commit_for_stele(
+        &mut self,
+        stele_id: &str,
+        data_repo_name: &str,
+    ) -> anyhow::Result<Option<String>>;
     /// Insert a bulk of data repo commits.
     async fn insert_bulk(&mut self, data_repo_commits: Vec<DataRepoCommits>) -> anyhow::Result<()>;
     /// Find the latest commit for a publication, constrained by a valid ISO version date.
