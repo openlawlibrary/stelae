@@ -12,7 +12,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 - Added support for ETags ([#98])
 - Add redirects for dynamic routes ([#97])
-- Added _date endpoint from portal into stele ([#100]) 
+- Added _date endpoint from portal into stele ([#100])
+- Add `--force` flag and automatic inconsistency detection to `stelae update` ([#108])
 
 ### Changed
 
