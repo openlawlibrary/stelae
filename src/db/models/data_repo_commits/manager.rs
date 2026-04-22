@@ -34,6 +34,33 @@ impl super::TxManager for DatabaseTransaction {
             .await?;
         Ok(data_repo_commits)
     }
+    /// Find the most-recently-recorded authentication commit hash for a given stele
+    /// and data repository.
+    ///
+    /// # Errors
+    /// Errors if the query fails.
+    async fn find_last_auth_commit_for_stele(
+        &mut self,
+        stele_id: &str,
+        data_repo_name: &str,
+    ) -> anyhow::Result<Option<String>> {
+        let query = "
+            SELECT dc.auth_commit_hash
+            FROM data_repo_commits dc
+            LEFT JOIN publication p ON dc.publication_id = p.id
+            WHERE p.stele = $1
+            AND p.html_data_repo_name = $2
+            ORDER BY dc.auth_commit_timestamp DESC
+            LIMIT 1
+        ";
+        let row: Option<(String,)> = sqlx::query_as(query)
+            .bind(stele_id)
+            .bind(data_repo_name)
+            .fetch_optional(&mut *self.tx)
+            .await?;
+        Ok(row.map(|(hash,)| hash))
+    }
+
     /// Upsert a bulk of data repository commits into the database.
     ///
     /// # Errors

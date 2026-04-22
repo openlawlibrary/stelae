@@ -74,19 +74,33 @@ impl Db for DatabaseConnection {
         };
         let options = any::AnyConnectOptions::from_str(db_url)?
             .log_slow_statements(log::LevelFilter::Warn, time::Duration::from_secs(1));
+        let db_kind = if db_url.starts_with("sqlite:///") {
+            DatabaseKind::Sqlite
+        } else {
+            anyhow::bail!("Unsupported database URL: {}", db_url);
+        };
         let pool = AnyPoolOptions::new()
             .max_connections(2 * num_cpus)
+            .after_connect(|conn, _meta| {
+                Box::pin(async move {
+                    // Enable foreign key enforcement on every connection.
+                    // This is a per-connection SQLite setting (not persisted to the file),
+                    // so it must be applied here rather than in a one-off PRAGMA query.
+                    sqlx::query("PRAGMA foreign_keys = ON")
+                        .execute(conn)
+                        .await?;
+                    Ok(())
+                })
+            })
             .connect_with(options)
             .await?;
-        let connection = match db_url {
-            url if url.starts_with("sqlite:///") => Self {
-                pool,
-                kind: DatabaseKind::Sqlite,
-            },
-            _ => anyhow::bail!("Unsupported database URL: {}", db_url),
+        let connection = Self {
+            pool,
+            kind: db_kind,
         };
         // Set journal mode to WAL. This way we support concurrent reads/writes without
-        // locking the database.
+        // locking the database. WAL mode is a database-level setting (persisted to the
+        // file header), so a single PRAGMA query is sufficient.
         sqlx::query("PRAGMA journal_mode=WAL;")
             .execute(&connection.pool)
             .await?;

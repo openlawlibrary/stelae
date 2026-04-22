@@ -68,6 +68,8 @@ pub enum StelaeSubcommands {
         include: Vec<String>,
         /// List of stelae to exclude in update
         exclude: Vec<String>,
+        /// Force a full rebuild of each stele's database records, skipping consistency checks.
+        force: bool,
     },
 }
 
@@ -102,9 +104,14 @@ impl CliProvider for Cli {
                 individual: *individual,
                 bind_to: bind_to.clone(),
             },
-            Subcommands::Update { include, exclude } => StelaeSubcommands::Update {
+            Subcommands::Update {
+                include,
+                exclude,
+                force,
+            } => StelaeSubcommands::Update {
                 include: include.clone(),
                 exclude: exclude.clone(),
+                force: *force,
             },
         }
     }
@@ -145,6 +152,11 @@ pub enum Subcommands {
         /// List of stelae to exclude in update
         #[arg(short = 'e', long = "exclude", num_args(1..))]
         exclude: Vec<String>,
+        /// Force a full rebuild of each stele's database records.
+        /// Skips consistency checks and always deletes and re-inserts all data for the stele.
+        /// Respects --include and --exclude filters.
+        #[arg(short = 'f', long = "force", default_value_t = false)]
+        force: bool,
     },
 }
 
@@ -218,9 +230,11 @@ pub fn execute_command<T: CliProvider>(cli: &T, archive_path: PathBuf) -> Result
             *individual,
             bind_to,
         ),
-        StelaeSubcommands::Update { include, exclude } => {
-            changes::insert(cli.archive_path(), archive_path, include, exclude)
-        }
+        StelaeSubcommands::Update {
+            include,
+            exclude,
+            force,
+        } => changes::insert(cli.archive_path(), archive_path, include, exclude, *force),
     }
 }
 
