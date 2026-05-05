@@ -56,13 +56,14 @@ use std::{
 #[actix_web::main]
 #[tracing::instrument(
     name = "Stelae update",
-    skip(raw_archive_path, archive_path, include, exclude)
+    skip(raw_archive_path, archive_path, include, exclude, force)
 )]
 pub async fn insert(
     raw_archive_path: &str,
     archive_path: PathBuf,
     include: &Vec<String>,
     exclude: &Vec<String>,
+    force: bool,
 ) -> Result<(), CliError> {
     if !include.is_empty() {
         tracing::info!("Following stele are included: {:#?}", include);
@@ -81,13 +82,20 @@ pub async fn insert(
             return Err(CliError::DatabaseConnectionError);
         }
     };
-    insert_changes_archive(&conn, raw_archive_path, &archive_path, include, exclude)
-        .await
-        .map_err(|err| {
-            tracing::error!("Failed to update stele in the archive");
-            tracing::error!("{err:?}");
-            CliError::GenericError
-        })
+    insert_changes_archive(
+        &conn,
+        raw_archive_path,
+        &archive_path,
+        include,
+        exclude,
+        force,
+    )
+    .await
+    .map_err(|err| {
+        tracing::error!("Failed to update stele in the archive");
+        tracing::error!("{err:?}");
+        CliError::GenericError
+    })
 }
 
 #[expect(
@@ -101,6 +109,7 @@ async fn insert_changes_archive(
     archive_path: &Path,
     include: &[String],
     exclude: &[String],
+    force: bool,
 ) -> anyhow::Result<()> {
     tracing::debug!("Inserting history into archive");
 
@@ -118,7 +127,7 @@ async fn insert_changes_archive(
         let mut tx = DatabaseTransaction {
             tx: conn.pool.begin().await?,
         };
-        match process_stele(&mut tx, &name, &mut stele, archive_path).await {
+        match process_stele(&mut tx, &name, &mut stele, archive_path, force).await {
             Ok(()) => {
                 tracing::debug!("Applying transaction for stele: {name}");
                 tx.commit().await?;
@@ -139,12 +148,17 @@ async fn insert_changes_archive(
     Ok(())
 }
 
+#[expect(
+    clippy::cognitive_complexity,
+    reason = "Splitting would reduce readability"
+)]
 /// Process the stele and insert changes into the database
 async fn process_stele(
     tx: &mut DatabaseTransaction,
     name: &str,
     stele: &mut Stele,
     archive_path: &Path,
+    force: bool,
 ) -> anyhow::Result<()> {
     let Some(repositories) = stele.get_repositories()? else {
         tracing::warn!("No repositories found for stele: {name}");
@@ -170,14 +184,35 @@ async fn process_stele(
         );
         return Ok(());
     }
-    insert_changes_from_rdf_repository(tx, rdf, name).await?;
-    // Insert commit hashes for data repositories with serve type 'historical'
-    let data_repos = repositories.get_all_by_serve_type("historical");
-    for data_repo in data_repos {
-        // For now insert commit hashes only for repositories with repository type 'html'
-        if data_repo.custom.repository_type.as_deref() != Some("html") {
-            continue;
+    // Find the current (non-archived) HTML repo name to stamp on each publication record.
+    let current_html_repo_name = repositories
+        .get_all_by_custom_type("html")
+        .into_iter()
+        .find(|repo| !repo.is_archived())
+        .map(|repo| repo.name.clone());
+    // Collect historical HTML data repos once — used for both consistency checks and
+    // commit-hash insertion below.
+    let data_repos: Vec<&Repository> = repositories
+        .get_all_by_serve_type("historical")
+        .into_iter()
+        .filter(|repo| repo.custom.repository_type.as_deref() == Some("html"))
+        .collect();
+    // Check database consistency and rebuild if needed.
+    let needs_rebuild = if force {
+        tracing::info!("[{name}] | --force flag set, rebuilding database from scratch");
+        true
+    } else {
+        is_stele_inconsistent(tx, name, stele, &rdf, &data_repos).await?
+    };
+    if needs_rebuild {
+        if !force {
+            tracing::warn!("[{name}] | Rebuilding database from scratch due to inconsistency");
         }
+        stele::TxManager::delete(tx, name).await?;
+    }
+    insert_changes_from_rdf_repository(tx, rdf, name, current_html_repo_name.as_deref()).await?;
+    // Insert commit hashes for data repositories with serve type 'historical'
+    for data_repo in data_repos {
         insert_commit_hashes_from_auth_repository(tx, stele, data_repo).await?;
     }
     Ok(())
@@ -188,10 +223,11 @@ async fn insert_changes_from_rdf_repository(
     tx: &mut DatabaseTransaction,
     rdf_repo: Repo,
     stele_id: &str,
+    current_html_repo_name: Option<&str>,
 ) -> anyhow::Result<()> {
     tracing::debug!("Inserting changes from RDF repository: {}", stele_id);
     tracing::debug!("RDF repository path: {}", rdf_repo.path.display());
-    load_delta_for_stele(tx, &rdf_repo, stele_id).await?;
+    load_delta_for_stele(tx, &rdf_repo, stele_id, current_html_repo_name).await?;
     Ok(())
 }
 
@@ -200,14 +236,22 @@ async fn load_delta_for_stele(
     tx: &mut DatabaseTransaction,
     rdf_repo: &Repo,
     stele: &str,
+    current_html_repo_name: Option<&str>,
 ) -> anyhow::Result<()> {
     stele::TxManager::create(tx, stele).await?;
     if let Some(publication) = publication::TxManager::find_last_inserted(tx, stele).await? {
         tracing::info!("[{stele}] | Inserting RDF changes from last inserted publication");
-        load_delta_from_publications(tx, rdf_repo, stele, Some(publication)).await?;
+        load_delta_from_publications(
+            tx,
+            rdf_repo,
+            stele,
+            Some(publication),
+            current_html_repo_name,
+        )
+        .await?;
     } else {
         tracing::info!("[{stele}] | Inserting RDF changes from beginning...");
-        load_delta_from_publications(tx, rdf_repo, stele, None).await?;
+        load_delta_from_publications(tx, rdf_repo, stele, None, current_html_repo_name).await?;
     }
     Ok(())
 }
@@ -229,6 +273,7 @@ async fn load_delta_from_publications(
     rdf_repo: &Repo,
     stele: &str,
     last_inserted_publication: Option<Publication>,
+    current_html_repo_name: Option<&str>,
 ) -> anyhow::Result<()> {
     let head_commit = rdf_repo.repo.head()?.peel_to_commit()?;
     let tree = head_commit.tree()?;
@@ -273,6 +318,9 @@ async fn load_delta_from_publications(
         let pub_date =
             pub_graph.literal_from_triple_matching(None, Some(dcterms::available), None)?;
         let pub_date = NaiveDate::parse_from_str(pub_date.as_str(), "%Y-%m-%d")?;
+        let archived_html_repo: Option<String> = pub_graph
+            .literal_from_triple_matching(None, Some(oll::archivedHtml), None)
+            .ok();
         // continue from last inserted publication, since that publication can contain
         // new changes (versions) that are not in db
         if let Some(last_inserted_publication_date) = last_inserted_pub_date {
@@ -319,6 +367,14 @@ async fn load_delta_from_publications(
         } else {
             None
         };
+        // Determine which HTML data repo this publication belongs to.
+        // If the RDF carries oll:archivedHtml it's the boundary publication: use the
+        // archived repo name it declares.  Otherwise use the current HTML repo name.
+        let html_data_repo_name: Option<String> = if archived_html_repo.is_some() {
+            archived_html_repo.clone()
+        } else {
+            current_html_repo_name.map(ToOwned::to_owned)
+        };
         publication::TxManager::create(
             tx,
             &publication_hash,
@@ -327,8 +383,20 @@ async fn load_delta_from_publications(
             stele,
             last_inserted_pub_id,
             last_valid_codified_date,
+            html_data_repo_name,
         )
         .await?;
+        // If this is the boundary publication, backfill all earlier publications for
+        // this stele with the same archived HTML repo name.
+        if let Some(archived_repo) = archived_html_repo.as_deref() {
+            publication::TxManager::set_html_data_repo_name_for_prior_publications(
+                tx,
+                stele,
+                &pub_date,
+                archived_repo,
+            )
+            .await?;
+        }
         let Some(publication) =
             publication::TxManager::find_by_name_and_stele(tx, &pub_name, stele).await?
         else {
@@ -639,6 +707,90 @@ async fn revoke_same_date_publications(
     clippy::cognitive_complexity,
     reason = "Splitting would reduce readability"
 )]
+/// Check whether the database state for a stele is consistent with its git repositories.
+///
+/// Returns `true` if an inconsistency is detected, meaning the stele should be
+/// deleted from the database and fully rebuilt from scratch.
+///
+/// Two checks are performed:
+///
+/// Publication count: the number of entries in the RDF repository's
+/// `_publication/` directory at HEAD must be ≥ the number of non-revoked publications
+/// stored in the database.  A lower count indicates that the RDF repository was rolled
+/// back or force-pushed and publications were lost.
+///
+/// Authentication commit existence: for each historical HTML data
+/// repository, the most-recently-recorded `auth_commit_hash` in `data_repo_commits`
+/// must resolve to a real commit in the auth repository.  If it does not, the auth
+/// repository was force-pushed past that commit.
+async fn is_stele_inconsistent(
+    tx: &mut DatabaseTransaction,
+    stele_name: &str,
+    stele: &Stele,
+    rdf_repo: &Repo,
+    data_repos: &[&Repository],
+) -> anyhow::Result<bool> {
+    let db_pub_count = publication::TxManager::count_non_revoked(tx, stele_name).await?;
+    if db_pub_count == 0 {
+        // Fresh stele, nothing to be inconsistent with.
+        return Ok(false);
+    }
+
+    // Count publications in _publication/ at HEAD vs non-revoked in DB.
+    let head_commit = rdf_repo.repo.head()?.peel_to_commit()?;
+    let tree = head_commit.tree()?;
+    if let Ok(publications_dir_entry) = tree.get_path(&PathBuf::from("_publication")) {
+        let publications_subtree = rdf_repo.repo.find_tree(publications_dir_entry.id())?;
+        let rdf_pub_count = publications_subtree.len();
+        if rdf_pub_count < db_pub_count {
+            tracing::warn!(
+                "[{stele_name}] | Inconsistency detected: RDF repository has {rdf_pub_count} \
+                 publication(s) at HEAD but the database has {db_pub_count} non-revoked \
+                 publication(s). The RDF repository may have been force-pushed or rolled back."
+            );
+            return Ok(true);
+        }
+    }
+
+    // Most-recent auth_commit_hash for each data repo must exist in the auth repo.
+    for data_repo in data_repos {
+        let Some(last_auth_commit) = data_repo_commits::TxManager::find_last_auth_commit_for_stele(
+            tx,
+            stele_name,
+            &data_repo.name,
+        )
+        .await?
+        else {
+            continue;
+        };
+        let oid = match git2::Oid::from_str(&last_auth_commit) {
+            Ok(oid) => oid,
+            Err(err) => {
+                tracing::warn!(
+                    "[{stele_name}] | Could not parse stored auth commit hash \
+                     '{last_auth_commit}' as a git OID: {err:?}"
+                );
+                return Ok(true);
+            }
+        };
+        if stele.auth_repo.repo.find_commit(oid).is_err() {
+            tracing::warn!(
+                "[{stele_name}] | Inconsistency detected: auth commit '{last_auth_commit}' \
+                 for data repo '{}' is not present in the auth repository. \
+                 The auth repository may have been force-pushed.",
+                data_repo.name
+            );
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
+#[expect(
+    clippy::cognitive_complexity,
+    reason = "Splitting would reduce readability"
+)]
 /// Walks the authentication repository commits and processes commit hashes that are inserted into the database.
 ///
 /// # Errors
@@ -654,7 +806,12 @@ async fn insert_commit_hashes_from_auth_repository(
     let mut data_repo_commits_bulk: Vec<DataRepoCommits> = vec![];
 
     let loaded_auth_commits =
-        data_repo_commits::TxManager::find_all_auth_commits_for_stele(tx, &stele_name).await?;
+        data_repo_commits::TxManager::find_all_auth_commits_for_stele_and_data_repo(
+            tx,
+            &stele_name,
+            &data_repo.name,
+        )
+        .await?;
 
     if loaded_auth_commits.is_empty() {
         tracing::info!("[{stele_name}] | Inserting commit hashes from the beginning...");

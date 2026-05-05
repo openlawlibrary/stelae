@@ -8,6 +8,11 @@ pub mod manager;
 pub trait TxManager {
     /// Create a stele.
     async fn create(&mut self, stele: &str) -> anyhow::Result<Option<i64>>;
+    /// Delete a stele and all of its associated data via cascade.
+    ///
+    /// Requires `PRAGMA foreign_keys = ON` (set at connection time) for the
+    /// `ON DELETE CASCADE` constraints to take effect.
+    async fn delete(&mut self, stele: &str) -> anyhow::Result<()>;
 }
 
 #[derive(sqlx::FromRow, Deserialize, Serialize)]

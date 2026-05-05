@@ -19,6 +19,10 @@ pub trait Manager {
 #[async_trait]
 pub trait TxManager {
     /// Create a new publication.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Publication has many required fields; a dedicated builder struct can be added later."
+    )]
     async fn create(
         &mut self,
         hash_id: &str,
@@ -27,6 +31,7 @@ pub trait TxManager {
         stele: &str,
         last_valid_publication_id: Option<String>,
         last_valid_version: Option<String>,
+        html_data_repo_name: Option<String>,
     ) -> anyhow::Result<Option<i64>>;
     /// Update a publication by name and set revoked to true.
     async fn update_by_name_and_stele_set_revoked_true(
@@ -48,6 +53,15 @@ pub trait TxManager {
         name: &str,
         stele: &str,
     ) -> anyhow::Result<Publication>;
+    /// Set `html_data_repo_name` on all publications for the given stele whose date is
+    /// strictly earlier than `boundary_date`.  Used to backfill older publications when
+    /// the boundary (last-archived) publication is encountered.
+    async fn set_html_data_repo_name_for_prior_publications(
+        &mut self,
+        stele: &str,
+        boundary_date: &NaiveDate,
+        html_data_repo_name: &str,
+    ) -> anyhow::Result<()>;
     /// Find all by date and stele and sort by name in descending order.
     /// Used in revocation logic to find the latest publication.
     async fn find_all_by_date_and_stele_order_by_name_desc(
@@ -55,6 +69,8 @@ pub trait TxManager {
         date: String,
         stele: String,
     ) -> anyhow::Result<Vec<Publication>>;
+    /// Count the number of non-revoked publications for a given stele.
+    async fn count_non_revoked(&mut self, stele: &str) -> anyhow::Result<usize>;
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -82,6 +98,10 @@ pub struct Publication {
     /// represents the last publication version (codified date) from the previous publication
     /// that the current publication is derived from.
     pub last_valid_version: Option<String>,
+    /// Name of the HTML data repository used to build this publication.
+    /// Only set when the publication was built against an archived (non-current) HTML data repo.
+    /// If None, the publication uses the current/default HTML data repository.
+    pub html_data_repo_name: Option<String>,
 }
 
 impl FromRow<'_, AnyRow> for Publication {
@@ -94,6 +114,7 @@ impl FromRow<'_, AnyRow> for Publication {
             revoked: row.try_get("revoked")?,
             last_valid_publication_id: row.try_get("last_valid_publication_id").ok(),
             last_valid_version: row.try_get("last_valid_version").ok(),
+            html_data_repo_name: row.try_get("html_data_repo_name").ok(),
         })
     }
 }
@@ -110,6 +131,7 @@ impl Publication {
             revoked: 0,
             last_valid_publication_id: None,
             last_valid_version: None,
+            html_data_repo_name: None,
         }
     }
 }

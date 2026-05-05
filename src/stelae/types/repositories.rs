@@ -85,6 +85,18 @@ impl Repository {
     pub fn get_type(&self) -> Option<String> {
         self.custom.repository_type.clone()
     }
+
+    /// Returns true if this repository is marked as archived.
+    #[must_use]
+    pub fn is_archived(&self) -> bool {
+        self.custom.archived.unwrap_or(false)
+    }
+
+    /// Returns true if this repository has a preview URL configured.
+    #[must_use]
+    pub const fn has_preview(&self) -> bool {
+        self.custom.preview.is_some()
+    }
 }
 
 /// Custom object
@@ -114,6 +126,14 @@ pub struct Custom {
     ///
     /// When a data repository is a fallback, it is used to serve current blobs when no other data repository matches the request.
     pub is_fallback: Option<bool>,
+    /// Whether this data repository is archived (i.e. superseded by a newer repository of the same type).
+    ///
+    /// When `true`, this repository held publications built before a migration to a newer repository.
+    pub archived: Option<bool>,
+    /// Git URL of the preview repository associated with this data repository.
+    ///
+    /// When set, this repository has a corresponding preview repository used for non-production environments.
+    pub preview: Option<String>,
 }
 
 impl Repositories {
