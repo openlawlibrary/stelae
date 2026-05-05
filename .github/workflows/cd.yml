@@ -38,13 +38,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Install libxml2 (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          vcpkg install libxml2:x64-windows-static-md
-          Add-Content $env:GITHUB_ENV "PKG_CONFIG_PATH=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows-static-md\lib\pkgconfig"
-          Add-Content $env:GITHUB_ENV "VCPKGRS_DYNAMIC=0"
-        shell: pwsh
+      - name: Install libxml2
+        run: choco install libxml2
       - uses: taiki-e/upload-rust-binary-action@4398438f25ce68e99e82e90744c88604b9b218a3
         with:
           # (required) Comma-separated list of binary names (non-extension portion of filename) to build and upload.
