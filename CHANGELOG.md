@@ -12,6 +12,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 - Added support for ETags ([#98])
 - Add redirects for dynamic routes ([#97])
+- Added _date endpoint from portal into stele ([#100]) 
+- Added _publication endpoint for historical version ([#104])
 - Added _date endpoint from portal into stele ([#100])
 - Add `--force` flag and automatic inconsistency detection to `stelae update` ([#108])
 
@@ -21,6 +23,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
+[#104]: https://github.com/openlawlibrary/stelae/pull/104
 [#100]: https://github.com/openlawlibrary/stelae/pull/100
 [#98]: https://github.com/openlawlibrary/stelae/pull/98
 [#97] https://github.com/openlawlibrary/stelae/pull/97
