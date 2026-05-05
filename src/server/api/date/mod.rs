@@ -22,12 +22,12 @@
 /// GET /_date/2025-03-04/org/repo/path/to/document.html
 /// ```
 pub mod request;
+pub mod notifications;
 
 use super::doc_transform::{
     build_absolute_url, build_url_prefix, format_date_display, get_doc_version_dates,
     get_version_start_end_current, insert_notification, update_doc_urls, update_json_content,
 };
-use super::notifications;
 use super::state::App as AppState;
 use crate::server::api::versions::get_stele_from_request;
 use crate::utils;
