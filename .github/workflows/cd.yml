@@ -39,6 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Install libxml2
+        if: runner.os == 'Windows'
         run: choco install libxml2
       - uses: taiki-e/upload-rust-binary-action@4398438f25ce68e99e82e90744c88604b9b218a3
         with:
