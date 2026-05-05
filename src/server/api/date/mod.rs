@@ -1,4 +1,5 @@
 //! API endpoint for serving **historical (versioned)** git blobs.
+pub mod notifications;
 ///
 /// The `_date` endpoint provides access to file contents as they existed on a
 /// specific version date. It allows clients to retrieve historical document
@@ -22,7 +23,6 @@
 /// GET /_date/2025-03-04/org/repo/path/to/document.html
 /// ```
 pub mod request;
-pub mod notifications;
 
 use super::doc_transform::{
     build_absolute_url, build_url_prefix, format_date_display, get_doc_version_dates,
