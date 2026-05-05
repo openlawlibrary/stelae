@@ -10,12 +10,22 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
-- Added support for ETags ([#98])
-- Add redirects for dynamic routes ([#97])
-- Added _date endpoint from portal into stele ([#100]) 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [v0.7.0]
+
+### Added
+
+- Add `--force` flag and automatic inconsistency detection to `stelae update` ([#108])
 - Added _publication endpoint for historical version ([#104])
 - Added _date endpoint from portal into stele ([#100])
-- Add `--force` flag and automatic inconsistency detection to `stelae update` ([#108])
+- Added _date endpoint from portal into stele ([#100])
+- Added support for ETags ([#98])
+- Add redirects for dynamic routes ([#97])
 
 ### Changed
 
@@ -23,10 +33,11 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
+[#108]: https://github.com/openlawlibrary/stelae/pull/108
 [#104]: https://github.com/openlawlibrary/stelae/pull/104
 [#100]: https://github.com/openlawlibrary/stelae/pull/100
 [#98]: https://github.com/openlawlibrary/stelae/pull/98
-[#97] https://github.com/openlawlibrary/stelae/pull/97
+[#97]: https://github.com/openlawlibrary/stelae/pull/97
 
 ## [v0.6.6]
 
@@ -328,7 +339,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.6.6...HEAD
+[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.7.0...HEAD
+[v0.7.0]: https://github.com/openlawlibrary/stelae/compare/v0.6.6...v0.7.0
 [v0.6.6]: https://github.com/openlawlibrary/stelae/compare/v0.6.5...v0.6.6
 [v0.6.5]: https://github.com/openlawlibrary/stelae/compare/v0.6.4...v0.6.5
 [v0.6.4]: https://github.com/openlawlibrary/stelae/compare/v0.6.3...v0.6.4
