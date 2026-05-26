@@ -1,14 +1,34 @@
 //! Centralized state management for the Actix web server
 use std::{
+    collections::HashMap,
     fmt::{self, Debug},
     path::PathBuf,
 };
 
 use crate::{
     db,
+    server::api::utils::convert_vec_u8_to_hashmap,
     stelae::{archive::Archive, stele::Stele, types::repositories::Repository},
     utils::archive::get_name_parts,
 };
+
+use crate::utils::git::Repo;
+
+/// The filename for repository-level redirects.
+///
+/// This JSON file contains mappings of "old" paths to "new" paths
+/// within the repository. It is used by the server to handle
+/// HTTP redirects so that old URLs still resolve to their
+/// current locations.
+///
+/// Example `redirects.json` contents:
+/// ```json
+/// [
+///     ["/old-path", "/new-path"],
+///     ["/outdated", "/current"]
+/// ]
+/// ```
+pub const REDIRECTS_JSON: &str = "redirects.json";
 
 /// Global, read-only state
 pub trait Global: Debug {
@@ -65,6 +85,22 @@ impl RepoData {
             org: org.to_owned(),
             name: name.to_owned(),
             serve: serve.to_owned(),
+        }
+    }
+
+    /// Reads redirects list from redirects.json file
+    #[must_use]
+    pub fn get_redirects(&self) -> HashMap<String, String> {
+        let archive_path_pth = &self.archive_path;
+        match Repo::find_blob(
+            archive_path_pth,
+            &self.org,
+            &self.name,
+            REDIRECTS_JSON,
+            "HEAD",
+        ) {
+            Ok(blob) => convert_vec_u8_to_hashmap(&blob.content).unwrap_or_default(),
+            Err(_) => HashMap::new(),
         }
     }
 }
