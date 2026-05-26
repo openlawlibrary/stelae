@@ -15,7 +15,6 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 - Added _date endpoint from portal into stele ([#100]) 
 - Added _publication endpoint for historical version ([#104])
 - Added _date endpoint from portal into stele ([#100])
-- Add `--force` flag and automatic inconsistency detection to `stelae update` ([#108])
 
 ### Changed
 
@@ -27,6 +26,21 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 [#100]: https://github.com/openlawlibrary/stelae/pull/100
 [#98]: https://github.com/openlawlibrary/stelae/pull/98
 [#97] https://github.com/openlawlibrary/stelae/pull/97
+
+
+## [v0.6.7]
+
+### Added
+
+- Add --force flag and automatic inconsistency detection to stelae update ([#108])
+
+### Changed
+
+### Fixed
+
+### Removed
+
+[#108]: https://github.com/openlawlibrary/stelae/pull/108
 
 ## [v0.6.6]
 
@@ -328,7 +342,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.6.6...HEAD
+[Unreleased]: https://github.com/openlawlibrary/stelae/compare/v0.6.7...HEAD
+[v0.6.7]: https://github.com/openlawlibrary/stelae/compare/v0.6.6...v0.6.7
 [v0.6.6]: https://github.com/openlawlibrary/stelae/compare/v0.6.5...v0.6.6
 [v0.6.5]: https://github.com/openlawlibrary/stelae/compare/v0.6.4...v0.6.5
 [v0.6.4]: https://github.com/openlawlibrary/stelae/compare/v0.6.3...v0.6.4
