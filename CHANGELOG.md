@@ -10,11 +10,20 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [v0.6.8]
+
+### Added
+
 - Added support for ETags ([#98])
 - Add redirects for dynamic routes ([#97])
 - Added _date endpoint from portal into stele ([#100]) 
 - Added _publication endpoint for historical version ([#104])
-- Added _date endpoint from portal into stele ([#100])
 
 ### Changed
 
