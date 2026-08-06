@@ -13,26 +13,27 @@ pub fn compute(data: String) -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::inline_modules, reason = "tests")]
 mod tests {
     use super::*;
 
     #[test]
     fn test_compute() {
-        let data = "hello world".to_string();
+        let data = "hello world".to_owned();
         let result = compute(data);
         assert_eq!(result, "5eb63bbbe01eeed093cb22bb8f5acdc3");
     }
 
     #[test]
     fn test_compute_empty() {
-        let data = "".to_string();
+        let data = String::new();
         let result = compute(data);
         assert_eq!(result, "d41d8cd98f00b204e9800998ecf8427e");
     }
 
     #[test]
     fn test_compute_unicode() {
-        let data = "😋".to_string();
+        let data = "\u{1f60b}".to_owned();
         let result = compute(data);
         assert_eq!(result, "a0a836f06f8bd1b45d2f70db1e334b5d");
     }

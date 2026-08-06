@@ -1,10 +1,5 @@
 //! Stelae-specific errors
 
-#![expect(
-    clippy::pattern_type_mismatch,
-    reason = "derive_more doesn't respect these lints"
-)]
-
 use actix_web::{error, http::StatusCode, HttpResponse};
 use derive_more::{Display, Error};
 use std::io;

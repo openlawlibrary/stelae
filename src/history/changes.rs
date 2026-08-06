@@ -476,8 +476,8 @@ async fn insert_document_changes(
         let pub_version_hash = md5::compute(format!(
             "{}{}{}",
             publication.name.clone(),
-            &codified_date,
-            &publication.stele
+            codified_date,
+            publication.stele
         ));
         publication_version::TxManager::create(
             tx,
@@ -522,8 +522,8 @@ async fn insert_document_changes(
                 let document_change_hash = md5::compute(format!(
                     "{}{}{}",
                     pub_version_hash.clone(),
-                    &doc_mpath.clone(),
-                    &status.to_int().to_string()
+                    doc_mpath.clone(),
+                    status.to_int()
                 ));
                 document_changes_bulk.push(DocumentChange::new(
                     document_change_hash,
@@ -578,8 +578,8 @@ async fn insert_library_changes(
         let pub_version_hash = md5::compute(format!(
             "{}{}{}",
             publication.name.clone(),
-            &codified_date,
-            &publication.stele
+            codified_date,
+            publication.stele
         ));
         library_changes_bulk.push(LibraryChange::new(
             pub_version_hash.clone(),
@@ -606,8 +606,8 @@ async fn insert_library_changes(
             let document_change_hash = md5::compute(format!(
                 "{}{}{}",
                 pub_version_hash.clone(),
-                &doc_mpath.clone(),
-                &status.to_int().to_string()
+                doc_mpath.clone(),
+                status.to_int()
             ));
             changed_library_document_bulk.push(ChangedLibraryDocument::new(
                 document_change_hash,
@@ -942,6 +942,7 @@ fn is_commit_in_loaded_auth_commits(
 }
 
 #[cfg(test)]
+#[allow(clippy::inline_modules, reason = "tests")]
 mod tests {
     use super::*;
 
@@ -949,14 +950,14 @@ mod tests {
     fn test_valid_publication_date() {
         let input = "publication/12-03-2025";
         let result = date_from_publication_parts(input);
-        assert_eq!(result, Some("12-03-2025".to_string()));
+        assert_eq!(result, Some("12-03-2025".to_owned()));
     }
 
     #[test]
     fn test_missing_date_part() {
         let input = "publication/";
         let result = date_from_publication_parts(input);
-        assert_eq!(result, Some("".to_string())); // because nth(1) = Some("")
+        assert_eq!(result, Some(String::new())); // because nth(1) = Some("")
     }
 
     #[test]
@@ -970,13 +971,13 @@ mod tests {
     fn test_extra_path_components() {
         let input = "publication/12-03-2025/extra";
         let result = date_from_publication_parts(input);
-        assert_eq!(result, Some("12-03-2025".to_string()));
+        assert_eq!(result, Some("12-03-2025".to_owned()));
     }
 
     #[test]
     fn test_unrelated_string() {
         let input = "foo/bar";
         let result = date_from_publication_parts(input);
-        assert_eq!(result, Some("bar".to_string()));
+        assert_eq!(result, Some("bar".to_owned()));
     }
 }
