@@ -214,7 +214,7 @@ impl Repo {
     ///
     /// # Errors
     /// Will error if the revwalk could not be instantiated
-    pub fn iter_commits(&self) -> anyhow::Result<impl Iterator<Item = Commit>> {
+    pub fn iter_commits(&self) -> anyhow::Result<impl Iterator<Item = Commit<'_>>> {
         let mut revwalk = self.repo.revwalk()?;
         revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::REVERSE)?;
         revwalk.push_head()?;
