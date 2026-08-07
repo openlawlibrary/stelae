@@ -151,10 +151,7 @@ impl super::TxManager for DatabaseTransaction {
 
         commit.ok_or_else(|| {
             anyhow!(
-                "No commit found for publication_id={} and version_date={}",
-                publication_id,
-                version_date
-            )
+                "No commit found for publication_id={publication_id} and version_date={version_date}")
         })
     }
 }

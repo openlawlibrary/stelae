@@ -12,6 +12,7 @@
 )]
 /// The helper methods for working with RDF in Stelae.
 use anyhow::Context as _;
+// IMPORTANT: sophia has major updates, rework/refactor of this file is required @MarkoSekulic
 use sophia::api::graph::{GTripleSource, Graph as _};
 use sophia::api::ns::NsTerm;
 use sophia::api::MownStr;
@@ -67,7 +68,7 @@ impl StelaeGraph {
             | SimpleTerm::BlankNode(_)
             | SimpleTerm::Triple(_)
             | SimpleTerm::Variable(_) => {
-                anyhow::bail!("Expected literal language, got - {:?}", term)
+                anyhow::bail!("Expected literal language, got - {term:?}")
             }
         }
     }

@@ -8,7 +8,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, create_dir_all, read_to_string, write};
 use std::path::{Path, PathBuf};
-use toml_edit::ser;
+use toml::ser;
 
 /// The Archive struct is used for interacting with a Stelae Archive.
 #[derive(Debug, Clone)]

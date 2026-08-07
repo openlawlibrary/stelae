@@ -149,6 +149,10 @@
     clippy::unimplemented,
     reason = "We'll allow unimplemented! in code, but disallow todo!"
 )]
+#![allow(
+    clippy::cognitive_complexity,
+    reason = "Some functions are complex, this shouldn't be a reason for lint to fail"
+)]
 // =========================================================================
 //   clippy::pedantic group
 // =========================================================================

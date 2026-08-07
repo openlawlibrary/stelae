@@ -78,23 +78,19 @@ impl super::TxManager for DatabaseTransaction {
         &mut self,
         publication_ids: Vec<String>,
     ) -> anyhow::Result<Vec<PublicationVersion>> {
-        let parameters = publication_ids
-            .iter()
-            .map(|_| "?")
-            .collect::<Vec<&str>>()
-            .join(", ");
-        let statement = format!(
-            "
-            SELECT DISTINCT *
-            FROM publication_has_publication_versions phpv
-            JOIN publication_version pv ON pv.id = phpv.publication_version_id
-            WHERE phpv.publication_id IN ({parameters})
-        "
+        let mut builder = sqlx::QueryBuilder::new(
+            "SELECT DISTINCT *
+         FROM publication_has_publication_versions phpv
+         JOIN publication_version pv ON pv.id = phpv.publication_version_id
+         WHERE phpv.publication_id IN (",
         );
-        let mut query = sqlx::query_as::<_, PublicationVersion>(&statement);
-        for id in publication_ids {
-            query = query.bind(id);
+        let mut separated = builder.separated(", ");
+        for id in &publication_ids {
+            separated.push_bind(id);
         }
+        separated.push_unseparated(") ");
+
+        let query = builder.build_query_as::<PublicationVersion>();
         let rows = query.fetch_all(&mut *self.tx).await?;
         Ok(rows)
     }

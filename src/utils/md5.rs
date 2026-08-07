@@ -1,5 +1,6 @@
 //! Utility functions for `md5` hash computation.
 use md5::{Digest as _, Md5};
+use std::fmt::Write as _;
 
 /// Compute the `md5` hash of a string.
 ///
@@ -9,7 +10,10 @@ pub fn compute(data: String) -> String {
     let mut hasher = Md5::new();
     hasher.update(data);
     let result = hasher.finalize();
-    format!("{result:x}")
+    result.iter().fold(String::new(), |mut acc, byte| {
+        _ = write!(acc, "{byte:02x}");
+        acc
+    })
 }
 
 #[cfg(test)]
