@@ -12,6 +12,9 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Changed
 
+- rust 1.88->1.97.1 ([#115])
+- updated dependencies([#115])
+
 ### Fixed
 
 - Fixed non-deterministic commit selection on tied codified/build dates in find_commit_by_pub_id_and_version_date ([#116])
@@ -19,6 +22,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 ### Removed
 
 [#116]: https://github.com/openlawlibrary/stelae/pull/116
+[#115]: https://github.com/openlawlibrary/stelae/pull/115
 
 ## [v0.6.8]
 
