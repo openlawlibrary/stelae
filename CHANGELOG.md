@@ -14,7 +14,11 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Fixed
 
+- Fixed non-deterministic commit selection on tied codified/build dates in find_commit_by_pub_id_and_version_date ([#116])
+
 ### Removed
+
+[#116]: https://github.com/openlawlibrary/stelae/pull/116
 
 ## [v0.6.8]
 
