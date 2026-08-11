@@ -108,7 +108,7 @@ impl super::TxManager for DatabaseTransaction {
             FROM data_repo_commits
             WHERE publication_id = $1
             AND codified_date <= $2
-            ORDER BY codified_date DESC
+            ORDER BY codified_date DESC, auth_commit_timestamp DESC
             LIMIT 1
             "
         } else {
@@ -116,7 +116,7 @@ impl super::TxManager for DatabaseTransaction {
             SELECT *
             FROM data_repo_commits
             WHERE publication_id = $1
-            ORDER BY codified_date DESC
+            ORDER BY codified_date DESC, auth_commit_timestamp DESC
             LIMIT 1
             "
         };
@@ -139,7 +139,7 @@ impl super::TxManager for DatabaseTransaction {
                 SELECT *
                 FROM data_repo_commits
                 WHERE publication_id = $1
-                ORDER BY build_date DESC
+                ORDER BY build_date DESC, auth_commit_timestamp DESC
                 LIMIT 1
             ";
 
