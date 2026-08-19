@@ -14,6 +14,16 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Fixed
 
+### Removed
+
+## [v0.6.9]
+
+### Added
+
+### Changed
+
+### Fixed
+
 - Resolve archived HTML repo for historical publications in `_date` endpoint
 
 ### Removed
