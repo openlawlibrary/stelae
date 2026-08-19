@@ -92,11 +92,15 @@ pub async fn date(
             return HttpResponse::NotFound().body("");
         }
     };
-    let html_repo_name = match get_html_repo(&data, &auth_stele_name) {
-        Ok(html_repo) => html_repo,
-        Err(err) => {
-            tracing::error!(error = %err, "Couldn't find html repo for {auth_stele_name}");
-            return HttpResponse::NotFound().body("");
+    let html_repo_name = if let Some(archived_repo) = publication.html_data_repo_name.clone() {
+        archived_repo
+    } else {
+        match get_html_repo(&data, &auth_stele_name) {
+            Ok(html_repo) => html_repo,
+            Err(err) => {
+                tracing::error!(error = %err, "Couldn't find html repo for {auth_stele_name}");
+                return HttpResponse::NotFound().body("");
+            }
         }
     };
 
@@ -232,12 +236,12 @@ pub fn get_html_repo(data: &web::Data<AppState>, repo_name: &str) -> anyhow::Res
     };
 
     if let Some(repositories) = auth_repo.repositories.as_ref() {
-        if let Some((key, _)) = repositories
-            .repositories
-            .iter()
-            .find(|(_, repo)| repo.custom.repository_type == Some("html".to_owned()))
+        if let Some(repo) = repositories
+            .get_all_by_custom_type("html")
+            .into_iter()
+            .find(|repo| !repo.is_archived())
         {
-            return Ok(key.to_owned());
+            return Ok(repo.name.clone());
         }
     }
 
