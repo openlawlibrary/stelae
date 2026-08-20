@@ -1,4 +1,7 @@
-#![allow(clippy::inline_modules, reason = "")]
+#![allow(
+    clippy::inline_modules,
+    reason = "We expect to enumerate namespaces in this module"
+)]
 
 /// This module contains the RDF namespaces used by Stelae.
 use sophia::api::namespace;

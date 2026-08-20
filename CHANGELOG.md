@@ -12,8 +12,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Changed
 
-- rust 1.88->1.97.1 ([#115])
-- updated dependencies([#115])
+-  Upgrade Rust to 1.97.1 ([#115])
+-  Update `Cargo.toml` dependencies ([#115])
 
 ### Fixed
 

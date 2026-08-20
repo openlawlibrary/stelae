@@ -96,10 +96,6 @@
     reason = "I think inline traits are acceptable in some cases"
 )]
 #![allow(
-    clippy::min_ident_chars,
-    reason = "I think |x| is understandible in some cases"
-)]
-#![allow(
     clippy::missing_inline_in_public_items,
     reason = "
     Although performance is of course important for this application, it is not currently

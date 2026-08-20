@@ -942,7 +942,7 @@ fn is_commit_in_loaded_auth_commits(
 }
 
 #[cfg(test)]
-#[allow(clippy::inline_modules, reason = "tests")]
+#[expect(clippy::inline_modules, reason = "tests")]
 mod tests {
     use super::*;
 

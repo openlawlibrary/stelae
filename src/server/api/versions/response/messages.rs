@@ -201,7 +201,7 @@ fn messages_between_template(
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::indexing_slicing,
     clippy::inline_modules,
     clippy::unwrap_used,

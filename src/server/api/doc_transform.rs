@@ -557,6 +557,7 @@ fn update_index_json(index: &mut Value, url_prefix: &str) {
 }
 
 #[cfg(test)]
+#[expect(clippy::inline_modules, reason = "tests")]
 mod tests {
     use super::*;
 

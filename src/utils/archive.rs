@@ -32,7 +32,7 @@ pub fn get_name_parts(qualified_name: &str) -> anyhow::Result<(String, String)> 
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::inline_modules, reason = "tests")]
+#[expect(clippy::unwrap_used, clippy::inline_modules, reason = "tests")]
 mod test {
     use crate::utils::archive::get_name_parts;
 

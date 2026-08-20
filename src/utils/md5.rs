@@ -17,7 +17,7 @@ pub fn compute(data: String) -> String {
 }
 
 #[cfg(test)]
-#[allow(clippy::inline_modules, reason = "tests")]
+#[expect(clippy::inline_modules, reason = "tests")]
 mod tests {
     use super::*;
 

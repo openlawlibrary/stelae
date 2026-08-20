@@ -25,7 +25,7 @@ pub fn get_contenttype(path: &str) -> ContentType {
 }
 
 #[cfg(test)]
-#[allow(clippy::inline_modules, reason = "tests")]
+#[expect(clippy::inline_modules, reason = "tests")]
 mod test {
     use crate::utils::http::get_contenttype;
 
