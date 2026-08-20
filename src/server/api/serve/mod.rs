@@ -79,12 +79,10 @@ fn find_current_blob(repo: &RepoState, shared: &SharedState, path: &str) -> anyh
                     path,
                     HEAD_COMMIT,
                 );
-                return fallback_blob.map_or_else(
-                    |err| anyhow::bail!("No fallback blob found - {}", err.to_string()),
-                    Ok,
-                );
+                return fallback_blob
+                    .map_or_else(|err| anyhow::bail!("No fallback blob found - {err}"), Ok);
             }
-            anyhow::bail!("No fallback repo - {}", error.to_string())
+            anyhow::bail!("No fallback repo - {error}")
         }
     }
 }

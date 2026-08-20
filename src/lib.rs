@@ -39,7 +39,10 @@
 
     // > new lints that are still under development"
     // (so "nursery" doesn't mean "Rust newbies")
-    clippy::nursery,
+    // These lints are experimental by nature, they may cause false positives, enforce unwanted rules or break code
+    // They can also resolve new bugs, and will eventualy cascade into all and pandepic categories
+    // Use at your own risk
+    // clippy::nursery,
 
     // > The clippy::cargo group gives you suggestions on how to improve your Cargo.toml file.
     // > This might be especially interesting if you want to publish your crate and are not sure
@@ -60,22 +63,37 @@
 // =========================================================================
 //   Individually blanket-allow single lints relevant to this whole crate
 // =========================================================================
+// =========================================================================
+//   clippy::restriction group
+// =========================================================================
+#![allow(
+    clippy::arbitrary_source_item_ordering,
+    reason = "We at present don't care mind the order of items in modules. In the future we may want to enforce some order, but for now this is okay"
+)]
+#![allow(
+    clippy::arithmetic_side_effects,
+    reason = "Our arithmetic is very simple for now, so no side effects are expected at the time of writing this"
+)]
+#![allow(
+    clippy::default_numeric_fallback,
+    reason = "I think 0 looks cleaner than 0_i32"
+)]
+#![allow(
+    clippy::doc_paragraphs_missing_punctuation,
+    reason = "I think comments without punctuation are acceptable in some cases"
+)]
+#![allow(
+    clippy::exhaustive_enums,
+    reason = "I think marking `#[non_exhaustive]` is more for structs/enums that are imported into other crates"
+)]
+#![allow(
+    clippy::exhaustive_structs,
+    reason = "I think marking `#[non_exhaustive]` is more for structs/enums that are imported into other crates"
+)]
 #![allow(clippy::implicit_return, reason = "This is idiomatic Rust")]
 #![allow(
-    clippy::multiple_crate_versions,
-    reason = "Multiple deps are currently pinning `hermit-abi` — December 2022"
-)]
-#![allow(
-    clippy::std_instead_of_alloc,
-    reason = "We're not interested in becoming no-std compatible"
-)]
-#![allow(
-    clippy::std_instead_of_core,
-    reason = "Import items from std instead of core"
-)]
-#![allow(
-    clippy::mod_module_files,
-    reason = "TODO: But I think the mod.rs is more conventional — @tombh"
+    clippy::inline_trait_bounds,
+    reason = "I think inline traits are acceptable in some cases"
 )]
 #![allow(
     clippy::missing_inline_in_public_items,
@@ -88,16 +106,24 @@
 "
 )]
 #![allow(
-    clippy::exhaustive_structs,
-    reason = "I think marking `#[non_exhaustive]` is more for structs/enums that are imported into other crates"
+    clippy::mod_module_files,
+    reason = "TODO: But I think the mod.rs is more conventional — @tombh"
 )]
 #![allow(
-    clippy::exhaustive_enums,
-    reason = "I think marking `#[non_exhaustive]` is more for structs/enums that are imported into other crates"
+    clippy::multiple_crate_versions,
+    reason = "Multiple deps are currently pinning `hermit-abi` — December 2022"
+)]
+#![allow(
+    clippy::pub_use,
+    reason = "We re-export some items from other modules, so this is okay"
 )]
 #![allow(
     clippy::question_mark_used,
     reason = "We rely on propagating errors with question mark extensively"
+)]
+#![allow(
+    clippy::redundant_test_prefix,
+    reason = "I think 'test_' should be used for better readability"
 )]
 #![allow(
     clippy::semicolon_outside_block,
@@ -108,12 +134,28 @@
     reason = "We tend to break up long functions into smaller ones, so this lint is not useful"
 )]
 #![allow(
-    clippy::arithmetic_side_effects,
-    reason = "Our arithmetic is very simple for now, so no side effects are expected at the time of writing this"
+    clippy::std_instead_of_alloc,
+    reason = "We're not interested in becoming no-std compatible"
+)]
+#![allow(
+    clippy::std_instead_of_core,
+    reason = "Import items from std instead of core"
 )]
 #![allow(
     clippy::unimplemented,
     reason = "We'll allow unimplemented! in code, but disallow todo!"
+)]
+#![allow(
+    clippy::cognitive_complexity,
+    reason = "Some functions are complex, this shouldn't be a reason for lint to fail"
+)]
+// =========================================================================
+//   clippy::pedantic group
+// =========================================================================
+#![allow(clippy::match_same_arms, reason = "It may remove/detect WIP arms")]
+#![allow(
+    clippy::non_std_lazy_statics,
+    reason = "Even though we'd ideally like to transition to a more modern approach, lazy_static is okay for now."
 )]
 #![allow(
     clippy::renamed_function_params,
@@ -123,16 +165,8 @@
 "
 )]
 #![allow(
-    clippy::non_std_lazy_statics,
-    reason = "Even though we'd ideally like to transition to a more modern approach, lazy_static is okay for now."
-)]
-#![allow(
-    clippy::pub_use,
-    reason = "We re-export some items from other modules, so this is okay"
-)]
-#![allow(
-    clippy::arbitrary_source_item_ordering,
-    reason = "We at present don't care mind the order of items in modules. In the future we may want to enforce some order, but for now this is okay"
+    clippy::wildcard_imports,
+    reason = "This should be removed by next release, will cause follow up warnings when fixing"
 )]
 
 pub mod db;

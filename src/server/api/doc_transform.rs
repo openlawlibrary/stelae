@@ -244,11 +244,11 @@ pub fn update_doc_urls(
     let parser = Parser::default();
     let doc: Document = parser.parse_string(html_doc_str)?;
     let ctx =
-        Context::new(&doc).map_err(|err| anyhow::anyhow!("Failed to create Context: {:?}", err))?;
+        Context::new(&doc).map_err(|err| anyhow::anyhow!("Failed to create Context: {err:?}"))?;
 
     let nodes = ctx
         .evaluate("//*")
-        .map_err(|err| anyhow::anyhow!("Failed to evaluate XPath '//*': {:?}", err))?
+        .map_err(|err| anyhow::anyhow!("Failed to evaluate XPath '//*': {err:?}"))?
         .get_nodes_as_vec();
 
     for mut node in nodes {
@@ -340,7 +340,7 @@ fn add_historical_meta_tag(
 ) -> anyhow::Result<(), anyhow::Error> {
     if let Some(mut head) = head_node {
         let mut meta = Node::new("meta", None, doc)
-            .map_err(|err| anyhow::anyhow!("Failed to creat 'meta' node: {:?}", err))?;
+            .map_err(|err| anyhow::anyhow!("Failed to creat 'meta' node: {err:?}"))?;
         meta.set_attribute("itemprop", "historical-prefix")
             .map_err(|err| anyhow::anyhow!("Failed to update attribute 'itemprop': {err}"))?;
         meta.set_attribute("content", versioned_url)
@@ -357,7 +357,7 @@ fn add_historical_meta_tag(
         if let Some(ref_node) = element_children.get_mut(13) {
             // Used for formating indentations
             let mut newline = Node::new_text("\n    ", doc)
-                .map_err(|err| anyhow::anyhow!("Failed to create text node: {:?}", err))?;
+                .map_err(|err| anyhow::anyhow!("Failed to create text node: {err:?}"))?;
             ref_node
                 .add_prev_sibling(&mut meta)
                 .map_err(|err| anyhow::anyhow!("Failed to add_prev_sibling 'meta': {err}"))?;
@@ -367,9 +367,9 @@ fn add_historical_meta_tag(
         } else {
             // Used for formating indentations
             let mut newline = Node::new_text("\n  ", doc)
-                .map_err(|err| anyhow::anyhow!("Failed to create text node: {:?}", err))?;
+                .map_err(|err| anyhow::anyhow!("Failed to create text node: {err:?}"))?;
             let mut newspaces = Node::new_text("  ", doc)
-                .map_err(|err| anyhow::anyhow!("Failed to create text node: {:?}", err))?;
+                .map_err(|err| anyhow::anyhow!("Failed to create text node: {err:?}"))?;
             head.add_child(&mut newspaces)
                 .map_err(|err| anyhow::anyhow!("Failed to aooend 'text' node to 'head': {err}"))?;
             head.add_child(&mut meta)
@@ -557,6 +557,7 @@ fn update_index_json(index: &mut Value, url_prefix: &str) {
 }
 
 #[cfg(test)]
+#[expect(clippy::inline_modules, reason = "tests")]
 mod tests {
     use super::*;
 

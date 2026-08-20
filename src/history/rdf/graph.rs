@@ -67,7 +67,7 @@ impl StelaeGraph {
             | SimpleTerm::BlankNode(_)
             | SimpleTerm::Triple(_)
             | SimpleTerm::Variable(_) => {
-                anyhow::bail!("Expected literal language, got - {:?}", term)
+                anyhow::bail!("Expected literal language, got - {term:?}")
             }
         }
     }
@@ -191,7 +191,7 @@ impl Bag<'_> {
     ///
     /// # Errors
     /// Errors if the items are not found.
-    pub fn items(&self) -> anyhow::Result<Vec<SimpleTerm>> {
+    pub fn items(&self) -> anyhow::Result<Vec<SimpleTerm<'_>>> {
         let container = &self.uri;
         let mut i: u32 = 1;
         let mut items = vec![];

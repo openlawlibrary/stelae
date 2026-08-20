@@ -226,8 +226,7 @@ pub fn get_html_repo(data: &web::Data<AppState>, repo_name: &str) -> anyhow::Res
     let stelae = data.archive.get_stelae();
     let Some((_, auth_repo)) = stelae.iter().find(|(s_name, _)| s_name == repo_name) else {
         return Err(anyhow::anyhow!(
-            "Repository '{}' not found in stelae",
-            repo_name
+            "Repository '{repo_name}' not found in stelae"
         ));
     };
 
@@ -242,8 +241,7 @@ pub fn get_html_repo(data: &web::Data<AppState>, repo_name: &str) -> anyhow::Res
     }
 
     Err(anyhow::anyhow!(
-        "No html repository in '{}' stelae",
-        repo_name
+        "No html repository in '{repo_name}' stelae",
     ))
 }
 

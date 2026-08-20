@@ -250,6 +250,7 @@ async fn get_law_html_request_with_old_if_no_match_header_expect_new_tag() {
     assert_eq!(etag.expect("error"), file_hash);
 }
 
+#[actix_web::test]
 async fn test_redirect_law_html_request_with_correct_redirects_json_expect_success() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();

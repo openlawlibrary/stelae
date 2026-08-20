@@ -11,6 +11,7 @@ mod archive_basic_test;
 mod archive_multihost_test;
 
 /// Helper method which test all `file_paths`` in `org_name`/`repo_name` repository on `branch_name`` branch with `expected` result
+#[expect(clippy::too_many_arguments)]
 async fn test_archive_paths(
     org_name: &str,
     repo_name: &str,

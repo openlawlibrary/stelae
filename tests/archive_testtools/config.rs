@@ -58,12 +58,10 @@ impl TestDataRepositoryContext {
         route_glob_patterns: Option<Vec<String>>,
         is_fallback: bool,
     ) -> Result<Self> {
-        if serve_prefix.is_none() {
-            if route_glob_patterns.is_none() {
-                return Err(anyhow::anyhow!(
-                    "A test data repository must have either a serve prefix or route glob patterns."
-                ));
-            }
+        if serve_prefix.is_none() && route_glob_patterns.is_none() {
+            return Err(anyhow::anyhow!(
+                "A test data repository must have either a serve prefix or route glob patterns."
+            ));
         }
         Ok(Self {
             name,
@@ -317,6 +315,7 @@ pub fn get_dependent_data_repositories_with_scopes(
 }
 
 impl From<&TestDataRepositoryContext> for Repository {
+    #[allow(clippy::field_reassign_with_default)]
     fn from(context: &TestDataRepositoryContext) -> Self {
         let mut custom = Custom::default();
         custom.repository_type = Some(match context.kind {

@@ -400,9 +400,7 @@ async fn test_archive_api_with_same_file_on_different_branches_expect_different_
     let _ = git_repo.commit(None, "Adding data for test branch");
 
     let req = test::TestRequest::get()
-        .uri(&format!(
-            "/_archive/test_org/law-html?commitish=default_branch&path=/test.txt"
-        ))
+        .uri("/_archive/test_org/law-html?commitish=default_branch&path=/test.txt")
         .to_request();
     let actual = test::call_and_read_body(&app, req).await;
     let expected = "Content for default branch";
@@ -412,9 +410,7 @@ async fn test_archive_api_with_same_file_on_different_branches_expect_different_
     );
 
     let req = test::TestRequest::get()
-        .uri(&format!(
-            "/_archive/test_org/law-html?commitish=test_branch&path=test.txt"
-        ))
+        .uri("/_archive/test_org/law-html?commitish=test_branch&path=test.txt")
         .to_request();
     let actual = test::call_and_read_body(&app, req).await;
     let expected = "Content for test branch";

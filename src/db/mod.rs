@@ -77,7 +77,7 @@ impl Db for DatabaseConnection {
         let db_kind = if db_url.starts_with("sqlite:///") {
             DatabaseKind::Sqlite
         } else {
-            anyhow::bail!("Unsupported database URL: {}", db_url);
+            anyhow::bail!("Unsupported database URL: {db_url}");
         };
         let pool = AnyPoolOptions::new()
             .max_connections(2 * num_cpus)
