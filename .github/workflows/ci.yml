@@ -46,3 +46,16 @@ jobs:
 
       - name: Run just lint
         run: just lint
+  package:
+    name: Verify Package (PR only)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        
+      - name: Check packaging readiness
+        run: cargo package
