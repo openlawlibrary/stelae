@@ -23,8 +23,12 @@ clippy *FLAGS:
     -D warnings \
 
 # Continuous integration - test, lint, benchmark
-ci: lint test bench
+ci: lint test bench package
 
 # Run all benchmarks
 bench:
   cargo bench
+
+# Tests what will be included into the crate when publishing
+package:
+  cargo package --list
