@@ -68,7 +68,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: dtolnay/rust-toolchain@stable
-        # Last safety net before actualy publishing
+        # Last safety net before actually publishing
       - name: Dry-run
         run: cargo publish --dry-run
         env:
