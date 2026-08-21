@@ -31,7 +31,7 @@ pub fn get_default_static_filename(file_extension: &str) -> &str {
 }
 
 pub fn copy_file(from: &Path, to: &Path) -> Result<()> {
-    std::fs::create_dir_all(&to.parent().unwrap()).unwrap();
+    std::fs::create_dir_all(to.parent().unwrap()).unwrap();
     std::fs::copy(from, to).unwrap();
     Ok(())
 }
@@ -82,7 +82,7 @@ impl GitRepository {
     }
 
     pub fn add_file(&self, path: &Path, file_name: &str, content: &str) -> Result<()> {
-        std::fs::create_dir_all(&path)?;
+        std::fs::create_dir_all(path)?;
         let path = path.join(file_name);
         std::fs::write(path, content)?;
         Ok(())
@@ -120,9 +120,9 @@ impl GitRepository {
     }
 }
 
-impl Into<git2::Repository> for GitRepository {
-    fn into(self) -> git2::Repository {
-        self.repo
+impl From<GitRepository> for git2::Repository {
+    fn from(val: GitRepository) -> Self {
+        val.repo
     }
 }
 
@@ -468,7 +468,7 @@ pub fn init_auth_repository(
                     .entry(repository.name.clone())
                     .or_insert(repository);
                 repositories.scopes =
-                    scopes.map(|vec| vec.into_iter().map(|scope| scope.into()).collect());
+                    scopes.map(|vec| vec.iter().map(|scope| scope.into()).collect());
                 repositories
             });
     let content = serde_json::to_string_pretty(&repositories).unwrap();
@@ -541,7 +541,7 @@ pub fn write_to_file(repo_path: &Path, file_content: String, file_path: String) 
 
 pub fn add_redirects_json_file(html_repo_path: &Path, file_content: String) -> Result<()> {
     let repo = GitRepository::open(html_repo_path).unwrap();
-    repo.add_file(&html_repo_path, "redirects.json", &file_content)
+    repo.add_file(html_repo_path, "redirects.json", &file_content)
         .unwrap();
     repo.commit(None, "Add redirects file").unwrap();
     Ok(())
@@ -570,7 +570,7 @@ fn get_static_file_path(filename: &str) -> PathBuf {
         .map_or("html", |ext| ext.to_str().map_or("", |ext_str| ext_str));
     let filename = get_default_static_filename(ext);
 
-    PathBuf::from(path).join(filename)
+    path.join(filename)
 }
 
 pub fn add_dependencies(

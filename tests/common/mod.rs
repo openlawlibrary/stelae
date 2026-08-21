@@ -58,9 +58,7 @@ pub async fn initialize_app(
 pub fn initialize_archive(archive_type: ArchiveType) -> Result<tempfile::TempDir> {
     match initialize_archive_without_bare(archive_type) {
         Ok(td) => {
-            if let Err(err) = utils::make_all_git_repos_bare_recursive(&td) {
-                return Err(err);
-            }
+            utils::make_all_git_repos_bare_recursive(&td)?;
             Ok(td)
         }
         Err(err) => Err(err),
@@ -81,9 +79,8 @@ pub fn initialize_archive_without_bare(archive_type: ArchiveType) -> Result<temp
         let error_output_directory = path.clone().join(PathBuf::from("error_output_directory"));
         std::fs::remove_dir_all(&error_output_directory).unwrap();
         std::fs::rename(td.path(), &error_output_directory).expect("Failed to move temp directory");
-        eprintln!(
-                "{}", format!("Failed to remove '{error_output_directory:?}', please try to remove directory by hand. Original error: {err}")
-            );
+
+        eprintln!("Failed to remove '{error_output_directory:?}', please try to remove directory by hand. Original error: {err}");
         return Err(err);
     }
     Ok(td)

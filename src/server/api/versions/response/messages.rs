@@ -201,6 +201,12 @@ fn messages_between_template(
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::indexing_slicing,
+    clippy::inline_modules,
+    clippy::unwrap_used,
+    reason = "tests"
+)]
 mod tests {
     use serde_json::json;
 
@@ -251,25 +257,22 @@ mod tests {
     }
 
     fn current_publication_name() -> String {
-        "2023-12-30".to_string()
+        "2023-12-30".to_owned()
     }
 
     #[test]
     fn test_historical_when_current_publication_expect_no_historical_messages() {
-        let active_publication_name = "2023-12-30".to_string();
+        let active_publication_name = "2023-12-30".to_owned();
         let current_publication_name = current_publication_name();
         let publication_to_versions = publication_to_versions();
-        let versions = &publication_to_versions
-            .get(&Reverse(active_publication_name.clone()))
-            .unwrap()
-            .versions;
+        let versions = &publication_to_versions[&Reverse(active_publication_name.clone())].versions;
         let version_date: Option<String> = None;
         let compare_to_date: Option<String> = None;
 
         let cut = historical;
 
         let actual = cut(
-            &versions,
+            versions,
             &current_publication_name,
             &active_publication_name,
             &version_date,
@@ -289,24 +292,22 @@ mod tests {
     fn test_historical_when_outdated_publication_expect_publication_message_with_last_update() {
         let test_cases = vec![
             None,
-            Some("2023-10-22".to_string()),
-            Some("2024-06-06".to_string()),
+            Some("2023-10-22".to_owned()),
+            Some("2024-06-06".to_owned()),
         ];
 
         for version_date in test_cases {
-            let active_publication_name = "2023-10-22".to_string();
+            let active_publication_name = "2023-10-22".to_owned();
             let current_publication_name = current_publication_name();
             let publication_to_versions = publication_to_versions();
-            let versions = &publication_to_versions
-                .get(&Reverse(active_publication_name.clone()))
-                .unwrap()
-                .versions;
+            let versions =
+                &publication_to_versions[&Reverse(active_publication_name.clone())].versions;
             let compare_to_date: Option<String> = None;
 
             let cut = historical;
 
             let actual = cut(
-                &versions,
+                versions,
                 &current_publication_name,
                 &active_publication_name,
                 &version_date,
@@ -333,22 +334,20 @@ mod tests {
         ];
 
         for (version_date, start_date, end_date) in test_cases {
-            let active_publication_name = "2023-10-22".to_string();
+            let active_publication_name = "2023-10-22".to_owned();
             let current_publication_name = current_publication_name();
             let publication_to_versions = publication_to_versions();
-            let versions = &publication_to_versions
-                .get(&Reverse(active_publication_name.clone()))
-                .unwrap()
-                .versions;
+            let versions =
+                &publication_to_versions[&Reverse(active_publication_name.clone())].versions;
             let compare_to_date: Option<String> = None;
 
             let cut = historical;
 
             let actual = cut(
-                &versions,
+                versions,
                 &current_publication_name,
                 &active_publication_name,
-                &Some(version_date.to_string()),
+                &Some(version_date.to_owned()),
                 &compare_to_date,
                 true,
             );
@@ -375,23 +374,21 @@ mod tests {
         ];
 
         for (version_date, changes) in test_cases {
-            let active_publication_name = "2023-10-22".to_string();
+            let active_publication_name = "2023-10-22".to_owned();
             let current_publication_name = current_publication_name();
             let publication_to_versions = publication_to_versions();
-            let versions = &publication_to_versions
-                .get(&Reverse(active_publication_name.clone()))
-                .unwrap()
-                .versions;
-            let compare_to_date = Some("2023-10-22".to_string());
+            let versions =
+                &publication_to_versions[&Reverse(active_publication_name.clone())].versions;
+            let compare_to_date = Some("2023-10-22".to_owned());
             let start_date = version_date;
 
             let cut = historical;
 
             let actual = cut(
-                &versions,
+                versions,
                 &current_publication_name,
                 &active_publication_name,
-                &Some(version_date.to_string()),
+                &Some(version_date.to_owned()),
                 &compare_to_date,
                 true,
             );
@@ -436,22 +433,20 @@ mod tests {
         ];
 
         for (version_date, compare_to_date, changes) in test_cases {
-            let active_publication_name = "2023-12-30".to_string();
+            let active_publication_name = "2023-12-30".to_owned();
             let current_publication_name = current_publication_name();
             let publication_to_versions = publication_to_versions();
-            let versions = &publication_to_versions
-                .get(&Reverse(active_publication_name.clone()))
-                .unwrap()
-                .versions;
+            let versions =
+                &publication_to_versions[&Reverse(active_publication_name.clone())].versions;
 
             let cut = historical;
 
             let actual = cut(
-                &versions,
+                versions,
                 &current_publication_name,
                 &active_publication_name,
-                &Some(version_date.to_string()),
-                &Some(compare_to_date.to_string()),
+                &Some(version_date.to_owned()),
+                &Some(compare_to_date.to_owned()),
                 true,
             );
 

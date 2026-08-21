@@ -412,7 +412,7 @@ fn register_root_routes(cfg: &mut web::ServiceConfig, stele: &Stele) -> anyhow::
                 root_scope = root_scope.service(web::redirect(from, to));
             }
             for route in custom.routes.iter().flat_map(|routes| routes.iter()) {
-                let actix_route = format!("/{{tail:{}}}", &route);
+                let actix_route = format!("/{{tail:{route}}}");
                 root_scope = root_scope.service(
                     web::resource(actix_route.as_str())
                         .route(web::get().to(serve))
@@ -452,7 +452,7 @@ fn register_dependent_routes(
 ) -> anyhow::Result<()> {
     let sorted_repositories = repositories.get_sorted();
     for scope in repositories.scopes.iter().flat_map(|scopes| scopes.iter()) {
-        let scope_str = format!("/{{prefix:{}}}", &scope.as_str());
+        let scope_str = format!("/{{prefix:{}}}", scope.as_str());
         let mut actix_scope = web::scope(scope_str.as_str());
         for repository in &sorted_repositories {
             let custom = &repository.custom;
@@ -470,7 +470,7 @@ fn register_dependent_routes(
                     // These routes are handled by the root Stele.
                     continue;
                 }
-                let actix_route = format!("/{{tail:{}}}", &route);
+                let actix_route = format!("/{{tail:{route}}}");
                 actix_scope = actix_scope.service(
                     web::resource(actix_route.as_str())
                         .route(web::get().to(serve))
