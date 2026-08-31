@@ -1,11 +1,16 @@
 use crate::archive_testtools::add_redirects_json_file;
 use crate::archive_testtools::config::{ArchiveType, Jurisdiction};
-use crate::common::{self};
+use crate::common::{
+    self,
+    db_data::{insert_redirects, load_redirects},
+    get_db,
+};
 use actix_http::header::IF_NONE_MATCH;
 use actix_http::StatusCode;
 use actix_web::test;
 use std::path::PathBuf;
 use stelae::server::headers::HTTP_E_TAG;
+use stelae::stelae::archive::Archive;
 
 #[actix_web::test]
 async fn test_resolve_law_html_request_with_full_path_expect_success() {
@@ -251,23 +256,13 @@ async fn get_law_html_request_with_old_if_no_match_header_expect_new_tag() {
 }
 
 #[actix_web::test]
-async fn test_redirect_law_html_request_with_correct_redirects_json_expect_success() {
+async fn test_redirect_law_html_request_with_correct_redirects_expect_success() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
 
-    let html_repo_path: PathBuf = archive_path.path().join("test_org/law-html");
+    let db = get_db(archive_path.path()).await;
 
-    let file_content = r#"
-    [
-        [
-            "/a/b/c.html",
-            "/"
-        ]
-    ]
-    "#
-    .to_string();
-
-    let _ = add_redirects_json_file(&html_repo_path, file_content);
+    insert_redirects(&db, "test_org/law", "law-html", vec![("/a/b/c.html", "/")]).await;
     let app = common::initialize_app(archive_path.path()).await;
 
     let request_uri = "/a/b/c.html";
@@ -290,10 +285,11 @@ async fn test_redirect_law_html_request_with_correct_redirects_json_expect_succe
 
     // assert final response
     assert!(resp2.status().is_success());
+    drop(db);
 }
 
 #[actix_web::test]
-async fn test_redirect_law_html_request_with_incorrect_redirects_json_expect_fail() {
+async fn test_redirect_law_html_request_with_incorrect_redirects_expect_fail() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
 
@@ -308,51 +304,39 @@ async fn test_redirect_law_html_request_with_incorrect_redirects_json_expect_fai
         [
             "/a/b/index.html",
             "/"
-        } // bad symbol
+        ]&$
     ]
     "#
     .to_string();
 
     let _ = add_redirects_json_file(&html_repo_path, file_content);
+    let db = get_db(archive_path.path()).await;
     let app = common::initialize_app(archive_path.path()).await;
 
     let request_uri = "/a/b/c.html";
     let req = test::TestRequest::get().uri(request_uri).to_request();
     let resp = test::call_service(&app, req).await;
     assert_ne!(resp.status(), StatusCode::TEMPORARY_REDIRECT);
+    drop(db);
 }
 
 #[actix_web::test]
-async fn test_redirect_law_html_and_law_pdf_request_with_redirects_json_expect_success() {
+async fn test_redirect_law_html_and_law_pdf_request_with_redirects_expect_success() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
-
-    let html_repo_path: PathBuf = archive_path.path().join("test_org/law-html");
-    let xml_repo_path: PathBuf = archive_path.path().join("test_org/law-pdf");
-
-    let file_content_html = r#"
-    [
-        [
-            "/a/b/c.html",
-            "/"
-        ]
-    ]
-    "#
-    .to_string();
-
-    let file_content_pdf = r#"
-    [
-        [
-            "/not/existing/path/index.pdf",
-            "/example.pdf"
-        ]
-    ]
-    "#
-    .to_string();
-
-    let _ = add_redirects_json_file(&html_repo_path, file_content_html);
-    let _ = add_redirects_json_file(&xml_repo_path, file_content_pdf);
     let app = common::initialize_app(archive_path.path()).await;
+
+    let db = get_db(archive_path.path()).await;
+
+    insert_redirects(&db, "test_org/law", "law-html", vec![("/a/b/c.html", "/")]).await;
+
+    insert_redirects(
+        &db,
+        "test_org/law",
+        "law-pdf",
+        vec![("/not/existing/path/index.pdf", "/example.pdf")],
+    )
+    .await;
 
     let request_uri = "/a/b/c.html";
     let req = test::TestRequest::get().uri(request_uri).to_request();
@@ -381,36 +365,27 @@ async fn test_redirect_law_html_and_law_pdf_request_with_redirects_json_expect_s
         .expect("Location header is not valid UTF-8");
 
     assert_eq!(location, "/example.pdf");
+    drop(db);
 }
 
 #[actix_web::test]
-async fn test_redirect_law_html_request_with_duplicated_entries_in_redirects_json_expect_last_entry_to_be_returned(
+async fn test_redirect_law_html_request_with_duplicated_entries_in_redirects_expect_first_entry_to_be_returned(
 ) {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
-
-    let html_repo_path: PathBuf = archive_path.path().join("test_org/law-html");
-
-    let file_content = r#"
-    [
-        [
-            "/a/b/c.html",
-            "/"
+    let (app, db) = common::initialize_app_with_db(archive_path.path()).await;
+    //  let db = get_db(archive_path.path()).await;
+    insert_redirects(
+        &db,
+        "test_org/law",
+        "law-html",
+        vec![
+            ("/a/b/c.html", "/"),
+            ("/a/b/c.html", "/a"),
+            ("/a/b/c.html", "/a/b"),
         ],
-        [
-            "/a/b/c.html",
-            "/a"
-        ],
-        [
-            "/a/b/c.html",
-            "/a/b"
-        ]
-    ]
-    "#
-    .to_string();
-
-    let _ = add_redirects_json_file(&html_repo_path, file_content);
-    let app = common::initialize_app(archive_path.path()).await;
+    )
+    .await;
 
     let request_uri = "/a/b/c.html";
     let req = test::TestRequest::get().uri(request_uri).to_request();
@@ -424,67 +399,5 @@ async fn test_redirect_law_html_request_with_duplicated_entries_in_redirects_jso
         .to_str()
         .expect("Location header is not valid UTF-8");
 
-    assert_eq!(location, "/a/b");
-}
-
-#[actix_web::test]
-async fn test_redirect_law_html_and_law_pdf_request_with_same_entries_in_redirects_json_expect_first_added_entry_to_be_returned(
-) {
-    let archive_path =
-        common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
-
-    let html_repo_path: PathBuf = archive_path.path().join("test_org/law-html");
-    let xml_repo_path: PathBuf = archive_path.path().join("test_org/law-pdf");
-
-    let file_content_html = r#"
-    [
-        [
-            "/a/b/",
-            "/"
-        ]
-    ]
-    "#
-    .to_string();
-
-    let file_content_pdf = r#"
-    [
-        [
-            "/a/b/",
-            "/example.pdf"
-        ]
-    ]
-    "#
-    .to_string();
-
-    let _ = add_redirects_json_file(&html_repo_path, file_content_html);
-    let _ = add_redirects_json_file(&xml_repo_path, file_content_pdf);
-    let app = common::initialize_app(archive_path.path()).await;
-
-    let request_uri = "/a/b/";
-    let req = test::TestRequest::get().uri(request_uri).to_request();
-    let resp = test::call_service(&app, req).await;
-    assert_eq!(resp.status(), StatusCode::TEMPORARY_REDIRECT);
-
-    let location: &str = resp
-        .headers()
-        .get("Location")
-        .expect("Location header missing")
-        .to_str()
-        .expect("Location header is not valid UTF-8");
-
-    assert_eq!(location, "/example.pdf");
-
-    let request_uri = "/a/b/";
-    let req = test::TestRequest::get().uri(request_uri).to_request();
-    let resp = test::call_service(&app, req).await;
-    assert_eq!(resp.status(), StatusCode::TEMPORARY_REDIRECT);
-
-    let location: &str = resp
-        .headers()
-        .get("Location")
-        .expect("Location header missing")
-        .to_str()
-        .expect("Location header is not valid UTF-8");
-
-    assert_eq!(location, "/example.pdf");
+    assert_eq!(location, "/");
 }

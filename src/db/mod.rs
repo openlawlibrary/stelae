@@ -59,14 +59,15 @@ pub struct DatabaseTransaction {
     pub tx: Transaction<'static, sqlx::Any>,
 }
 
-#[async_trait]
-impl Db for DatabaseConnection {
-    /// Connects to a database.
+impl DatabaseConnection {
+    /// Connects to a database, applying the given `SQLite` journal mode.
     ///
     /// # Errors
     /// Errors if connection to database fails.
-    #[instrument(level = "trace")]
-    async fn connect(db_url: &str) -> anyhow::Result<Self> {
+    pub async fn connect_with_journal_mode(
+        db_url: &str,
+        journal_mode: &str,
+    ) -> anyhow::Result<Self> {
         any::install_default_drivers();
         let num_cpus = match available_parallelism() {
             Ok(cpus) => u32::try_from(cpus.get())?,
@@ -98,14 +99,29 @@ impl Db for DatabaseConnection {
             pool,
             kind: db_kind,
         };
-        // Set journal mode to WAL. This way we support concurrent reads/writes without
-        // locking the database. WAL mode is a database-level setting (persisted to the
-        // file header), so a single PRAGMA query is sufficient.
-        sqlx::query("PRAGMA journal_mode=WAL;")
-            .execute(&connection.pool)
-            .await?;
+        // Journal mode is a database-level setting (persisted to the file header), so a
+        // single PRAGMA query is sufficient.
+        // `journal_mode` is always a hardcoded, internally-controlled literal (never derived
+        // from user/request input), so it's safe to assert as SQL-safe here.
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "PRAGMA journal_mode={journal_mode};"
+        )))
+        .execute(&connection.pool)
+        .await?;
 
         Ok(connection)
+    }
+}
+
+#[async_trait]
+impl Db for DatabaseConnection {
+    /// Connects to a database.
+    ///
+    /// # Errors
+    /// Errors if connection to database fails.
+    #[instrument(level = "trace")]
+    async fn connect(db_url: &str) -> anyhow::Result<Self> {
+        Self::connect_with_journal_mode(db_url, "WAL").await
     }
 }
 

@@ -25,6 +25,7 @@ use crate::db::models::{stele, version};
 use crate::db::{DatabaseTransaction, Tx as _};
 use crate::history::rdf::graph::StelaeGraph;
 use crate::history::rdf::namespaces::{dcterms, oll};
+use crate::redirects::insert_redirects_for_stele;
 use crate::server::errors::CliError;
 use crate::stelae::stele::Stele;
 use crate::stelae::types::repositories::Repository;
@@ -164,6 +165,9 @@ async fn process_stele(
         tracing::warn!("No repositories found for stele: {name}");
         return Ok(());
     };
+
+    insert_redirects_for_stele(tx, stele).await?;
+
     let Some(rdf_repo) = repositories.get_one_by_custom_type("rdf") else {
         tracing::warn!("No RDF repository found for stele: {name}");
         return Ok(());
