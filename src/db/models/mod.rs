@@ -23,6 +23,8 @@ pub mod publication;
 pub mod publication_has_publication_versions;
 /// module for interacting with the `publication_version` table
 pub mod publication_version;
+/// module for interacting with the `redirects` table
+pub mod redirects;
 /// module for the document or library status utility.
 pub mod status;
 /// module for interacting with the `stele` table.

@@ -1,9 +1,13 @@
 //! API endpoint for serving current documents from Stele repositories.
+use std::sync::Arc;
+
 use actix_http::header::IF_NONE_MATCH;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 
 use crate::{
+    db::models::redirects,
     server::{
+        api::{state::Global, versions::get_stele_from_request},
         errors::HTTPError,
         headers::etag_matches_if_none_match,
         headers::{self, HTTP_E_TAG},
@@ -27,8 +31,28 @@ const HEAD_COMMIT: &str = "HEAD";
 pub async fn serve(
     req: HttpRequest,
     shared: web::Data<SharedState>,
+    app_data: web::Data<Arc<dyn Global>>,
     data: web::Data<RepoState>,
 ) -> impl Responder {
+    let auth_stele_name = match get_stele_from_request(&req, app_data.archive()) {
+        Ok(rn) => rn,
+        Err(err) => {
+            tracing::error!(error = %err, "Couldn't extract auth_repo_name from request header");
+            return HttpResponse::NotFound().body("");
+        }
+    };
+    let redirect = redirects::Manager::find_redirect_for_url(
+        app_data.db(),
+        auth_stele_name,
+        data.name.clone(),
+        req.path().to_owned(),
+    )
+    .await;
+    if let Ok(to_url) = redirect {
+        return HttpResponse::TemporaryRedirect()
+            .append_header(("Location", to_url))
+            .finish();
+    }
     let prefix = req
         .match_info()
         .get("prefix")
