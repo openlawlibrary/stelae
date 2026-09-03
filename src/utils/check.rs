@@ -173,32 +173,38 @@ pub fn check(raw_archive_path: &str, archive_path: PathBuf) -> Result<Report, Cl
     };
 
     let mut visited = vec![root.get_qualified_name()];
-    check_stele(&archive, root, &mut visited, &mut report);
+    let mut depth: Vec<String> = vec![];
+    check_stele(&archive, root, &mut visited, &mut depth, &mut report);
 
     Ok(report)
 }
 
 /// Recursively check a Stele and all of its dependencies, accumulating
 /// every problem found into `report` rather than stopping at the first one.
-fn check_stele(archive: &Archive, stele: &Stele, visited: &mut Vec<String>, report: &mut Report) {
+fn check_stele(archive: &Archive, stele: &Stele, visited: &mut Vec<String>,depth: &mut Vec<String>, report: &mut Report) {
     let qualified_name = stele.get_qualified_name();
     tracing::info!("Checking Stele '{qualified_name}'.");
+    if depth.contains(&qualified_name) {
+        report.error(depth.first().map_or("Stele", |string|string.as_str()), "targets/dependencies.json", format!("{qualified_name} repeated in a cycle:\n{} > {qualified_name}",depth.join(" > ")) );
+        return;
+    }
+    depth.push(qualified_name.clone());
+    let is_visited = visited.contains(&qualified_name);
 
-    check_repositories_json(stele, report);
-    check_info_json(stele, report);
-    // mirrors.json is not yet a stable/implemented format archive-wide, so
-    // we don't validate its contents yet. See check_mirrors_json below.
+    if !is_visited {
+        check_repositories_json(stele, report);
+        check_info_json(stele, report);
+        // mirrors.json is not yet a stable/implemented format archive-wide, so
+        // we don't validate its contents yet. See check_mirrors_json below.
+    }
 
-    let Some(dependencies) = check_dependencies_json(stele, report) else {
+    let Some(dependencies) = check_dependencies_json(stele, is_visited, report) else {
         return;
     };
 
     for qualified_dep_name in dependencies.sorted_dependencies_names() {
-        if visited.contains(&qualified_dep_name) {
-            continue;
-        }
-        visited.push(qualified_dep_name.clone());
-
+        
+        
         let Ok((org, name)) = get_name_parts(&qualified_dep_name) else {
             report.error(
                 &qualified_name,
@@ -238,9 +244,11 @@ fn check_stele(archive: &Archive, stele: &Stele, visited: &mut Vec<String>, repo
                 continue;
             }
         };
-
-        check_stele(archive, &child, visited, report);
+        
+        check_stele(archive, &child, visited, depth, report);
     }
+    visited.push(qualified_name);
+    depth.pop();
 }
 
 /// Check `targets/dependencies.json`: that it parses into `Dependencies`,
@@ -250,7 +258,7 @@ fn check_stele(archive: &Archive, stele: &Stele, visited: &mut Vec<String>, repo
 /// Returns `Some(dependencies)` so the caller can recurse, or `None` if the
 /// file is absent (not required -- a leaf Stele may have none) or
 /// unparseable (already recorded as an error).
-fn check_dependencies_json(stele: &Stele, report: &mut Report) -> Option<Dependencies> {
+fn check_dependencies_json(stele: &Stele, is_visited:bool, report: &mut Report) -> Option<Dependencies> {
     const FILE: &str = "targets/dependencies.json";
     let qualified_name = stele.get_qualified_name();
 
@@ -263,7 +271,9 @@ fn check_dependencies_json(stele: &Stele, report: &mut Report) -> Option<Depende
         }
     };
 
-    check_dependencies_consistency(&qualified_name, &dependencies, report);
+    if !is_visited {
+        check_dependencies_consistency(&qualified_name, &dependencies, report);
+    }
 
     Some(dependencies)
 }
@@ -332,7 +342,7 @@ fn check_repositories_json(stele: &Stele, report: &mut Report) {
     };
 
     if repositories.scopes.as_ref().is_none_or(Vec::is_empty) {
-        report.warning(&qualified_name, FILE, "no 'scopes' defined for this Stele");
+        report.warning(&qualified_name, FILE, "no 'scopes' defined");
     }
 
     check_repositories_consistency(&qualified_name, &repositories, report);
@@ -359,9 +369,9 @@ fn check_repositories_consistency(
     let mut fallbacks: Vec<&str> = Vec::new();
 
     for (name, repository) in &repositories.repositories {
-        let is_docs_repo = repository.get_name().ends_with("docs");
-        if repository.custom.repository_type.is_none() && !is_docs_repo {
-            report.error(
+        if repository.custom.repository_type.is_none() {
+            // IMPORTANT: change this to error when type is in every partner repository.json (law-docs)
+            report.warning(
                 qualified_name,
                 FILE,
                 format!("'{name}' is missing required field 'type'"),
@@ -379,7 +389,7 @@ fn check_repositories_consistency(
             .as_ref()
             .is_some_and(|routes| !routes.is_empty());
         if !has_prefix && !has_routes {
-            report.error(
+            report.warning(
                 qualified_name,
                 FILE,
                 format!("'{name}' must have either 'serve-prefix' or 'routes'"),
@@ -441,26 +451,20 @@ fn check_data_repository_exists(stele: &Stele, repository: &Repository, report: 
     let path = stele.archive_path.join(&org).join(&name);
 
     if fs::metadata(&path).is_err() {
-        report.error(
-            &qualified_name,
-            FILE,
-            format!(
-                "data repository '{org}/{name}' does not exist at '{}'",
-                path.display()
-            ),
-        );
+        if let Some(true) = repository.custom.archived {
+            report.warning( &qualified_name, FILE, format!("data repository '{org}/{name}' does not exist at '{}'", path.display()));
+        } else {
+            report.error( &qualified_name, FILE, format!("data repository '{org}/{name}' does not exist at '{}'", path.display()));
+        }
         return;
     }
-
+    
     if GitRepository::open(&path).is_err() {
-        report.error(
-            &qualified_name,
-            FILE,
-            format!(
-                "'{org}/{name}' at '{}' is not a valid git repository",
-                path.display()
-            ),
-        );
+        if let Some(true) = repository.custom.archived {
+            report.warning( &qualified_name, FILE, format!("'{org}/{name}' at '{}' is not a valid git repository",path.display() ));
+        } else {
+            report.error( &qualified_name, FILE, format!("'{org}/{name}' at '{}' is not a valid git repository",path.display() ));
+        }
     }
 }
 
@@ -499,6 +503,7 @@ fn check_target_file(stele: &Stele, repository: &Repository, report: &mut Report
     }
 
     // Optional fields – warnings only
+    // serve historical only
     if !is_docs_repo && metadata.build_date.is_none() {
         report.warning(
             &qualified_name,
@@ -516,16 +521,12 @@ fn check_target_file(stele: &Stele, repository: &Repository, report: &mut Report
 }
 
 /// Check `targets/protected/info.json`, if present.
-///
-/// This file's location isn't consistent across existing archives -- the
-/// openlawlibrary/law archive itself has been seen using
-/// `targets/<org>/protected/info.json` instead. Absence is therefore not
-/// treated as an error; only presence with bad content is.
 fn check_info_json(stele: &Stele, report: &mut Report) {
     const FILE: &str = "targets/protected/info.json";
     let qualified_name = stele.get_qualified_name();
 
     let Ok(blob) = stele.auth_repo.get_bytes_at_path("HEAD", FILE) else {
+        report.error(&qualified_name, FILE, "required file is missing");
         return;
     };
 

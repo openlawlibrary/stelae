@@ -666,10 +666,6 @@ fn test_check_when_target_file_missing_required_fields_expect_error() {
         .any(|error| error.message.contains("missing 'commit'")));
 }
 
-// ---------------------------------------------------------------------
-// Warnings
-// ---------------------------------------------------------------------
-
 #[test]
 fn test_check_when_scopes_missing_expect_warning() {
     // Plain basic fixture: scopes are never set, and no target files are

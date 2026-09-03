@@ -72,7 +72,7 @@ pub enum StelaeSubcommands {
         /// Force a full rebuild of each stele's database records, skipping consistency checks.
         force: bool,
     },
-    /// checks the validity of the structure
+    /// Checks the validity of an archive and root stele.
     Check,
 }
 
