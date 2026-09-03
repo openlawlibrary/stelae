@@ -561,6 +561,22 @@ pub fn add_target_file(
     Ok(())
 }
 
+/// Write a valid `targets/protected/info.json` for the given auth repo, and commit it.
+pub fn add_info_json(auth_repo_path: &Path, namespace: &str, name: &str) -> Result<()> {
+    let repo = GitRepository::open(auth_repo_path).unwrap();
+    let path = auth_repo_path.join("targets/protected");
+    let content = serde_json::to_string_pretty(&serde_json::json!({
+        "namespace": namespace,
+        "name": name,
+    }))
+    .unwrap();
+
+    repo.add_file(&path, "info.json", &content).unwrap();
+    repo.commit(Some("targets/protected/info.json"), "Add info.json")
+        .unwrap();
+    Ok(())
+}
+
 pub fn add_redirects_json_file(html_repo_path: &Path, file_content: String) -> Result<()> {
     let repo = GitRepository::open(html_repo_path).unwrap();
     repo.add_file(html_repo_path, "redirects.json", &file_content)

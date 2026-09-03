@@ -12,11 +12,13 @@
 
 use std::collections::HashMap;
 use std::fmt;
+use std::fmt::Formatter;
 use std::fs;
 use std::path::PathBuf;
 
 use git2::Repository as GitRepository;
-use serde::Deserialize;
+use serde::de::{MapAccess, Visitor};
+use serde::{Deserialize, Deserializer};
 
 use crate::server::errors::CliError;
 use crate::stelae::archive::Archive;
@@ -112,11 +114,10 @@ struct Info {
     name: String,
 }
 
-/// Run `check` as the CLI entrypoint: logs a report mirroring `nginx -t`,
+/// Run `check` as the CLI entrypoint: logs a report,
 /// and maps the result to a CLI exit code.
 ///
 /// # Errors
-/// Returns `CliError::ArchiveParseError` if the archive can't be parsed.
 /// Returns `CliError::CheckFailed` if the archive parses but fails validation.
 pub fn run(raw_archive_path: &str, archive_path: PathBuf) -> Result<(), CliError> {
     let report = check(raw_archive_path, archive_path)?;
@@ -149,7 +150,7 @@ pub fn run(raw_archive_path: &str, archive_path: PathBuf) -> Result<(), CliError
 /// mirroring the traversal `Archive::parse`/`traverse_children` use for
 /// `serve`/`update`. Unlike that traversal, `check` never skips a problem
 /// silently: every issue found across every Stele is collected and returned
-/// together, similar to `nginx -t`.
+/// together
 ///
 /// # Errors
 /// Returns `CliError::ArchiveParseError` if the archive itself can't be
@@ -172,33 +173,52 @@ pub fn check(raw_archive_path: &str, archive_path: PathBuf) -> Result<Report, Cl
         return Ok(report);
     };
 
-    let mut visited = vec![root.get_qualified_name()];
-    check_stele(&archive, root, &mut visited, &mut report);
+    let mut visited: Vec<String> = vec![];
+    let mut depth: Vec<String> = vec![];
+    check_stele(&archive, root, &mut visited, &mut depth, &mut report);
 
     Ok(report)
 }
 
 /// Recursively check a Stele and all of its dependencies, accumulating
 /// every problem found into `report` rather than stopping at the first one.
-fn check_stele(archive: &Archive, stele: &Stele, visited: &mut Vec<String>, report: &mut Report) {
+fn check_stele(
+    archive: &Archive,
+    stele: &Stele,
+    visited: &mut Vec<String>,
+    depth: &mut Vec<String>,
+    report: &mut Report,
+) {
     let qualified_name = stele.get_qualified_name();
     tracing::info!("Checking Stele '{qualified_name}'.");
+    if depth.contains(&qualified_name) {
+        report.error(
+            depth.first().map_or("Stele", |string| string.as_str()),
+            "targets/dependencies.json",
+            format!(
+                "{qualified_name} repeated in a cycle:\n{} > {qualified_name}",
+                depth.join(" > ")
+            ),
+        );
+        return;
+    }
+    depth.push(qualified_name.clone());
+    let is_visited = visited.contains(&qualified_name);
 
-    check_repositories_json(stele, report);
-    check_info_json(stele, report);
-    // mirrors.json is not yet a stable/implemented format archive-wide, so
-    // we don't validate its contents yet. See check_mirrors_json below.
+    if !is_visited {
+        check_repositories_json(stele, report);
+        check_info_json(stele, report);
+        // mirrors.json is not yet a stable/implemented format archive-wide, so
+        // we don't validate its contents yet. See check_mirrors_json below.
+    }
 
-    let Some(dependencies) = check_dependencies_json(stele, report) else {
+    let Some(dependencies) = check_dependencies_json(stele, is_visited, report) else {
+        visited.push(qualified_name);
+        depth.pop();
         return;
     };
 
     for qualified_dep_name in dependencies.sorted_dependencies_names() {
-        if visited.contains(&qualified_dep_name) {
-            continue;
-        }
-        visited.push(qualified_dep_name.clone());
-
         let Ok((org, name)) = get_name_parts(&qualified_dep_name) else {
             report.error(
                 &qualified_name,
@@ -239,8 +259,10 @@ fn check_stele(archive: &Archive, stele: &Stele, visited: &mut Vec<String>, repo
             }
         };
 
-        check_stele(archive, &child, visited, report);
+        check_stele(archive, &child, visited, depth, report);
     }
+    visited.push(qualified_name);
+    depth.pop();
 }
 
 /// Check `targets/dependencies.json`: that it parses into `Dependencies`,
@@ -250,9 +272,22 @@ fn check_stele(archive: &Archive, stele: &Stele, visited: &mut Vec<String>, repo
 /// Returns `Some(dependencies)` so the caller can recurse, or `None` if the
 /// file is absent (not required -- a leaf Stele may have none) or
 /// unparseable (already recorded as an error).
-fn check_dependencies_json(stele: &Stele, report: &mut Report) -> Option<Dependencies> {
+fn check_dependencies_json(
+    stele: &Stele,
+    is_visited: bool,
+    report: &mut Report,
+) -> Option<Dependencies> {
     const FILE: &str = "targets/dependencies.json";
     let qualified_name = stele.get_qualified_name();
+
+    let Ok(blob) = stele.auth_repo.get_bytes_at_path("HEAD", FILE) else {
+        return None;
+    };
+
+    let Ok(raw) = String::from_utf8(blob.content) else {
+        report.error(&qualified_name, FILE, "file is not valid UTF-8");
+        return None;
+    };
 
     let dependencies = match stele.get_dependencies() {
         Ok(Some(dependencies)) => dependencies,
@@ -263,7 +298,9 @@ fn check_dependencies_json(stele: &Stele, report: &mut Report) -> Option<Depende
         }
     };
 
-    check_dependencies_consistency(&qualified_name, &dependencies, report);
+    if !is_visited {
+        check_dependencies_consistency(&qualified_name, &raw, &dependencies, report);
+    }
 
     Some(dependencies)
 }
@@ -273,19 +310,27 @@ fn check_dependencies_json(stele: &Stele, report: &mut Report) -> Option<Depende
 /// shouldn't list itself as a dependency.
 fn check_dependencies_consistency(
     qualified_name: &str,
+    raw: &str,
     dependencies: &Dependencies,
     report: &mut Report,
 ) {
     const FILE: &str = "targets/dependencies.json";
-    for (name, dependency) in &dependencies.dependencies {
-        if name == qualified_name {
-            report.error(
-                qualified_name,
-                FILE,
-                format!("Stele lists itself ('{name}') as a dependency"),
-            );
-        }
 
+    match find_duplicate_dependency_names(raw) {
+        Ok(Some(duplicates)) => report.error(
+            qualified_name,
+            FILE,
+            format!("duplicate dependencies found: {}", duplicates.join(", ")),
+        ),
+        Ok(None) => {}
+        Err(err) => report.error(
+            qualified_name,
+            FILE,
+            format!("failed to check for duplicate dependencies: {err}"),
+        ),
+    }
+
+    for (name, dependency) in &dependencies.dependencies {
         if dependency.branch.is_empty() {
             report.error(
                 qualified_name,
@@ -301,6 +346,87 @@ fn check_dependencies_consistency(
                 format!("dependency '{name}' is missing a non-empty 'out-of-band-authentication'"),
             );
         }
+    }
+}
+
+/// Re-parse the raw `dependencies.json` text to find any repeated key under "dependencies".
+/// Deserializing into `(String, Value)` pairs preserves every occurrence in source order.
+fn find_duplicate_dependency_names(raw: &str) -> serde_json::Result<Option<Vec<String>>> {
+    struct Pairs(Vec<(String, serde_json::Value)>);
+
+    #[expect(
+        clippy::missing_trait_methods,
+        reason = "Use serde default trait implementations"
+    )]
+    impl<'de> Deserialize<'de> for Pairs {
+        fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+            struct PairsVisitor;
+
+            #[expect(
+                clippy::missing_trait_methods,
+                reason = "Use serde default trait implementations"
+            )]
+            #[expect(
+                clippy::absolute_paths,
+                reason = "use of std::fmt::Result and core::result::Result"
+            )]
+            impl<'de> Visitor<'de> for PairsVisitor {
+                type Value = Vec<(String, serde_json::Value)>;
+
+                fn expecting(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+                    formatter.write_str("a JSON object")
+                }
+
+                fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                    let mut pairs = Vec::new();
+                    while let Some(pair) = map.next_entry()? {
+                        pairs.push(pair);
+                    }
+                    Ok(pairs)
+                }
+            }
+            deserializer.deserialize_map(PairsVisitor).map(Pairs)
+        }
+    }
+
+    #[derive(Deserialize)]
+    struct Document {
+        dependencies: Pairs,
+    }
+
+    let document: Document = serde_json::from_str(raw)?;
+    let mut names: Vec<String> = document
+        .dependencies
+        .0
+        .into_iter()
+        .map(|(name, _value)| name)
+        .collect();
+    Ok(find_duplicates_sorted(&mut names))
+}
+
+/// Given a list of strings, sort it in place and return any values that
+/// appear more than once (each listed only once), or `None` if there are
+/// no duplicates.
+fn find_duplicates_sorted(names: &mut [String]) -> Option<Vec<String>> {
+    names.sort_unstable();
+
+    let mut duplicates = Vec::new();
+    let mut last_duplicate: Option<&String> = None;
+
+    for pair in names.windows(2) {
+        let (Some(first), Some(second)) = (pair.first(), pair.get(1)) else {
+            continue;
+        };
+        if first == second && last_duplicate != Some(first) {
+            duplicates.push(first.clone());
+            last_duplicate = Some(first);
+        }
+    }
+
+    if duplicates.is_empty() {
+        None
+    } else {
+        Some(duplicates)
     }
 }
 
@@ -332,7 +458,7 @@ fn check_repositories_json(stele: &Stele, report: &mut Report) {
     };
 
     if repositories.scopes.as_ref().is_none_or(Vec::is_empty) {
-        report.warning(&qualified_name, FILE, "no 'scopes' defined for this Stele");
+        report.warning(&qualified_name, FILE, "no 'scopes' defined");
     }
 
     check_repositories_consistency(&qualified_name, &repositories, report);
@@ -359,9 +485,9 @@ fn check_repositories_consistency(
     let mut fallbacks: Vec<&str> = Vec::new();
 
     for (name, repository) in &repositories.repositories {
-        let is_docs_repo = repository.get_name().ends_with("docs");
-        if repository.custom.repository_type.is_none() && !is_docs_repo {
-            report.error(
+        if repository.custom.repository_type.is_none() {
+            // IMPORTANT: change this to error when type is in every partner repository.json (law-docs)
+            report.warning(
                 qualified_name,
                 FILE,
                 format!("'{name}' is missing required field 'type'"),
@@ -379,7 +505,7 @@ fn check_repositories_consistency(
             .as_ref()
             .is_some_and(|routes| !routes.is_empty());
         if !has_prefix && !has_routes {
-            report.error(
+            report.warning(
                 qualified_name,
                 FILE,
                 format!("'{name}' must have either 'serve-prefix' or 'routes'"),
@@ -441,26 +567,48 @@ fn check_data_repository_exists(stele: &Stele, repository: &Repository, report: 
     let path = stele.archive_path.join(&org).join(&name);
 
     if fs::metadata(&path).is_err() {
-        report.error(
-            &qualified_name,
-            FILE,
-            format!(
-                "data repository '{org}/{name}' does not exist at '{}'",
-                path.display()
-            ),
-        );
+        if let Some(true) = repository.custom.archived {
+            report.warning(
+                &qualified_name,
+                FILE,
+                format!(
+                    "data repository '{org}/{name}' does not exist at '{}'",
+                    path.display()
+                ),
+            );
+        } else {
+            report.error(
+                &qualified_name,
+                FILE,
+                format!(
+                    "data repository '{org}/{name}' does not exist at '{}'",
+                    path.display()
+                ),
+            );
+        }
         return;
     }
 
     if GitRepository::open(&path).is_err() {
-        report.error(
-            &qualified_name,
-            FILE,
-            format!(
-                "'{org}/{name}' at '{}' is not a valid git repository",
-                path.display()
-            ),
-        );
+        if let Some(true) = repository.custom.archived {
+            report.warning(
+                &qualified_name,
+                FILE,
+                format!(
+                    "'{org}/{name}' at '{}' is not a valid git repository",
+                    path.display()
+                ),
+            );
+        } else {
+            report.error(
+                &qualified_name,
+                FILE,
+                format!(
+                    "'{org}/{name}' at '{}' is not a valid git repository",
+                    path.display()
+                ),
+            );
+        }
     }
 }
 
@@ -499,6 +647,7 @@ fn check_target_file(stele: &Stele, repository: &Repository, report: &mut Report
     }
 
     // Optional fields – warnings only
+    // serve historical only
     if !is_docs_repo && metadata.build_date.is_none() {
         report.warning(
             &qualified_name,
@@ -516,16 +665,12 @@ fn check_target_file(stele: &Stele, repository: &Repository, report: &mut Report
 }
 
 /// Check `targets/protected/info.json`, if present.
-///
-/// This file's location isn't consistent across existing archives -- the
-/// openlawlibrary/law archive itself has been seen using
-/// `targets/<org>/protected/info.json` instead. Absence is therefore not
-/// treated as an error; only presence with bad content is.
 fn check_info_json(stele: &Stele, report: &mut Report) {
     const FILE: &str = "targets/protected/info.json";
     let qualified_name = stele.get_qualified_name();
 
     let Ok(blob) = stele.auth_repo.get_bytes_at_path("HEAD", FILE) else {
+        report.error(&qualified_name, FILE, "required file is missing");
         return;
     };
 
