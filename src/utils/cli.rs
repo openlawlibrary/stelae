@@ -13,6 +13,7 @@ pub use crate::server::app::serve_archive;
 pub use crate::server::errors::CliError;
 pub use crate::server::git::serve_git;
 pub use crate::utils::archive::find_archive_path;
+pub use crate::utils::check;
 use clap::Parser;
 use std::env;
 use std::path::Path;
@@ -71,6 +72,8 @@ pub enum StelaeSubcommands {
         /// Force a full rebuild of each stele's database records, skipping consistency checks.
         force: bool,
     },
+    /// Checks the validity of an archive and root stele.
+    Check,
 }
 
 /// Trait that CLI structs must implement to work with `execute_command`
@@ -113,6 +116,7 @@ impl CliProvider for Cli {
                 exclude: exclude.clone(),
                 force: *force,
             },
+            Subcommands::Check {} => StelaeSubcommands::Check,
         }
     }
 }
@@ -158,6 +162,8 @@ pub enum Subcommands {
         #[arg(short = 'f', long = "force", default_value_t = false)]
         force: bool,
     },
+    /// Checks repository validity
+    Check {},
 }
 
 /// Place to initialize tracing
@@ -235,6 +241,7 @@ pub fn execute_command<T: CliProvider>(cli: &T, archive_path: PathBuf) -> Result
             exclude,
             force,
         } => changes::insert(cli.archive_path(), archive_path, include, exclude, *force),
+        StelaeSubcommands::Check => check::run(cli.archive_path(), archive_path),
     }
 }
 
