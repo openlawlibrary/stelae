@@ -42,7 +42,8 @@ pub async fn serve(
         }
     };
     if app_data.has_redirects(&auth_stele_name, &data.name) {
-        match redirects::Manager::find_redirect_for_url(
+        // No redirect configured or error - fall through to normal serving either way.
+        if let Ok(Some(to_url)) = redirects::Manager::find_redirect_for_url(
             app_data.db(),
             auth_stele_name,
             data.name.clone(),
@@ -50,14 +51,9 @@ pub async fn serve(
         )
         .await
         {
-            Ok(Some(to_url)) => {
-                return HttpResponse::TemporaryRedirect()
-                    .append_header(("Location", to_url))
-                    .finish();
-            }
-            // No redirect configured, or a lookup failure (already logged by
-            // the manager) - fall through to normal serving either way.
-            Ok(None) | Err(_) => {}
+            return HttpResponse::TemporaryRedirect()
+                .append_header(("Location", to_url))
+                .finish();
         }
     }
     let prefix = req

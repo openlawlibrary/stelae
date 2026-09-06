@@ -12,7 +12,7 @@ use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::{App, Error, HttpServer};
 use tracing_actix_web::TracingLogger;
 
-use std::{path::PathBuf, process};
+use std::{collections::HashSet, path::PathBuf, process};
 
 use actix_http::body::MessageBody;
 use actix_service::ServiceFactory;
@@ -60,7 +60,7 @@ pub async fn serve_archive(
 
     let repos_with_redirects = db.repos_with_redirects().await.unwrap_or_else(|err| {
         tracing::error!(error = %err, "Failed to load repos with redirects, assuming none");
-        std::collections::HashSet::new()
+        HashSet::new()
     });
 
     let state = AppState {
