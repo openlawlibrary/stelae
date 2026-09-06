@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use actix_http::header::IF_NONE_MATCH;
 use actix_web::test;
-use stelae::server::headers::HTTP_E_TAG;
+use taf_server::server::headers::HTTP_E_TAG;
 
 use crate::archive_testtools::config::{ArchiveType, Jurisdiction};
 use crate::archive_testtools::{

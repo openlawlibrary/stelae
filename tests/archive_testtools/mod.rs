@@ -6,9 +6,9 @@ use git2::{Commit, Error, Oid};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use stelae::stelae::archive::{self, Headers};
-use stelae::stelae::types::dependencies::{Dependencies, Dependency};
-use stelae::stelae::types::repositories::{Repositories, Repository};
+use taf_server::stelae::archive::{self, Headers};
+use taf_server::stelae::types::dependencies::{Dependencies, Dependency};
+use taf_server::stelae::types::repositories::{Repositories, Repository};
 use tempfile::TempDir;
 
 use crate::archive_testtools::config::get_private_root_test_data_repositories;

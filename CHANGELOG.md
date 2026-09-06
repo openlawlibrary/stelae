@@ -12,6 +12,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Changed
 
+-  Renamed the package/crate and binary from `stelae` to `taf-server`.
 -  Upgrade Rust to 1.97.1 ([#115])
 -  Update `Cargo.toml` dependencies ([#115])
 -  Store repository redirects in the database and resolve them at request time instead of registering static routes at startup ([#111])

@@ -53,7 +53,7 @@ pub const HTTP_E_TAG: &str = "ETAG";
 /// # Example
 ///
 /// ```rust
-/// use stelae::server::headers::etag_matches_if_none_match;
+/// use taf_server::server::headers::etag_matches_if_none_match;
 /// let etag = "\"abc123\"";
 /// assert!(etag_matches_if_none_match("\"abc123\"", etag));
 /// assert!(etag_matches_if_none_match("\"xyz\", \"abc123\"", etag));

@@ -3,7 +3,7 @@ use crate::common;
 use actix_http::header::IF_NONE_MATCH;
 use actix_http::StatusCode;
 use actix_web::test;
-use stelae::server::headers::HTTP_E_TAG;
+use taf_server::server::headers::HTTP_E_TAG;
 
 #[actix_web::test]
 async fn test_resolve_root_stele_law_html_request_with_full_path_expect_success() {

@@ -6,7 +6,7 @@
 #![allow(clippy::cargo)]
 #![allow(clippy::restriction)]
 
-use stelae::utils::cli::run;
+use taf_server::utils::cli::run;
 
 fn main() {
     run()

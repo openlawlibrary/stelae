@@ -18,7 +18,7 @@ use serde_json::Value;
 ///
 /// ```rust
 /// use serde_json::json;
-/// use stelae::stelae::types::repositories::Repositories;
+/// use taf_server::stelae::types::repositories::Repositories;
 ///
 /// let data = r#"
 /// {
@@ -200,7 +200,7 @@ impl Repositories {
     /// Example:
     /// ```rust
     /// use serde_json::json;
-    /// use stelae::stelae::types::repositories::Repositories;
+    /// use taf_server::stelae::types::repositories::Repositories;
     ///
     /// let data = r#"
     /// {

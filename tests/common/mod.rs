@@ -21,8 +21,8 @@ static INIT: Once = Once::new();
 
 use actix_http::body::MessageBody;
 
-use stelae::server::app;
-use stelae::stelae::archive::Archive;
+use taf_server::server::app;
+use taf_server::stelae::archive::Archive;
 
 pub const BASIC_MODULE_NAME: &str = "basic";
 

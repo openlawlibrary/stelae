@@ -1,5 +1,5 @@
 [package]
-name = "stelae"
+name = "taf-server"
 description = "A collection of tools in Rust and Python for preserving, authenticating, and accessing laws in perpetuity."
 version = "0.6.9"
 edition = "2021"

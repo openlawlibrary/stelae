@@ -7,7 +7,7 @@ use serde_derive::Serialize;
 ///
 /// Example:
 /// ```rust
-/// use stelae::stelae::types::targets_metadata::TargetsMetadata;
+/// use taf_server::stelae::types::targets_metadata::TargetsMetadata;
 /// use serde_json::json;
 ///
 /// let data = r#"
