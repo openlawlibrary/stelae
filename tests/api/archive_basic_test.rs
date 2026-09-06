@@ -324,7 +324,6 @@ async fn test_redirect_law_html_request_with_incorrect_redirects_expect_fail() {
 async fn test_redirect_law_html_and_law_pdf_request_with_redirects_expect_success() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
-    let app = common::initialize_app(archive_path.path()).await;
 
     let db = get_db(archive_path.path()).await;
 
@@ -337,6 +336,8 @@ async fn test_redirect_law_html_and_law_pdf_request_with_redirects_expect_succes
         vec![("/not/existing/path/index.pdf", "/example.pdf")],
     )
     .await;
+
+    let app = common::initialize_app(archive_path.path()).await;
 
     let request_uri = "/a/b/c.html";
     let req = test::TestRequest::get().uri(request_uri).to_request();
@@ -373,8 +374,7 @@ async fn test_redirect_law_html_request_with_duplicated_entries_in_redirects_exp
 ) {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
-    let (app, db) = common::initialize_app_with_db(archive_path.path()).await;
-    //  let db = get_db(archive_path.path()).await;
+    let db = get_db(archive_path.path()).await;
     insert_redirects(
         &db,
         "test_org/law",
@@ -386,6 +386,7 @@ async fn test_redirect_law_html_request_with_duplicated_entries_in_redirects_exp
         ],
     )
     .await;
+    let app = common::initialize_app(archive_path.path()).await;
 
     let request_uri = "/a/b/c.html";
     let req = test::TestRequest::get().uri(request_uri).to_request();

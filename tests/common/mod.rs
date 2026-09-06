@@ -10,8 +10,10 @@ use actix_web::{
     Error,
 };
 use anyhow::Result;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Once;
+use stelae::db::models::redirects::Manager as _;
 use stelae::db::{self, DatabaseConnection};
 use stelae::server::api::state::Global;
 use tempfile::Builder;
@@ -39,6 +41,7 @@ pub fn blob_to_string(blob: Vec<u8>) -> String {
 pub struct TestAppState {
     pub archive: Archive,
     pub db: DatabaseConnection,
+    pub repos_with_redirects: HashSet<(String, String)>,
 }
 
 impl Global for TestAppState {
@@ -48,31 +51,32 @@ impl Global for TestAppState {
     fn db(&self) -> &db::DatabaseConnection {
         &self.db
     }
+    fn has_redirects(&self, stele: &str, repo_name: &str) -> bool {
+        self.repos_with_redirects
+            .contains(&(stele.to_owned(), repo_name.to_owned()))
+    }
 }
 
+/// Initializes the app.
+///
+/// NOTE: The set of repos with redirects is computed once, at this point,
+/// mirroring production start-up. Any redirects inserted into the database
+/// *after* calling this must be for a repo that already had at least one
+/// redirect, otherwise they won't be picked up until the app is
+/// re-initialized.
 pub async fn initialize_app(
     archive_path: &Path,
 ) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = Error> {
     let archive = Archive::parse(archive_path.to_path_buf(), archive_path, false).unwrap();
     let db = connect_test_db(archive_path).await;
-    let state = TestAppState { archive, db };
+    let repos_with_redirects = db.repos_with_redirects().await.unwrap_or_default();
+    let state = TestAppState {
+        archive,
+        db,
+        repos_with_redirects,
+    };
     let app = app::init(&state).unwrap();
     test::init_service(app).await
-}
-
-/// Like `initialize_app`, but also returns a `DatabaseConnection`
-pub async fn initialize_app_with_db(
-    archive_path: &Path,
-) -> (
-    impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = Error>,
-    DatabaseConnection,
-) {
-    let archive = Archive::parse(archive_path.to_path_buf(), archive_path, false).unwrap();
-    let db = connect_test_db(archive_path).await;
-    let db_handle = db.clone();
-    let state = TestAppState { archive, db };
-    let app = app::init(&state).unwrap();
-    (test::init_service(app).await, db_handle)
 }
 
 pub async fn get_db(archive_path: &Path) -> DatabaseConnection {

@@ -41,17 +41,24 @@ pub async fn serve(
             return HttpResponse::NotFound().body("");
         }
     };
-    let redirect = redirects::Manager::find_redirect_for_url(
-        app_data.db(),
-        auth_stele_name,
-        data.name.clone(),
-        req.path().to_owned(),
-    )
-    .await;
-    if let Ok(to_url) = redirect {
-        return HttpResponse::TemporaryRedirect()
-            .append_header(("Location", to_url))
-            .finish();
+    if app_data.has_redirects(&auth_stele_name, &data.name) {
+        match redirects::Manager::find_redirect_for_url(
+            app_data.db(),
+            auth_stele_name,
+            data.name.clone(),
+            req.path().to_owned(),
+        )
+        .await
+        {
+            Ok(Some(to_url)) => {
+                return HttpResponse::TemporaryRedirect()
+                    .append_header(("Location", to_url))
+                    .finish();
+            }
+            // No redirect configured, or a lookup failure (already logged by
+            // the manager) - fall through to normal serving either way.
+            Ok(None) | Err(_) => {}
+        }
     }
     let prefix = req
         .match_info()

@@ -1,4 +1,6 @@
 //! Manager for the redirects model.
+use std::collections::HashSet;
+
 use crate::db::{
     models::{redirects::RedirectPair, BATCH_SIZE},
     DatabaseConnection, DatabaseKind, DatabaseTransaction,
@@ -10,14 +12,19 @@ use sqlx::QueryBuilder;
 impl super::Manager for DatabaseConnection {
     /// Finds a redirect target for a given URL.
     ///
+    /// Returns `Ok(None)` when no redirect exists for the given URL (i.e. the
+    /// query returns no row). This is expected for most requests and is not
+    /// treated as an error.
+    ///
     /// # Errors
-    /// Errors if can't establish a connection to the database or no query does not return a row.
+    /// Errors if a connection to the database can't be established, or the
+    /// query fails for any reason other than the row not being found.
     async fn find_redirect_for_url(
         &self,
         stele: String,
         repo_name: String,
         from_url: String,
-    ) -> anyhow::Result<String> {
+    ) -> anyhow::Result<Option<String>> {
         let statement = "
             SELECT from_url, to_url
             FROM redirects
@@ -25,7 +32,7 @@ impl super::Manager for DatabaseConnection {
               AND repo_name = $2
               AND from_url = $3
         ";
-        let row = match self.kind {
+        let result = match self.kind {
             DatabaseKind::Sqlite => {
                 let mut connection = self.pool.acquire().await?;
                 sqlx::query_as::<_, RedirectPair>(statement)
@@ -33,11 +40,40 @@ impl super::Manager for DatabaseConnection {
                     .bind(repo_name)
                     .bind(from_url)
                     .fetch_one(&mut *connection)
-                    .await?
+                    .await
             }
         };
 
-        Ok(row.to_url)
+        match result {
+            Ok(row) => Ok(Some(row.to_url)),
+            // No redirect configured for this URL - not an error.
+            Err(sqlx::Error::RowNotFound) => Ok(None),
+            // Any other error (e.g. a connection issue) is a real failure and
+            // must not be silently treated as "no redirect".
+            Err(err) => {
+                tracing::error!(error = %err, "Failed to query redirect for URL");
+                Err(err.into())
+            }
+        }
+    }
+
+    /// Returns the set of `(stele_name, repo_name)` pairs that currently have
+    /// at least one redirect configured.
+    ///
+    /// # Errors
+    /// Errors if a connection to the database can't be established or the
+    /// query fails.
+    async fn repos_with_redirects(&self) -> anyhow::Result<HashSet<(String, String)>> {
+        let statement = "SELECT DISTINCT stele_name, repo_name FROM redirects";
+        let rows: Vec<(String, String)> = match self.kind {
+            DatabaseKind::Sqlite => {
+                let mut connection = self.pool.acquire().await?;
+                sqlx::query_as(statement)
+                    .fetch_all(&mut *connection)
+                    .await?
+            }
+        };
+        Ok(rows.into_iter().collect())
     }
 }
 

@@ -4,6 +4,7 @@
     reason = "We exit with 1 error code on any application errors"
 )]
 use crate::db;
+use crate::db::models::redirects::Manager as _;
 use crate::server::api::state::App as AppState;
 use crate::server::errors::CliError;
 use crate::stelae::archive::Archive;
@@ -57,7 +58,16 @@ pub async fn serve_archive(
         }
     };
 
-    let state = AppState { archive, db };
+    let repos_with_redirects = db.repos_with_redirects().await.unwrap_or_else(|err| {
+        tracing::error!(error = %err, "Failed to load repos with redirects, assuming none");
+        std::collections::HashSet::new()
+    });
+
+    let state = AppState {
+        archive,
+        db,
+        repos_with_redirects,
+    };
 
     HttpServer::new(move || {
         init(&state).unwrap_or_else(|err| {

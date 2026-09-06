@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -12,7 +14,11 @@ pub trait Manager {
         stele: String,
         repo_name: String,
         from_url: String,
-    ) -> anyhow::Result<String>;
+    ) -> anyhow::Result<Option<String>>;
+
+    /// Returns the set of `(stele_name, repo_name)` pairs that currently have
+    /// at least one redirect configured.
+    async fn repos_with_redirects(&self) -> anyhow::Result<HashSet<(String, String)>>;
 }
 
 /// Trait for managing redirects within a transactional context.
