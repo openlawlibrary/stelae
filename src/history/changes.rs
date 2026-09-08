@@ -427,6 +427,15 @@ async fn load_delta_for_publication(
     let pub_collection_versions =
         pub_graph.all_iris_from_triple_matching(None, None, Some(oll::CollectionVersion))?;
 
+    if let Some(last_inserted_date) = last_inserted_date.as_ref() {
+        publication_version::TxManager::delete_by_publication_id_and_version(
+            tx,
+            &publication.id,
+            &last_inserted_date.to_string(),
+        )
+        .await?;
+    }
+
     insert_document_changes(
         tx,
         last_inserted_date.as_ref(),
@@ -467,7 +476,7 @@ async fn insert_document_changes(
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::codifiedDate), None)?;
         if let Some(last_inserted_date) = last_inserted_date.as_ref() {
             let codified_date = NaiveDate::parse_from_str(codified_date.as_str(), "%Y-%m-%d")?;
-            if &codified_date <= last_inserted_date {
+            if &codified_date < last_inserted_date {
                 // Date already inserted
                 continue;
             }
@@ -556,7 +565,7 @@ async fn insert_library_changes(
             pub_graph.literal_from_triple_matching(Some(version), Some(oll::codifiedDate), None)?;
         if let Some(last_inserted_date) = last_inserted_date.as_ref() {
             let codified_date = NaiveDate::parse_from_str(codified_date.as_str(), "%Y-%m-%d")?;
-            if &codified_date <= last_inserted_date {
+            if &codified_date < last_inserted_date {
                 // Date already inserted
                 continue;
             }

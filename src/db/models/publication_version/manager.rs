@@ -30,6 +30,31 @@ impl super::TxManager for DatabaseTransaction {
         Ok(id)
     }
 
+    /// Delete a publication version by a `publication_id` and `version`.
+    ///
+    /// `ON DELETE CASCADE` removes the `document_change`, `library_change` and
+    /// `publication_has_publication_versions` rows that reference it, and in turn the
+    /// `changed_library_document` rows that reference those document changes.
+    ///
+    /// # Errors
+    /// Errors if the publication version cannot be deleted from the database.
+    async fn delete_by_publication_id_and_version(
+        &mut self,
+        publication_id: &str,
+        version: &str,
+    ) -> anyhow::Result<()> {
+        let statement = "
+            DELETE FROM publication_version
+            WHERE publication_id = $1 AND version = $2
+        ";
+        sqlx::query(statement)
+            .bind(publication_id)
+            .bind(version)
+            .execute(&mut *self.tx)
+            .await?;
+        Ok(())
+    }
+
     /// Find the last inserted publication version by a `stele` and `publication`.
     ///
     /// # Errors
