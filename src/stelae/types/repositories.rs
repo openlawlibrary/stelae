@@ -162,6 +162,20 @@ impl Repositories {
         result
     }
 
+    /// Get all `Repository`.
+    #[must_use]
+    #[expect(
+        clippy::iter_over_hash_type,
+        reason = "Returns repositories, even with iterating over hash type"
+    )]
+    pub fn get_all(&self) -> Vec<&Repository> {
+        let mut result = Vec::new();
+        for repository in self.repositories.values() {
+            result.push(repository);
+        }
+        result
+    }
+
     /// Filter and return a `Repository` by it's custom type.
     #[must_use]
     pub fn get_one_by_custom_type(&self, repository_type: &str) -> Option<&Repository> {

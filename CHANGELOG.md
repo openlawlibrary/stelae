@@ -14,12 +14,17 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 -  Upgrade Rust to 1.97.1 ([#115])
 -  Update `Cargo.toml` dependencies ([#115])
+-  Store repository redirects in the database and resolve them at request time instead of registering static routes at startup ([#111])
 
 ### Fixed
 
 - Fixed non-deterministic commit selection on tied codified/build dates in find_commit_by_pub_id_and_version_date ([#116])
 
 ### Removed
+
+[#116]: https://github.com/openlawlibrary/stelae/pull/116
+[#115]: https://github.com/openlawlibrary/stelae/pull/115
+[#111]: https://github.com/openlawlibrary/stelae/pull/111
 
 ## [v0.6.9]
 
@@ -32,9 +37,6 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 - Resolve archived HTML repo for historical publications in `_date` endpoint
 
 ### Removed
-
-[#116]: https://github.com/openlawlibrary/stelae/pull/116
-[#115]: https://github.com/openlawlibrary/stelae/pull/115
 
 ## [v0.6.8]
 

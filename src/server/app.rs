@@ -4,6 +4,7 @@
     reason = "We exit with 1 error code on any application errors"
 )]
 use crate::db;
+use crate::db::models::redirects::Manager as _;
 use crate::server::api::state::App as AppState;
 use crate::server::errors::CliError;
 use crate::stelae::archive::Archive;
@@ -11,7 +12,7 @@ use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::{App, Error, HttpServer};
 use tracing_actix_web::TracingLogger;
 
-use std::{path::PathBuf, process};
+use std::{collections::HashSet, path::PathBuf, process};
 
 use actix_http::body::MessageBody;
 use actix_service::ServiceFactory;
@@ -57,7 +58,16 @@ pub async fn serve_archive(
         }
     };
 
-    let state = AppState { archive, db };
+    let repos_with_redirects = db.repos_with_redirects().await.unwrap_or_else(|err| {
+        tracing::error!(error = %err, "Failed to load repos with redirects, assuming none");
+        HashSet::new()
+    });
+
+    let state = AppState {
+        archive,
+        db,
+        repos_with_redirects,
+    };
 
     HttpServer::new(move || {
         init(&state).unwrap_or_else(|err| {

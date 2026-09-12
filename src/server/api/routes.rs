@@ -277,10 +277,11 @@ fn initialize_guarded_dynamic_routes<
         InitError = (),
         Error = Error,
     >,
+    V: Global + Clone + 'static,
 >(
     guard: String,
     mut app: App<U>,
-    state: &impl Global,
+    state: &V,
 ) -> anyhow::Result<App<U>> {
     tracing::info!(
         "Initializing guarded current documents with header: {}",
@@ -302,10 +303,12 @@ fn initialize_guarded_dynamic_routes<
             if let Some(guarded_stele) = stele {
                 let shared_state = state::init_shared(guarded_stele)?;
                 let mut stelae_scope = web::scope("");
+                let data_state: Arc<dyn Global> = Arc::new(state.clone());
                 stelae_scope = stelae_scope.guard(guard::Header(guard_name, guard_value));
                 app = app.service(
                     stelae_scope
                         .app_data(web::Data::new(shared_state))
+                        .app_data(web::Data::new(Arc::clone(&data_state)))
                         .configure(|cfg| {
                             register_root_routes(cfg, guarded_stele).unwrap_or_else(|_| {
                                 tracing::error!(
@@ -339,16 +342,19 @@ fn initialize_dynamic_routes<
         InitError = (),
         Error = Error,
     >,
+    V: Global + Clone + 'static,
 >(
     mut app: App<U>,
-    state: &impl Global,
+    state: &V,
 ) -> anyhow::Result<App<U>> {
     tracing::info!("Initializing app");
     let root = state.archive().get_root()?;
     let shared_state = state::init_shared(root)?;
+    let data_state: Arc<dyn Global> = Arc::new(state.clone());
     app = app.service(
         web::scope("")
             .app_data(web::Data::new(shared_state))
+            .app_data(web::Data::new(Arc::clone(&data_state)))
             .configure(|cfg| {
                 register_routes(cfg, state).unwrap_or_else(|_| {
                     tracing::error!(
@@ -404,13 +410,6 @@ fn register_root_routes(cfg: &mut web::ServiceConfig, stele: &Stele) -> anyhow::
         for repository in sorted_repositories {
             let custom = &repository.custom;
             let repo_state = state::init_repo(repository, stele)?;
-            #[expect(
-                clippy::iter_over_hash_type,
-                reason = "We exit with 1 error code on any application errors"
-            )]
-            for (from, to) in repo_state.get_redirects() {
-                root_scope = root_scope.service(web::redirect(from, to));
-            }
             for route in custom.routes.iter().flat_map(|routes| routes.iter()) {
                 let actix_route = format!("/{{tail:{route}}}");
                 root_scope = root_scope.service(
@@ -457,13 +456,6 @@ fn register_dependent_routes(
         for repository in &sorted_repositories {
             let custom = &repository.custom;
             let repo_state = state::init_repo(repository, stele)?;
-            #[expect(
-                clippy::iter_over_hash_type,
-                reason = "We exit with 1 error code on any application errors"
-            )]
-            for (from, to) in repo_state.get_redirects() {
-                actix_scope = actix_scope.service(web::redirect(from, to));
-            }
             for route in custom.routes.iter().flat_map(|routes| routes.iter()) {
                 if route.starts_with('_') {
                     // Ignore routes in dependent Stele that start with underscore

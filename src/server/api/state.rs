@@ -1,6 +1,6 @@
 //! Centralized state management for the Actix web server
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt::{self, Debug},
     path::PathBuf,
 };
@@ -36,6 +36,8 @@ pub trait Global: Debug {
     fn archive(&self) -> &Archive;
     /// Database connection
     fn db(&self) -> &db::DatabaseConnection;
+    /// Whether the given repository has any redirects configured.
+    fn has_redirects(&self, stele: &str, repo_name: &str) -> bool;
 }
 
 /// Application state
@@ -45,6 +47,9 @@ pub struct App {
     pub archive: Archive,
     /// Database connection
     pub db: db::DatabaseConnection,
+    /// `(stele_name, repo_name)` pairs that have at least one redirect,
+    /// computed once at startup.
+    pub repos_with_redirects: HashSet<(String, String)>,
 }
 
 impl Global for App {
@@ -54,6 +59,11 @@ impl Global for App {
 
     fn db(&self) -> &db::DatabaseConnection {
         &self.db
+    }
+
+    fn has_redirects(&self, stele: &str, repo_name: &str) -> bool {
+        self.repos_with_redirects
+            .contains(&(stele.to_owned(), repo_name.to_owned()))
     }
 }
 
