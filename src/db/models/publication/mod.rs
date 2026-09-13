@@ -8,10 +8,10 @@ pub mod manager;
 /// Trait for managing publications.
 #[async_trait]
 pub trait Manager {
-    /// Find all publications which are not revoked for a given stele.
+    /// Find all publications which are not revoked for a given fonds.
     async fn find_all_non_revoked_publications(
         &self,
-        stele: &str,
+        fonds: &str,
     ) -> anyhow::Result<Vec<Publication>>;
 }
 
@@ -28,56 +28,56 @@ pub trait TxManager {
         hash_id: &str,
         name: &str,
         date: &NaiveDate,
-        stele: &str,
+        fonds: &str,
         last_valid_publication_id: Option<String>,
         last_valid_version: Option<String>,
         html_data_repo_name: Option<String>,
     ) -> anyhow::Result<Option<i64>>;
     /// Update a publication by name and set revoked to true.
-    async fn update_by_name_and_stele_set_revoked_true(
+    async fn update_by_name_and_fonds_set_revoked_true(
         &mut self,
         name: &str,
-        stele: &str,
+        fonds: &str,
     ) -> anyhow::Result<()>;
-    /// Find the last inserted publication for a given stele.
-    async fn find_last_inserted(&mut self, stele: &str) -> anyhow::Result<Option<Publication>>;
-    /// Find a publication by name and stele.
-    async fn find_by_name_and_stele(
+    /// Find the last inserted publication for a given fonds.
+    async fn find_last_inserted(&mut self, fonds: &str) -> anyhow::Result<Option<Publication>>;
+    /// Find a publication by name and fonds.
+    async fn find_by_name_and_fonds(
         &mut self,
         name: &str,
-        stele: &str,
+        fonds: &str,
     ) -> anyhow::Result<Option<Publication>>;
-    /// Find the first publication by name and stele that is not revoked.
-    async fn find_first_by_name_and_stele_non_revoked(
+    /// Find the first publication by name and fonds that is not revoked.
+    async fn find_first_by_name_and_fonds_non_revoked(
         &mut self,
         name: &str,
-        stele: &str,
+        fonds: &str,
     ) -> anyhow::Result<Publication>;
-    /// Set `html_data_repo_name` on all publications for the given stele whose date is
+    /// Set `html_data_repo_name` on all publications for the given fonds whose date is
     /// strictly earlier than `boundary_date`.  Used to backfill older publications when
     /// the boundary (last-archived) publication is encountered.
     async fn set_html_data_repo_name_for_prior_publications(
         &mut self,
-        stele: &str,
+        fonds: &str,
         boundary_date: &NaiveDate,
         html_data_repo_name: &str,
     ) -> anyhow::Result<()>;
-    /// Find all by date and stele and sort by name in descending order.
+    /// Find all by date and fonds and sort by name in descending order.
     /// Used in revocation logic to find the latest publication.
-    async fn find_all_by_date_and_stele_order_by_name_desc(
+    async fn find_all_by_date_and_fonds_order_by_name_desc(
         &mut self,
         date: String,
-        stele: String,
+        fonds: String,
     ) -> anyhow::Result<Vec<Publication>>;
-    /// Count the number of non-revoked publications for a given stele.
-    async fn count_non_revoked(&mut self, stele: &str) -> anyhow::Result<usize>;
+    /// Count the number of non-revoked publications for a given fonds.
+    async fn count_non_revoked(&mut self, fonds: &str) -> anyhow::Result<usize>;
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-/// Model for a Stele.
+/// Model for a Fonds.
 pub struct Publication {
     /// A hashed identifier for the publication.
-    /// The hash is generated from the `name` and `stele` fields of the publication.
+    /// The hash is generated from the `name` and `fonds` fields of the publication.
     pub id: String,
     /// Name of the publication in %YYYY-%MM-%DD format
     /// with optionally incrementing version numbers
@@ -85,8 +85,8 @@ pub struct Publication {
     pub name: String,
     /// Date of the publication.
     pub date: String,
-    /// Foreign key reference to stele by name.
-    pub stele: String,
+    /// Foreign key reference to fonds by name.
+    pub fonds: String,
     /// Whether the publication has been revoked.
     /// A publication is revoked if another publication exists
     /// on the same date with a higher version number.
@@ -110,7 +110,7 @@ impl FromRow<'_, AnyRow> for Publication {
             id: row.try_get("id")?,
             name: row.try_get("name")?,
             date: row.try_get("date")?,
-            stele: row.try_get("stele")?,
+            fonds: row.try_get("fonds")?,
             revoked: row.try_get("revoked")?,
             last_valid_publication_id: row.try_get("last_valid_publication_id").ok(),
             last_valid_version: row.try_get("last_valid_version").ok(),
@@ -122,12 +122,12 @@ impl FromRow<'_, AnyRow> for Publication {
 impl Publication {
     /// Create a new publication.
     #[must_use]
-    pub const fn new(id: String, name: String, date: String, stele: String) -> Self {
+    pub const fn new(id: String, name: String, date: String, fonds: String) -> Self {
         Self {
             id,
             name,
             date,
-            stele,
+            fonds,
             revoked: 0,
             last_valid_publication_id: None,
             last_valid_version: None,

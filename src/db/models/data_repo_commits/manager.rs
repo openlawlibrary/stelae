@@ -10,51 +10,51 @@ use super::DataRepoCommits;
 
 #[async_trait]
 impl super::TxManager for DatabaseTransaction {
-    /// Find all authentication commits for a given stele and data repository.
+    /// Find all authentication commits for a given fonds and data repository.
     ///
     /// # Errors
     /// Errors if the commits cannot be found.
-    async fn find_all_auth_commits_for_stele_and_data_repo(
+    async fn find_all_auth_commits_for_fonds_and_data_repo(
         &mut self,
-        stele_id: &str,
+        fonds_id: &str,
         data_repo_name: &str,
     ) -> anyhow::Result<Vec<DataRepoCommits>> {
         let query = "
             SELECT dc.*
             FROM data_repo_commits dc
             LEFT JOIN publication p ON dc.publication_id = p.id
-            LEFT JOIN stele s ON p.stele = s.name
+            LEFT JOIN fonds s ON p.fonds = s.name
             WHERE s.name = $1
             AND p.html_data_repo_name = $2
         ";
         let data_repo_commits = sqlx::query_as::<_, DataRepoCommits>(query)
-            .bind(stele_id)
+            .bind(fonds_id)
             .bind(data_repo_name)
             .fetch_all(&mut *self.tx)
             .await?;
         Ok(data_repo_commits)
     }
-    /// Find the most-recently-recorded authentication commit hash for a given stele
+    /// Find the most-recently-recorded authentication commit hash for a given fonds
     /// and data repository.
     ///
     /// # Errors
     /// Errors if the query fails.
-    async fn find_last_auth_commit_for_stele(
+    async fn find_last_auth_commit_for_fonds(
         &mut self,
-        stele_id: &str,
+        fonds_id: &str,
         data_repo_name: &str,
     ) -> anyhow::Result<Option<String>> {
         let query = "
             SELECT dc.auth_commit_hash
             FROM data_repo_commits dc
             LEFT JOIN publication p ON dc.publication_id = p.id
-            WHERE p.stele = $1
+            WHERE p.fonds = $1
             AND p.html_data_repo_name = $2
             ORDER BY dc.auth_commit_timestamp DESC
             LIMIT 1
         ";
         let row: Option<(String,)> = sqlx::query_as(query)
-            .bind(stele_id)
+            .bind(fonds_id)
             .bind(data_repo_name)
             .fetch_optional(&mut *self.tx)
             .await?;
@@ -89,7 +89,7 @@ impl super::TxManager for DatabaseTransaction {
     ///
     /// If `version_date` is a valid ISO date (`YYYY-MM-DD`), the commit returned
     /// is the latest one whose `codified_date` is **less than or equal to**
-    /// the provided date.  
+    /// the provided date.
     /// If `version_date` is not a valid ISO date, the latest available commit
     /// for the publication is returned regardless of date.
     ///

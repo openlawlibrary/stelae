@@ -7,8 +7,8 @@ use std::{
 
 use crate::{
     db,
+    fonds::{archive::Archive, fonds::Fonds, types::repositories::Repository},
     server::api::utils::convert_vec_u8_to_hashmap,
-    stelae::{archive::Archive, stele::Stele, types::repositories::Repository},
     utils::archive::get_name_parts,
 };
 
@@ -32,22 +32,22 @@ pub const REDIRECTS_JSON: &str = "redirects.json";
 
 /// Global, read-only state
 pub trait Global: Debug {
-    /// Fully initialized Stelae archive
+    /// Fully initialized Fonds archive
     fn archive(&self) -> &Archive;
     /// Database connection
     fn db(&self) -> &db::DatabaseConnection;
     /// Whether the given repository has any redirects configured.
-    fn has_redirects(&self, stele: &str, repo_name: &str) -> bool;
+    fn has_redirects(&self, fonds: &str, repo_name: &str) -> bool;
 }
 
 /// Application state
 #[derive(Debug, Clone)]
 pub struct App {
-    /// Fully initialized Stelae archive
+    /// Fully initialized Fonds archive
     pub archive: Archive,
     /// Database connection
     pub db: db::DatabaseConnection,
-    /// `(stele_name, repo_name)` pairs that have at least one redirect,
+    /// `(fonds_name, repo_name)` pairs that have at least one redirect,
     /// computed once at startup.
     pub repos_with_redirects: HashSet<(String, String)>,
 }
@@ -61,9 +61,9 @@ impl Global for App {
         &self.db
     }
 
-    fn has_redirects(&self, stele: &str, repo_name: &str) -> bool {
+    fn has_redirects(&self, fonds: &str, repo_name: &str) -> bool {
         self.repos_with_redirects
-            .contains(&(stele.to_owned(), repo_name.to_owned()))
+            .contains(&(fonds.to_owned(), repo_name.to_owned()))
     }
 }
 
@@ -71,7 +71,7 @@ impl Global for App {
 pub struct RepoData {
     /// Path to the archive
     pub archive_path: PathBuf,
-    /// Path to the Stele
+    /// Path to the Fonds
     pub path: PathBuf,
     /// Repo organization
     pub org: String,
@@ -180,11 +180,11 @@ impl Clone for Shared {
 ///
 /// # Errors
 /// Will error if unable to initialize the data repository
-pub fn init_repo(repo: &Repository, stele: &Stele) -> anyhow::Result<RepoData> {
+pub fn init_repo(repo: &Repository, fonds: &Fonds) -> anyhow::Result<RepoData> {
     let custom = &repo.custom;
     let (org, name) = get_name_parts(&repo.name)?;
     Ok(RepoData::new(
-        &stele.archive_path.to_string_lossy(),
+        &fonds.archive_path.to_string_lossy(),
         &org,
         &name,
         &custom.serve,
@@ -198,13 +198,13 @@ pub fn init_repo(repo: &Repository, stele: &Stele) -> anyhow::Result<RepoData> {
 /// Returns a `SharedState` object
 /// # Errors
 /// Will error if unable to open the git repo for the fallback data repository
-pub fn init_shared(stele: &Stele) -> anyhow::Result<Shared> {
-    let fallback = stele
+pub fn init_shared(fonds: &Fonds) -> anyhow::Result<Shared> {
+    let fallback = fonds
         .get_fallback_repo()
         .map(|repo| {
             let (org, name) = get_name_parts(&repo.name)?;
             Ok::<RepoData, anyhow::Error>(RepoData::new(
-                &stele.archive_path.to_string_lossy(),
+                &fonds.archive_path.to_string_lossy(),
                 &org,
                 &name,
                 &repo.custom.serve,

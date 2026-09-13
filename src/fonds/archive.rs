@@ -1,8 +1,8 @@
 //! The archive module contains the Archive object for interacting with
-//! Stelae Archives, as well as several factory methods.
+//! Fonds Archives, as well as several factory methods.
 
-use crate::stelae::stele;
-use crate::stelae::stele::Stele;
+use crate::fonds::fonds;
+use crate::fonds::fonds::Fonds;
 use crate::utils::archive::{find_archive_path, get_name_parts};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -10,13 +10,13 @@ use std::fs::{self, create_dir_all, read_to_string, write};
 use std::path::{Path, PathBuf};
 use toml::ser;
 
-/// The Archive struct is used for interacting with a Stelae Archive.
+/// The Archive struct is used for interacting with a Fonds Archive.
 #[derive(Debug, Clone)]
 pub struct Archive {
     /// Path to the Archive
     pub path: PathBuf,
-    /// map of auth repo name to Stele object
-    pub stelae: HashMap<String, Stele>,
+    /// map of auth repo name to Fonds object
+    pub fonds_map: HashMap<String, Fonds>,
 }
 
 impl Archive {
@@ -30,27 +30,27 @@ impl Archive {
         Ok(conf)
     }
 
-    /// Get the Archive's root Stele.
+    /// Get the Archive's root Fonds.
     /// # Errors
-    /// Will raise error if unable to find the current root Stele
-    pub fn get_root(&self) -> anyhow::Result<&Stele> {
+    /// Will raise error if unable to find the current root Fonds
+    pub fn get_root(&self) -> anyhow::Result<&Fonds> {
         let root = self
-            .stelae
+            .fonds_map
             .values()
-            .find(|stele| stele.is_root())
-            .ok_or_else(|| anyhow::anyhow!("No root Stele found in archive"))?;
+            .find(|fonds| fonds.is_root())
+            .ok_or_else(|| anyhow::anyhow!("No root Fonds found in archive"))?;
         Ok(root)
     }
 
-    /// Set the Archive's root Stele.
+    /// Set the Archive's root Fonds.
     /// # Errors
     /// Will raise error if unable to determine the current
-    /// root Stele.
+    /// root Fonds.
     pub fn set_root(&mut self, path: Option<PathBuf>) -> anyhow::Result<()> {
-        let root: Stele;
+        let root: Fonds;
         if let Some(individual_path) = path {
-            tracing::info!("Serving individual Stele at path: {:?}", individual_path);
-            root = Stele::new(&self.path, None, None, Some(individual_path), true)?;
+            tracing::info!("Serving individual Fonds at path: {:?}", individual_path);
+            root = Fonds::new(&self.path, None, None, Some(individual_path), true)?;
         } else {
             let conf = self.get_config()?;
 
@@ -59,7 +59,7 @@ impl Archive {
 
             tracing::info!("Serving {}/{} at path: {:?}", &org, &name, self.path);
 
-            root = Stele::new(
+            root = Fonds::new(
                 &self.path,
                 Some(name),
                 Some(org.clone()),
@@ -67,22 +67,22 @@ impl Archive {
                 true,
             )?;
         }
-        self.stelae.insert(root.get_qualified_name(), root);
+        self.fonds_map.insert(root.get_qualified_name(), root);
         Ok(())
     }
 
-    /// Return sorted vector of all Stelae in the Archive.
+    /// Return sorted vector of all Fonds in the Archive.
     #[must_use]
-    pub fn get_stelae(&self) -> Vec<(String, Stele)> {
-        let mut stelae = self.stelae.clone();
-        let mut stelae_vec: Vec<(String, Stele)> = stelae.drain().collect();
-        stelae_vec.sort_by(|first_stele, second_stele| first_stele.0.cmp(&second_stele.0));
-        stelae_vec
+    pub fn get_all_fonds(&self) -> Vec<(String, Fonds)> {
+        let mut fonds = self.fonds_map.clone();
+        let mut fonds_vec: Vec<(String, Fonds)> = fonds.drain().collect();
+        fonds_vec.sort_by(|first_fonds, second_fonds| first_fonds.0.cmp(&second_fonds.0));
+        fonds_vec
     }
 
     /// Parse an Archive.
     /// # Errors
-    /// Will raise error if unable to determine the current root stele or if unable to traverse the child steles.
+    /// Will raise error if unable to determine the current root fonds or if unable to traverse the child fonds.
     pub fn parse(
         archive_path: PathBuf,
         actual_path: &Path,
@@ -90,7 +90,7 @@ impl Archive {
     ) -> anyhow::Result<Self> {
         let mut archive = Self {
             path: archive_path,
-            stelae: HashMap::new(),
+            fonds_map: HashMap::new(),
         };
 
         let path = if individual {
@@ -106,14 +106,14 @@ impl Archive {
         Ok(archive)
     }
 
-    /// Traverse the child Steles of the current Stele.
+    /// Traverse the child Fonds of the current Fonds.
     /// # Errors
-    /// Will raise error if unable to traverse the child steles.
+    /// Will raise error if unable to traverse the child fonds.
     /// # Panics
     /// If unable to unwrap the parent directory of the current path.
     pub fn traverse_children(
         &mut self,
-        current: &Stele,
+        current: &Fonds,
         visited: &mut Vec<String>,
     ) -> anyhow::Result<()> {
         if let Some(dependencies) = current.get_dependencies()? {
@@ -124,17 +124,17 @@ impl Archive {
                 let parent_dir = self.path.clone();
                 let (org, name) = get_name_parts(&qualified_name)?;
                 if fs::metadata(parent_dir.join(&org).join(&name)).is_err() {
-                    // Stele does not exist on the filesystem, continue to traverse other Steles
+                    // Fonds does not exist on the filesystem, continue to traverse other Fonds
                     continue;
                 }
-                let child = Stele::new(
+                let child = Fonds::new(
                     &self.path,
                     Some(name),
                     Some(org.clone()),
                     Some(parent_dir.join(org)),
                     false,
                 )?;
-                self.stelae
+                self.fonds_map
                     .entry(format!(
                         "{org}/{name}",
                         org = child.auth_repo.org,
@@ -166,22 +166,22 @@ fn raise_error_if_in_existing_archive(path: &Path) -> anyhow::Result<bool> {
 /// Config object for an Archive
 #[derive(Deserialize, Serialize)]
 pub struct Config {
-    /// The root Stele for this archive
-    pub root: stele::Config,
+    /// The root Fonds for this archive
+    pub root: fonds::Config,
     /// Whether this is a shallow archive (all repos depth=1)
     pub shallow: bool,
-    /// Custom HTTP headers used to interact with the Stele
+    /// Custom HTTP headers used to interact with the Fonds
     pub headers: Option<Headers>,
 }
 
 /// Optional Header configuration for an Archive
 #[derive(Default, Deserialize, Serialize)]
 pub struct Headers {
-    /// Specify a custom header guard to use when requesting a Stele's current documents.
+    /// Specify a custom header guard to use when requesting a Fonds's current documents.
     pub current_documents_guard: Option<String>,
 }
 
-/// Create a new Stelae Archive at path, and return the new archive.
+/// Create a new Fonds Archive at path, and return the new archive.
 /// # Errors
 /// Will error if archive is created inside of an existing archive.
 pub fn init(
@@ -193,11 +193,11 @@ pub fn init(
     headers: Option<Headers>,
 ) -> anyhow::Result<Box<Archive>> {
     raise_error_if_in_existing_archive(&path)?;
-    let stelae_dir = path.join(PathBuf::from("./.taf"));
-    create_dir_all(&stelae_dir)?;
-    let config_path = stelae_dir.join(PathBuf::from("./config.toml"));
+    let fonds_dir = path.join(PathBuf::from("./.taf"));
+    create_dir_all(&fonds_dir)?;
+    let config_path = fonds_dir.join(PathBuf::from("./config.toml"));
     let conf = Config {
-        root: stele::Config {
+        root: fonds::Config {
             name: root_name,
             org: root_org,
             hash: root_hash,
@@ -209,7 +209,7 @@ pub fn init(
     write(config_path, conf_str)?;
     let archive = Archive {
         path,
-        stelae: HashMap::new(),
+        fonds_map: HashMap::new(),
     };
     Ok(Box::new(archive))
 }

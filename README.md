@@ -1,6 +1,6 @@
-# Stelae
+# Taf server
 
-Stelae is a system for distributing, preserving, and authenticating laws.
+Taf server is a system for distributing, preserving, and authenticating laws.
 
 ## Contributing
 

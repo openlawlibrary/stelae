@@ -8,7 +8,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use std::fs::create_dir_all;
 use std::path::PathBuf;
 use std::sync::Once;
-use stelae::utils::git::Repo;
+use taf_server::utils::git::Repo;
 
 /// get the path to the test archive at `$REPO_ROOT/tests/fixtures/archive`.
 fn get_test_archive_path() -> PathBuf {

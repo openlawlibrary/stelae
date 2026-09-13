@@ -1,14 +1,16 @@
-//! # Stelae
+//! # Taf Server
 //!
-//! Stelae is a collection of tools in rust and python for preserving,
+//! Taf Server is a collection of tools in rust and python for preserving,
 //! authenticating, and accessing laws in perpetuity.
 //!
 //! ## About the name
 //!
-//! Stelae, or large stone slabs, were used in some ancient cultures to
-//! publish the law. The Code of Hammurabi, one of the earliest preserved
-//! written laws, was published on a Stelae in ~1750 BCE and is still readable
-//! nearly four millennia later.
+//! In archival science, a *fonds* (French; both singular and plural) is the
+//! complete body of records naturally created, accumulated, and used by a
+//! particular organization, person, or family in the course of its
+//! activities, kept together in order to preserve the context in which the
+//! records were originally created. Each authenticated archive of laws
+//! tracked by this crate is one such fonds.
 
 // =========================================================================
 //                  Canonical lints for whole crate
@@ -170,8 +172,8 @@
 )]
 
 pub mod db;
+pub mod fonds;
 pub mod history;
 pub mod redirects;
 pub mod server;
-pub mod stelae;
 pub mod utils;

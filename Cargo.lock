@@ -3015,42 +3015,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
-name = "stelae"
-version = "0.6.9"
-dependencies = [
- "actix-http",
- "actix-service",
- "actix-web",
- "anyhow",
- "async-trait",
- "chrono",
- "clap",
- "criterion",
- "derive_more",
- "git2",
- "just",
- "lazy_static",
- "libxml",
- "md-5",
- "mime",
- "mime_guess",
- "regex",
- "serde",
- "serde_derive",
- "serde_json",
- "sophia",
- "sqlx",
- "tempfile",
- "toml",
- "toml_edit",
- "tracing",
- "tracing-actix-web",
- "tracing-appender",
- "tracing-subscriber",
- "url",
-]
-
-[[package]]
 name = "stringprep"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3125,6 +3089,42 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "taf-server"
+version = "0.6.9"
+dependencies = [
+ "actix-http",
+ "actix-service",
+ "actix-web",
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "clap",
+ "criterion",
+ "derive_more",
+ "git2",
+ "just",
+ "lazy_static",
+ "libxml",
+ "md-5",
+ "mime",
+ "mime_guess",
+ "regex",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "sophia",
+ "sqlx",
+ "tempfile",
+ "toml",
+ "toml_edit",
+ "tracing",
+ "tracing-actix-web",
+ "tracing-appender",
+ "tracing-subscriber",
+ "url",
 ]
 
 [[package]]

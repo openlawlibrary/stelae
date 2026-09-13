@@ -6,9 +6,9 @@ use git2::{Commit, Error, Oid};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use stelae::stelae::archive::{self, Headers};
-use stelae::stelae::types::dependencies::{Dependencies, Dependency};
-use stelae::stelae::types::repositories::{Repositories, Repository};
+use taf_server::fonds::archive::{self, Headers};
+use taf_server::fonds::types::dependencies::{Dependencies, Dependency};
+use taf_server::fonds::types::repositories::{Repositories, Repository};
 use tempfile::TempDir;
 
 use crate::archive_testtools::config::get_private_root_test_data_repositories;
@@ -157,7 +157,7 @@ fn initialize_archive_basic(td: &TempDir) -> Result<()> {
         None,
     )
     .unwrap();
-    initialize_stele(
+    initialize_fonds(
         td.path().to_path_buf(),
         org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
@@ -182,7 +182,7 @@ fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
     )
     .unwrap();
 
-    initialize_stele(
+    initialize_fonds(
         td.path().to_path_buf(),
         root_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
@@ -191,30 +191,30 @@ fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
     )
     .unwrap();
 
-    let dependent_stele_1_org_name = "dependent_stele_1";
-    let dependent_stele_1_scopes: Vec<String> = vec!["sub/scope/1".into(), "sub/scope/2".into()];
+    let dependent_fonds_1_org_name = "dependent_fonds_1";
+    let dependent_fonds_1_scopes: Vec<String> = vec!["sub/scope/1".into(), "sub/scope/2".into()];
 
-    initialize_stele(
+    initialize_fonds(
         td.path().to_path_buf(),
-        dependent_stele_1_org_name,
-        get_dependent_data_repositories_with_scopes(&dependent_stele_1_scopes)
+        dependent_fonds_1_org_name,
+        get_dependent_data_repositories_with_scopes(&dependent_fonds_1_scopes)
             .unwrap()
             .as_slice(),
-        Some(&dependent_stele_1_scopes),
+        Some(&dependent_fonds_1_scopes),
         None,
     )
     .unwrap();
 
-    let dependent_stele_2_org_name = "dependent_stele_2";
-    let dependent_stele_2_scopes: Vec<String> = vec!["sub/scope/3".into(), "sub/scope/4".into()];
+    let dependent_fonds_2_org_name = "dependent_fonds_2";
+    let dependent_fonds_2_scopes: Vec<String> = vec!["sub/scope/3".into(), "sub/scope/4".into()];
 
-    initialize_stele(
+    initialize_fonds(
         td.path().to_path_buf(),
-        dependent_stele_2_org_name,
-        get_dependent_data_repositories_with_scopes(&dependent_stele_2_scopes)
+        dependent_fonds_2_org_name,
+        get_dependent_data_repositories_with_scopes(&dependent_fonds_2_scopes)
             .unwrap()
             .as_slice(),
-        Some(&dependent_stele_2_scopes),
+        Some(&dependent_fonds_2_scopes),
         None,
     )
     .unwrap();
@@ -222,7 +222,7 @@ fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
     add_dependencies(
         td.path(),
         root_org_name,
-        vec![dependent_stele_1_org_name, dependent_stele_2_org_name],
+        vec![dependent_fonds_1_org_name, dependent_fonds_2_org_name],
         None,
     )?;
 
@@ -231,7 +231,7 @@ fn initialize_archive_multijurisdiction(td: &TempDir) -> Result<()> {
 }
 
 fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
-    let root_org_name = "root_stele";
+    let root_org_name = "root_fonds";
 
     archive::init(
         td.path().to_owned(),
@@ -245,7 +245,7 @@ fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
     )
     .unwrap();
 
-    initialize_stele(
+    initialize_fonds(
         td.path().to_path_buf(),
         root_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
@@ -254,22 +254,22 @@ fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
     )
     .unwrap();
 
-    let stele_1_org_name = "stele_1";
+    let fonds_1_org_name = "fonds_1";
 
-    initialize_stele(
+    initialize_fonds(
         td.path().to_path_buf(),
-        stele_1_org_name,
+        fonds_1_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
         None,
         None,
     )
     .unwrap();
 
-    let stele_2_org_name = "stele_2";
+    let fonds_2_org_name = "fonds_2";
 
-    initialize_stele(
+    initialize_fonds(
         td.path().to_path_buf(),
-        stele_2_org_name,
+        fonds_2_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
         None,
         None,
@@ -279,44 +279,44 @@ fn initialize_archive_multihost(td: &TempDir) -> Result<()> {
     add_dependencies(
         td.path(),
         root_org_name,
-        vec![stele_1_org_name, stele_2_org_name],
+        vec![fonds_1_org_name, fonds_2_org_name],
         None,
     )?;
 
-    let stele_1_1_org_name = "stele_1_1";
+    let fonds_1_1_org_name = "fonds_1_1";
 
-    initialize_stele(
+    initialize_fonds(
         td.path().to_path_buf(),
-        stele_1_1_org_name,
+        fonds_1_1_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
         None,
         None,
     )
     .unwrap();
 
-    let stele_1_2_org_name = "stele_1_2";
+    let fonds_1_2_org_name = "fonds_1_2";
 
-    initialize_stele(
+    initialize_fonds(
         td.path().to_path_buf(),
-        stele_1_2_org_name,
+        fonds_1_2_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
         None,
         None,
     )
     .unwrap();
 
-    // Add stele_1_1 and stele_1_2 as dependencies of stele_1
+    // Add fonds_1_1 and fonds_1_2 as dependencies of fonds_1
     add_dependencies(
         td.path(),
-        stele_1_org_name,
-        vec![stele_1_1_org_name, stele_1_2_org_name],
+        fonds_1_org_name,
+        vec![fonds_1_1_org_name, fonds_1_2_org_name],
         None,
     )?;
     Ok(())
 }
 
 fn initialize_private_archive_multihost(td: &TempDir) -> Result<()> {
-    let root_org_name = "root_stele";
+    let root_org_name = "root_fonds";
 
     archive::init(
         td.path().to_owned(),
@@ -330,7 +330,7 @@ fn initialize_private_archive_multihost(td: &TempDir) -> Result<()> {
     )
     .unwrap();
 
-    initialize_stele(
+    initialize_fonds(
         td.path().to_path_buf(),
         root_org_name,
         get_private_root_test_data_repositories()
@@ -341,7 +341,7 @@ fn initialize_private_archive_multihost(td: &TempDir) -> Result<()> {
     )
     .unwrap();
 
-    initialize_stele(
+    initialize_fonds(
         td.path().to_path_buf(),
         root_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
@@ -350,7 +350,7 @@ fn initialize_private_archive_multihost(td: &TempDir) -> Result<()> {
     )
     .unwrap();
 
-    initialize_stele(
+    initialize_fonds(
         td.path().to_path_buf(),
         root_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
@@ -359,22 +359,22 @@ fn initialize_private_archive_multihost(td: &TempDir) -> Result<()> {
     )
     .unwrap();
 
-    let stele_1_org_name = "stele_1";
+    let fonds_1_org_name = "fonds_1";
 
-    initialize_stele(
+    initialize_fonds(
         td.path().to_path_buf(),
-        stele_1_org_name,
+        fonds_1_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
         None,
         None,
     )
     .unwrap();
 
-    let stele_2_org_name = "stele_2";
+    let fonds_2_org_name = "fonds_2";
 
-    initialize_stele(
+    initialize_fonds(
         td.path().to_path_buf(),
-        stele_2_org_name,
+        fonds_2_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
         None,
         None,
@@ -391,43 +391,43 @@ fn initialize_private_archive_multihost(td: &TempDir) -> Result<()> {
     add_dependencies(
         td.path(),
         root_org_name,
-        vec![stele_1_org_name, stele_2_org_name],
+        vec![fonds_1_org_name, fonds_2_org_name],
         None,
     )?;
 
-    let stele_1_1_org_name = "stele_1_1";
+    let fonds_1_1_org_name = "fonds_1_1";
 
-    initialize_stele(
+    initialize_fonds(
         td.path().to_path_buf(),
-        stele_1_1_org_name,
+        fonds_1_1_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
         None,
         None,
     )
     .unwrap();
 
-    let stele_1_2_org_name = "stele_1_2";
+    let fonds_1_2_org_name = "fonds_1_2";
 
-    initialize_stele(
+    initialize_fonds(
         td.path().to_path_buf(),
-        stele_1_2_org_name,
+        fonds_1_2_org_name,
         get_basic_test_data_repositories().unwrap().as_slice(),
         None,
         None,
     )
     .unwrap();
 
-    // Add stele_1_1 and stele_1_2 as dependencies of stele_1
+    // Add fonds_1_1 and fonds_1_2 as dependencies of fonds_1
     add_dependencies(
         td.path(),
-        stele_1_org_name,
-        vec![stele_1_1_org_name, stele_1_2_org_name],
+        fonds_1_org_name,
+        vec![fonds_1_1_org_name, fonds_1_2_org_name],
         None,
     )?;
     Ok(())
 }
 
-pub fn initialize_stele(
+pub fn initialize_fonds(
     path: PathBuf,
     org_name: &str,
     data_repositories: &[TestDataRepositoryContext],
@@ -576,7 +576,7 @@ fn get_static_file_path(filename: &str) -> PathBuf {
 pub fn add_dependencies(
     path: &Path,
     root_org_name: &str,
-    dependent_stele_org_names: Vec<&str>,
+    dependent_fonds_org_names: Vec<&str>,
     auth_repo: Option<&str>,
 ) -> Result<()> {
     let auth_repo = auth_repo.unwrap_or("law");
@@ -584,11 +584,11 @@ pub fn add_dependencies(
     let dependencies = Dependencies {
         dependencies: {
             let mut dependencies = HashMap::new();
-            for dependent_stele_org_name in dependent_stele_org_names {
+            for dependent_fonds_org_name in dependent_fonds_org_names {
                 dependencies.insert(
                     format!(
-                        "{dependent_stele_org_name}/law",
-                        dependent_stele_org_name = dependent_stele_org_name
+                        "{dependent_fonds_org_name}/law",
+                        dependent_fonds_org_name = dependent_fonds_org_name
                     ),
                     Dependency {
                         out_of_band_authentication: "sha256".into(),

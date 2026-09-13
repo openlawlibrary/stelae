@@ -12,19 +12,19 @@ use actix_http::header::IF_NONE_MATCH;
 use actix_http::StatusCode;
 use actix_web::test;
 use std::path::PathBuf;
-use stelae::server::headers::HTTP_E_TAG;
+use taf_server::server::headers::HTTP_E_TAG;
 
 #[actix_web::test]
-async fn test_resolve_both_guarded_stele_law_html_request_with_full_path_expect_success() {
+async fn test_resolve_both_guarded_fonds_law_html_request_with_full_path_expect_success() {
     let archive_path =
         common::initialize_archive(ArchiveType::Multihost(MultihostConfig::Public)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
 
     for guard_value in [
-        "stele_1/law",
-        "stele_2/law",
-        "stele_1_1/law",
-        "stele_1_2/law",
+        "fonds_1/law",
+        "fonds_2/law",
+        "fonds_1_1/law",
+        "fonds_1_2/law",
     ] {
         for request_uri in &["/a/b/c.html", "/a/b/", "/a/b/c/", "/a/d/"] {
             let req = test::TestRequest::get()
@@ -40,7 +40,7 @@ async fn test_resolve_both_guarded_stele_law_html_request_with_full_path_expect_
 }
 
 #[actix_web::test]
-async fn test_resolve_guarded_stele_law_html_request_where_header_value_is_incorrect_expect_error()
+async fn test_resolve_guarded_fonds_law_html_request_where_header_value_is_incorrect_expect_error()
 {
     let archive_path =
         common::initialize_archive(ArchiveType::Multihost(MultihostConfig::Public)).unwrap();
@@ -56,12 +56,12 @@ async fn test_resolve_guarded_stele_law_html_request_where_header_value_is_incor
 }
 
 #[actix_web::test]
-async fn test_resolve_guarded_stele_law_html_request_where_header_name_is_incorrect_expect_error() {
+async fn test_resolve_guarded_fonds_law_html_request_where_header_name_is_incorrect_expect_error() {
     let archive_path =
         common::initialize_archive(ArchiveType::Multihost(MultihostConfig::Public)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
     let req = test::TestRequest::get()
-        .insert_header(("X-Incorrect-Header-Name", "stele_1/law"))
+        .insert_header(("X-Incorrect-Header-Name", "fonds_1/law"))
         .uri("/a/b/c.html")
         .to_request();
     let resp = test::call_service(&app, req).await;
@@ -71,15 +71,15 @@ async fn test_resolve_guarded_stele_law_html_request_where_header_name_is_incorr
 }
 
 #[actix_web::test]
-async fn test_resolve_guarded_stele_law_rdf_request_content_expect_rdf_document_retrieved() {
+async fn test_resolve_guarded_fonds_law_rdf_request_content_expect_rdf_document_retrieved() {
     let archive_path =
         common::initialize_archive(ArchiveType::Multihost(MultihostConfig::Public)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
     for guard_value in [
-        "stele_1/law",
-        "stele_2/law",
-        "stele_1_1/law",
-        "stele_1_2/law",
+        "fonds_1/law",
+        "fonds_2/law",
+        "fonds_1_1/law",
+        "fonds_1_2/law",
     ] {
         for request_uri in &[
             "/_rdf/index.rdf",
@@ -108,10 +108,10 @@ async fn test_law_other_data_request_content_expect_other_document_retrieved() {
         common::initialize_archive(ArchiveType::Multihost(MultihostConfig::Public)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
     for guard_value in [
-        "stele_1/law",
-        "stele_2/law",
-        "stele_1_1/law",
-        "stele_1_2/law",
+        "fonds_1/law",
+        "fonds_2/law",
+        "fonds_1_1/law",
+        "fonds_1_2/law",
     ] {
         for request_uri in &[
             "/_prefix/a/index.html",
@@ -138,17 +138,17 @@ async fn test_law_other_data_request_content_with_cycle_expect_other_document_re
         common::initialize_archive_without_bare(ArchiveType::Multihost(MultihostConfig::Public))
             .unwrap();
     // Add a cycle
-    // stele_1 -> stele_1_1 -> stele_1
+    // fonds_1 -> fonds_1_1 -> fonds_1
     // Expect that the cycle is resolved
-    archive_testtools::add_dependencies(archive_path.path(), "stele_1_1", vec!["stele_1"], None)
+    archive_testtools::add_dependencies(archive_path.path(), "fonds_1_1", vec!["fonds_1"], None)
         .unwrap();
     utils::make_all_git_repos_bare_recursive(&archive_path).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
     for guard_value in [
-        "stele_1/law",
-        "stele_2/law",
-        "stele_1_1/law",
-        "stele_1_2/law",
+        "fonds_1/law",
+        "fonds_2/law",
+        "fonds_1_1/law",
+        "fonds_1_2/law",
     ] {
         for request_uri in &[
             "/_prefix/a/index.html",
@@ -176,10 +176,10 @@ async fn get_law_html_request_with_no_if_no_match_header_expect_new_etag() {
     let app = common::initialize_app(archive_path.path()).await;
 
     for guard_value in [
-        "stele_1/law",
-        "stele_2/law",
-        "stele_1_1/law",
-        "stele_1_2/law",
+        "fonds_1/law",
+        "fonds_2/law",
+        "fonds_1_1/law",
+        "fonds_1_2/law",
     ] {
         for request_uri in &["/a/b/c.html", "/a/b/", "/a/b/c/", "/a/d/"] {
             let req = test::TestRequest::get()
@@ -200,10 +200,10 @@ async fn get_law_html_request_with_if_no_match_header_expect_not_modified() {
     let app = common::initialize_app(archive_path.path()).await;
     let file_hash = "d8356a575732fe015dddcf3fa2f23f2ace98b712";
     for guard_value in [
-        "stele_1/law",
-        "stele_2/law",
-        "stele_1_1/law",
-        "stele_1_2/law",
+        "fonds_1/law",
+        "fonds_2/law",
+        "fonds_1_1/law",
+        "fonds_1_2/law",
     ] {
         for request_uri in &["/a/b/c.html", "/a/b/", "/a/b/c/", "/a/d/"] {
             let req = test::TestRequest::get()
@@ -233,10 +233,10 @@ async fn get_law_html_request_with_old_if_no_match_header_expect_new_tag() {
     let file_hash = "d8356a575732fe015dddcf3fa2f23f2ace98b712";
     let old_file_hash = "0000000000000000000000000000000000000000000";
     for guard_value in [
-        "stele_1/law",
-        "stele_2/law",
-        "stele_1_1/law",
-        "stele_1_2/law",
+        "fonds_1/law",
+        "fonds_2/law",
+        "fonds_1_1/law",
+        "fonds_1_2/law",
     ] {
         for request_uri in &["/a/b/c.html", "/a/b/", "/a/b/c/", "/a/d/"] {
             let req = test::TestRequest::get()
@@ -255,18 +255,18 @@ async fn get_law_html_request_with_old_if_no_match_header_expect_new_tag() {
 }
 
 #[actix_web::test]
-async fn test_redirect_dependant_stele_law_html_request_with_correct_redirects_expect_success() {
+async fn test_redirect_dependant_fonds_law_html_request_with_correct_redirects_expect_success() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Multihost(MultihostConfig::Public))
             .unwrap();
 
-    let stelae_1_html_repo_path: PathBuf = archive_path.path().join("stele_1/law-html");
+    let fonds_1_html_repo_path: PathBuf = archive_path.path().join("fonds_1/law-html");
 
     let db = get_db(archive_path.path()).await;
 
     insert_redirects(
         &db,
-        "stele_1/law",
+        "fonds_1/law",
         "law-html",
         vec![("/not/a/good/path", "/")],
     )
@@ -277,8 +277,8 @@ async fn test_redirect_dependant_stele_law_html_request_with_correct_redirects_e
     let request_uri = "/not/a/good/path";
     let req = test::TestRequest::get()
         .uri(request_uri)
-        .insert_header(("X-Current-Documents-Guard", "stele_1/law"))
-        .insert_header(("X-Stelae", "stele_1/law"))
+        .insert_header(("X-Current-Documents-Guard", "fonds_1/law"))
+        .insert_header(("X-Fonds", "fonds_1/law"))
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::TEMPORARY_REDIRECT);
@@ -294,7 +294,7 @@ async fn test_redirect_dependant_stele_law_html_request_with_correct_redirects_e
 
     // follow redirect
     let req2 = test::TestRequest::get()
-        .insert_header(("X-Current-Documents-Guard", "stele_1/law"))
+        .insert_header(("X-Current-Documents-Guard", "fonds_1/law"))
         .uri(location)
         .to_request();
     let resp2 = test::call_service(&app, req2).await;
@@ -302,11 +302,11 @@ async fn test_redirect_dependant_stele_law_html_request_with_correct_redirects_e
     // assert final response
     assert!(resp2.status().is_success());
 
-    // test on other dependant stelae
+    // test on other dependant fonds
     let request_uri = "/not/a/good/path";
     let req3 = test::TestRequest::get()
         .uri(request_uri)
-        .insert_header(("X-Current-Documents-Guard", "stele_2/law"))
+        .insert_header(("X-Current-Documents-Guard", "fonds_2/law"))
         .to_request();
     let resp = test::call_service(&app, req3).await;
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
@@ -314,16 +314,19 @@ async fn test_redirect_dependant_stele_law_html_request_with_correct_redirects_e
 }
 
 #[actix_web::test]
-async fn test_redirect_dependant_stelae_law_html_requests_with_correct_redirects_expect_success() {
+async fn test_redirect_dependant_fonds_law_html_requests_with_correct_redirects_expect_success() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Multihost(MultihostConfig::Public))
             .unwrap();
 
     let db = get_db(archive_path.path()).await;
+    let fonds_1_html_repo_path: PathBuf = archive_path.path().join("fonds_1/law-html");
+    let fonds_2_html_repo_path: PathBuf = archive_path.path().join("fonds_2/law-html");
+    let fonds_1_1_html_repo_path: PathBuf = archive_path.path().join("fonds_1_1/law-html");
 
     insert_redirects(
         &db,
-        "stele_1/law",
+        "fonds_1/law",
         "law-html",
         vec![("/not/a/good/path", "/")],
     )
@@ -331,7 +334,7 @@ async fn test_redirect_dependant_stelae_law_html_requests_with_correct_redirects
 
     insert_redirects(
         &db,
-        "stele_2/law",
+        "fonds_2/law",
         "law-html",
         vec![("/not/a/good/path", "/a/")],
     )
@@ -339,7 +342,7 @@ async fn test_redirect_dependant_stelae_law_html_requests_with_correct_redirects
 
     insert_redirects(
         &db,
-        "stele_1_1/law",
+        "fonds_1_1/law",
         "law-html",
         vec![("/not/a/good/path", "/a/b")],
     )
@@ -350,9 +353,9 @@ async fn test_redirect_dependant_stelae_law_html_requests_with_correct_redirects
     let app = common::initialize_app(archive_path.path()).await;
 
     let cases = [
-        ("stele_1/law", "/"),
-        ("stele_2/law", "/a/"),
-        ("stele_1_1/law", "/a/b"),
+        ("fonds_1/law", "/"),
+        ("fonds_2/law", "/a/"),
+        ("fonds_1_1/law", "/a/b"),
     ];
 
     for (guard_value, expected_location) in cases {
@@ -360,7 +363,7 @@ async fn test_redirect_dependant_stelae_law_html_requests_with_correct_redirects
         let req = test::TestRequest::get()
             .uri(request_uri)
             .insert_header(("X-Current-Documents-Guard", guard_value))
-            .insert_header(("X-Stelae", guard_value))
+            .insert_header(("X-Fonds", guard_value))
             .to_request();
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::TEMPORARY_REDIRECT);
@@ -375,11 +378,11 @@ async fn test_redirect_dependant_stelae_law_html_requests_with_correct_redirects
         assert_eq!(location, expected_location);
     }
 
-    // test on other dependant stelae
+    // test on other dependant fonds
     let request_uri = "/not/a/good/path";
     let req3 = test::TestRequest::get()
         .uri(request_uri)
-        .insert_header(("X-Current-Documents-Guard", "stele_1_2/law"))
+        .insert_header(("X-Current-Documents-Guard", "fonds_1_2/law"))
         .to_request();
     let resp = test::call_service(&app, req3).await;
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);

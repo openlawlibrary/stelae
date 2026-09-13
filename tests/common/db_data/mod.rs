@@ -1,11 +1,11 @@
 //use crate::db::{DatabaseConnection, DatabaseKind, Db as _};
-use stelae::db::{DatabaseConnection, DatabaseKind, DatabaseTransaction, Tx as _};
-use stelae::redirects::insert_redirects_for_stele;
-use stelae::stelae::stele::Stele;
+use taf_server::db::{DatabaseConnection, DatabaseKind, DatabaseTransaction, Tx as _};
+use taf_server::fonds::fonds::Fonds;
+use taf_server::redirects::insert_redirects_for_fonds;
 
 pub async fn insert_redirects(
     connection: &DatabaseConnection,
-    stele: &str,
+    fonds: &str,
     repo_name: &str,
     redirects: Vec<(&str, &str)>,
 ) {
@@ -13,9 +13,9 @@ pub async fn insert_redirects(
         match connection.kind {
             DatabaseKind::Sqlite => {
                 sqlx::query(
-                    "INSERT OR IGNORE INTO redirects (stele_name, repo_name, from_url, to_url) VALUES (?, ?, ?, ?)",
+                    "INSERT OR IGNORE INTO redirects (fonds_name, repo_name, from_url, to_url) VALUES (?, ?, ?, ?)",
                 )
-                .bind(stele)
+                .bind(fonds)
                 .bind(repo_name)
                 .bind(from)
                 .bind(to)
@@ -27,10 +27,10 @@ pub async fn insert_redirects(
     }
 }
 
-pub async fn load_redirects(connection: &DatabaseConnection, stele: &mut Stele) {
+pub async fn load_redirects(connection: &DatabaseConnection, fonds: &mut Fonds) {
     let mut tx = DatabaseTransaction::begin(connection.pool.clone())
         .await
         .unwrap();
-    insert_redirects_for_stele(&mut tx, stele).await.unwrap();
+    insert_redirects_for_fonds(&mut tx, fonds).await.unwrap();
     tx.commit().await.unwrap();
 }

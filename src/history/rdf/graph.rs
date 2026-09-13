@@ -1,6 +1,6 @@
 #![expect(
     clippy::module_name_repetitions,
-    reason = "Call our graph `StelaeGraph`, which repeats the name graph, but is used to differentiate between our wrapper and the underlying sophia graph."
+    reason = "Call our graph `FondsGraph`, which repeats the name graph, but is used to differentiate between our wrapper and the underlying sophia graph."
 )]
 #![expect(
     clippy::min_ident_chars,
@@ -10,7 +10,7 @@
     clippy::pattern_type_mismatch,
     reason = "Bypass sophia internal & ref match on SimpleTerm"
 )]
-/// The helper methods for working with RDF in Stelae.
+/// The helper methods for working with RDF in Fonds.
 use anyhow::Context as _;
 use sophia::api::graph::{GTripleSource, Graph as _};
 use sophia::api::ns::NsTerm;
@@ -18,19 +18,19 @@ use sophia::api::MownStr;
 use sophia::api::{prelude::*, term::SimpleTerm};
 use sophia::inmem::graph::FastGraph;
 use std::iter;
-/// Stelae representation of an RDF graph.
-pub struct StelaeGraph {
+/// Fonds representation of an RDF graph.
+pub struct FondsGraph {
     /// The underlying `sophia` graph.
     pub fast_graph: FastGraph,
 }
 
-impl Default for StelaeGraph {
+impl Default for FondsGraph {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl StelaeGraph {
+impl FondsGraph {
     /// Create a new graph.
     #[must_use]
     pub fn new() -> Self {
@@ -177,13 +177,13 @@ pub struct Bag<'graph> {
     /// The container URI.
     uri: SimpleTerm<'graph>,
     /// The underlying graph.
-    graph: &'graph StelaeGraph,
+    graph: &'graph FondsGraph,
 }
 
 impl Bag<'_> {
     /// Create a new Bag.
     #[must_use]
-    pub const fn new<'graph>(graph: &'graph StelaeGraph, uri: SimpleTerm<'graph>) -> Bag<'graph> {
+    pub const fn new<'graph>(graph: &'graph FondsGraph, uri: SimpleTerm<'graph>) -> Bag<'graph> {
         Bag { uri, graph }
     }
 

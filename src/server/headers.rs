@@ -1,9 +1,9 @@
-//! Headers used in the Stelae server.
+//! Headers used in the Taf server.
 
 /// Provides the relative file path (starting from the git repository)
 /// of the corresponding git blob.
 ///
-/// This header is included in responses from the `git` microserver and the `_stelae` endpoint,
+/// This header is included in responses from the `git` microserver and the `_archive` endpoint,
 /// indicating the location of the file within the repository.
 ///
 /// Example:
@@ -53,7 +53,7 @@ pub const HTTP_E_TAG: &str = "ETAG";
 /// # Example
 ///
 /// ```rust
-/// use stelae::server::headers::etag_matches_if_none_match;
+/// use taf_server::server::headers::etag_matches_if_none_match;
 /// let etag = "\"abc123\"";
 /// assert!(etag_matches_if_none_match("\"abc123\"", etag));
 /// assert!(etag_matches_if_none_match("\"xyz\", \"abc123\"", etag));
