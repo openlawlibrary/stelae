@@ -36,8 +36,7 @@ fn test_find_archive_path_when_not_in_archive_expect_error() {
     let archive_path = common::get_test_archive_path(BASIC_MODULE_NAME);
     let cwd = archive_path.parent().unwrap();
     let actual = find_archive_path(cwd).unwrap_err();
-    let expected =
-        "is not inside a Stelae Archive. Run `taf conf init` to create an archive at this location.";
+    let expected = "Run `taf conf init` to create an archive at this location.";
     assert!(
         actual.to_string().contains(expected),
         "\"{actual}\" doesn't contain {expected}"

@@ -50,7 +50,7 @@ pub fn outdated_pub_message(date: &str) -> String {
 /// Renders the full HTML banner for an outdated publication notification.
 ///
 /// Used by the `date` endpoint when the requested publication is not the
-/// latest publication for the stelae.
+/// latest publication for the fonds.
 #[must_use]
 pub fn outdated_pub(date: &str, current_doc_url: &str) -> String {
     format!(

@@ -1,4 +1,4 @@
-//! Functionality for serving Stelae archive.
+//! Functionality for serving Fonds archive.
 //!
 //! Currently contains only a git microserver.
 

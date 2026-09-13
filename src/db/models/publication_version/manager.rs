@@ -30,7 +30,7 @@ impl super::TxManager for DatabaseTransaction {
         Ok(id)
     }
 
-    /// Find the last inserted publication version by a `stele` and `publication`.
+    /// Find the last inserted publication version by a `publication`.
     ///
     /// # Errors
     /// Errors if can't establish a connection to the database.

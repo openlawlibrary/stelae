@@ -1,26 +1,26 @@
-//! A Stele's dependencies.
+//! A Fonds's dependencies.
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// A map of Stele names to their dependencies.
+/// A map of Fonds names to their dependencies.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Dependencies {
-    /// An inner map of Stele keys to their dependencies.
+    /// An inner map of Fonds keys to their dependencies.
     pub dependencies: HashMap<String, Dependency>,
 }
 
-/// A single dependency as specified in a Stele's `dependencies.json` file.
+/// A single dependency as specified in a Fonds's `dependencies.json` file.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Dependency {
-    /// The out-of-band authenticated hash of the Stele.
+    /// The out-of-band authenticated hash of the Fonds.
     #[serde(rename = "out-of-band-authentication")]
     pub out_of_band_authentication: String,
-    /// The default branch for a Stele.
+    /// The default branch for a Fonds.
     pub branch: String,
 }
 
 impl Dependencies {
-    /// Get the dependencies names for a given Stele.
+    /// Get the dependencies names for a given Fonds.
     #[must_use]
     pub fn sorted_dependencies_names(&self) -> Vec<String> {
         let mut keys = self.dependencies.keys().cloned().collect::<Vec<String>>();

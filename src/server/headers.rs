@@ -1,9 +1,9 @@
-//! Headers used in the Stelae server.
+//! Headers used in the Taf server.
 
 /// Provides the relative file path (starting from the git repository)
 /// of the corresponding git blob.
 ///
-/// This header is included in responses from the `git` microserver and the `_stelae` endpoint,
+/// This header is included in responses from the `git` microserver and the `_archive` endpoint,
 /// indicating the location of the file within the repository.
 ///
 /// Example:

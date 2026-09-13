@@ -27,7 +27,7 @@ async fn test_archive_api_on_all_repositories_with_full_path_expect_success() {
         "HEAD",
         &app,
         true,
-        "x-stelae",
+        "x-fonds",
         "test_org/law",
     )
     .await;
@@ -50,7 +50,7 @@ async fn test_archive_api_on_all_repositories_with_full_path_expect_success() {
         "HEAD",
         &app,
         true,
-        "x-stelae",
+        "x-fonds",
         "test_org/law",
     )
     .await;
@@ -62,7 +62,7 @@ async fn test_archive_api_on_all_repositories_with_full_path_expect_success() {
         "HEAD",
         &app,
         true,
-        "x-stelae",
+        "x-fonds",
         "test_org/law",
     )
     .await;
@@ -81,7 +81,7 @@ async fn test_archive_api_on_all_repositories_with_full_path_expect_success() {
         "HEAD",
         &app,
         true,
-        "x-stelae",
+        "x-fonds",
         "test_org/law",
     )
     .await;
@@ -100,7 +100,7 @@ async fn test_archive_api_on_all_repositories_with_full_path_expect_success() {
         "HEAD",
         &app,
         true,
-        "x-stelae",
+        "x-fonds",
         "test_org/law",
     )
     .await;
@@ -112,7 +112,7 @@ async fn test_archive_api_on_all_repositories_with_full_path_expect_success() {
         "HEAD",
         &app,
         true,
-        "x-stelae",
+        "x-fonds",
         "test_org/law",
     )
     .await;
@@ -223,7 +223,7 @@ async fn test_archive_api_on_law_html_repository_with_missing_branch_name_expect
         "",
         &app,
         false,
-        "x-stelae",
+        "x-fonds",
         "test_org/law",
     )
     .await;
@@ -242,7 +242,7 @@ async fn test_archive_api_on_law_html_repository_with_invalid_branch_name_expect
         "notExistingBranch",
         &app,
         false,
-        "x-stelae",
+        "x-fonds",
         "test_org/law",
     )
     .await;
@@ -261,7 +261,7 @@ async fn test_archive_api_on_law_html_repository_with_invalid_org_name_expect_cl
         "HEAD",
         &app,
         false,
-        "x-stelae",
+        "x-fonds",
         "test_org/law",
     )
     .await;
@@ -280,7 +280,7 @@ async fn test_archive_api_on_law_html_repository_with_invalid_repo_name_expect_c
         "HEAD",
         &app,
         false,
-        "x-stelae",
+        "x-fonds",
         "test_org/law",
     )
     .await;
@@ -299,7 +299,7 @@ async fn test_archive_api_on_law_html_repository_with_incorrect_paths_expect_cli
         "HEAD",
         &app,
         false,
-        "x-stelae",
+        "x-fonds",
         "test_org/law",
     )
     .await;
@@ -334,7 +334,7 @@ async fn test_archive_api_on_law_html_repository_with_different_files_on_differe
         "default_branch",
         &app,
         true,
-        "x-stelae",
+        "x-fonds",
         "test_org/law",
     )
     .await;
@@ -346,7 +346,7 @@ async fn test_archive_api_on_law_html_repository_with_different_files_on_differe
         "default_branch",
         &app,
         false,
-        "x-stelae",
+        "x-fonds",
         "test_org/law",
     )
     .await;
@@ -358,7 +358,7 @@ async fn test_archive_api_on_law_html_repository_with_different_files_on_differe
         "test_branch",
         &app,
         false,
-        "x-stelae",
+        "x-fonds",
         "test_org/law",
     )
     .await;
@@ -370,7 +370,7 @@ async fn test_archive_api_on_law_html_repository_with_different_files_on_differe
         "test_branch",
         &app,
         true,
-        "x-stelae",
+        "x-fonds",
         "test_org/law",
     )
     .await;
@@ -492,7 +492,7 @@ async fn test_archive_api_where_org_name_does_not_exists_expect_error() {
     let req = test::TestRequest::get()
         .uri("/_archive/unknown_org/law-html?&path=/index.html")
         .insert_header((
-            header::HeaderName::from_static("x-stelae"),
+            header::HeaderName::from_static("x-fonds"),
             "unknown_org/law",
         ))
         .to_request();
@@ -515,7 +515,7 @@ async fn test_archive_api_where_repo_name_is_not_in_repository_json_file_expect_
 
     let req = test::TestRequest::get()
         .uri("/_archive/test_org/secret_repo?path=/password.txt")
-        .insert_header((header::HeaderName::from_static("x-stelae"), "test_org/law"))
+        .insert_header((header::HeaderName::from_static("x-fonds"), "test_org/law"))
         .to_request();
     let actual = test::call_and_read_body(&app, req).await;
     let expected = "repo test_org/secret_repo does not exist";
@@ -546,7 +546,7 @@ async fn test_archive_api_without_header_expect_error() {
 async fn test_archive_api_where_private_json_file_exists_expect_error() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
-    let stele_path: PathBuf = archive_path.path().join("test_org");
+    let fonds_path: PathBuf = archive_path.path().join("test_org");
     let auth_repo_path: PathBuf = archive_path.path().join("test_org/law");
 
     let file_content = r#"
@@ -557,12 +557,12 @@ async fn test_archive_api_where_private_json_file_exists_expect_error() {
     .to_string();
 
     let _ = add_private_json_file(&auth_repo_path, file_content);
-    let _ = init_secret_repository(&stele_path);
+    let _ = init_secret_repository(&fonds_path);
     let app = common::initialize_app(archive_path.path()).await;
 
     let req = test::TestRequest::get()
         .uri("/_archive/test_org/law-html?path=/index.html")
-        .insert_header((header::HeaderName::from_static("x-stelae"), "test_org/law"))
+        .insert_header((header::HeaderName::from_static("x-fonds"), "test_org/law"))
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(
@@ -586,7 +586,7 @@ async fn get_law_other_request_with_no_if_no_match_header_expect_new_etag() {
     let app = common::initialize_app(archive_path.path()).await;
     let req = test::TestRequest::get()
         .uri("/_archive/test_org/law-other?commitish=HEAD&path=example.json")
-        .insert_header((header::HeaderName::from_static("x-stelae"), "test_org/law"))
+        .insert_header((header::HeaderName::from_static("x-fonds"), "test_org/law"))
         .to_request();
 
     let resp = test::call_service(&app, req).await;
@@ -604,7 +604,7 @@ async fn get_law_other_request_with_if_no_match_header_expect_not_modified() {
     let req = test::TestRequest::get()
         .uri("/_archive/test_org/law-other?commitish=HEAD&path=example.json")
         .append_header((IF_NONE_MATCH, file_hash))
-        .insert_header((header::HeaderName::from_static("x-stelae"), "test_org/law"))
+        .insert_header((header::HeaderName::from_static("x-fonds"), "test_org/law"))
         .to_request();
     let resp = test::call_service(&app, req).await;
 
@@ -629,7 +629,7 @@ async fn get_law_other_request_with_old_if_no_match_header_expect_new_tag() {
     let req = test::TestRequest::get()
         .uri("/_archive/test_org/law-other?commitish=HEAD&path=example.json")
         .append_header((IF_NONE_MATCH, old_file_hash))
-        .insert_header((header::HeaderName::from_static("x-stelae"), "test_org/law"))
+        .insert_header((header::HeaderName::from_static("x-fonds"), "test_org/law"))
         .to_request();
     let resp = test::call_service(&app, req).await;
 
@@ -650,7 +650,7 @@ async fn get_law_other_file_with_edit_expect_new_etag() {
     let req = test::TestRequest::get()
         .uri("/_archive/test_org/law-other?commitish=HEAD&path=example.json")
         .append_header((IF_NONE_MATCH, old_file_hash))
-        .insert_header((header::HeaderName::from_static("x-stelae"), "test_org/law"))
+        .insert_header((header::HeaderName::from_static("x-fonds"), "test_org/law"))
         .to_request();
     let resp = test::call_service(&app, req).await;
 
@@ -671,7 +671,7 @@ async fn get_law_other_file_with_edit_expect_new_etag() {
     let req = test::TestRequest::get()
         .uri("/_archive/test_org/law-other?commitish=HEAD&path=example.json")
         .append_header((IF_NONE_MATCH, file_hash))
-        .insert_header((header::HeaderName::from_static("x-stelae"), "test_org/law"))
+        .insert_header((header::HeaderName::from_static("x-fonds"), "test_org/law"))
         .to_request();
     let resp = test::call_service(&app, req).await;
 

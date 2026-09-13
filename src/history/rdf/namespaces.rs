@@ -3,7 +3,7 @@
     reason = "We expect to enumerate namespaces in this module"
 )]
 
-/// This module contains the RDF namespaces used by Stelae.
+/// This module contains the RDF namespaces used by Fonds.
 use sophia::api::namespace;
 
 /// Open Law Library ontology.

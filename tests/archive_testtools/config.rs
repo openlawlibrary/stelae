@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::path::PathBuf;
-pub use taf_server::stelae::types::repositories::{Custom, Repository};
+pub use taf_server::fonds::types::repositories::{Custom, Repository};
 
 pub enum ArchiveType {
     Basic(Jurisdiction),

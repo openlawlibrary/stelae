@@ -6,7 +6,7 @@ use actix_web::test;
 use taf_server::server::headers::HTTP_E_TAG;
 
 #[actix_web::test]
-async fn test_resolve_root_stele_law_html_request_with_full_path_expect_success() {
+async fn test_resolve_root_fonds_law_html_request_with_full_path_expect_success() {
     let archive_path = common::initialize_archive(ArchiveType::Basic(Jurisdiction::Multi)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
 
@@ -20,7 +20,7 @@ async fn test_resolve_root_stele_law_html_request_with_full_path_expect_success(
 }
 
 #[actix_web::test]
-async fn test_root_stele_fallback_request_expect_success() {
+async fn test_root_fonds_fallback_request_expect_success() {
     let archive_path = common::initialize_archive(ArchiveType::Basic(Jurisdiction::Multi)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
     let req = test::TestRequest::get().uri("/example.json").to_request();
@@ -33,7 +33,7 @@ async fn test_root_stele_fallback_request_expect_success() {
 }
 
 #[actix_web::test]
-async fn test_dependent_stele_law_html_request_expect_success() {
+async fn test_dependent_fonds_law_html_request_expect_success() {
     let archive_path = common::initialize_archive(ArchiveType::Basic(Jurisdiction::Multi)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
     for request_uri in &[
@@ -55,7 +55,7 @@ async fn test_dependent_stele_law_html_request_expect_success() {
 }
 
 #[actix_web::test]
-async fn test_dependent_stele_fallback_request_when_only_root_fallback_is_supported_expect_not_found(
+async fn test_dependent_fonds_fallback_request_when_only_root_fallback_is_supported_expect_not_found(
 ) {
     let archive_path = common::initialize_archive(ArchiveType::Basic(Jurisdiction::Multi)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
@@ -76,7 +76,7 @@ async fn test_dependent_stele_fallback_request_when_only_root_fallback_is_suppor
 }
 
 #[actix_web::test]
-async fn test_dependent_stele_law_html_request_where_path_does_not_exist_not_found() {
+async fn test_dependent_fonds_law_html_request_where_path_does_not_exist_not_found() {
     let archive_path = common::initialize_archive(ArchiveType::Basic(Jurisdiction::Multi)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
     let req = test::TestRequest::get().uri("/sub/scope/x/").to_request();
@@ -87,7 +87,7 @@ async fn test_dependent_stele_law_html_request_where_path_does_not_exist_not_fou
 }
 
 #[actix_web::test]
-async fn test_root_stele_law_rdf_expect_rdf_document_retrieved() {
+async fn test_root_fonds_law_rdf_expect_rdf_document_retrieved() {
     let archive_path = common::initialize_archive(ArchiveType::Basic(Jurisdiction::Multi)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
     for request_uri in &[
@@ -108,10 +108,10 @@ async fn test_root_stele_law_rdf_expect_rdf_document_retrieved() {
 }
 
 #[actix_web::test]
-async fn test_dependent_stele_law_rdf_expect_not_found() {
+async fn test_dependent_fonds_law_rdf_expect_not_found() {
     let archive_path = common::initialize_archive(ArchiveType::Basic(Jurisdiction::Multi)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
-    // Even though the dependent RDF data repository exists, serving underscore routes for dependent stele is not supported
+    // Even though the dependent RDF data repository exists, serving underscore routes for dependent fonds is not supported
     for request_uri in &[
         "/_rdf/sub/scope/1/index.rdf",
         "/_rdf/sub/scope/2/a/b/c.rdf",
@@ -131,7 +131,7 @@ async fn test_dependent_stele_law_rdf_expect_not_found() {
 }
 
 #[actix_web::test]
-async fn test_dependent_stele_law_other_with_full_path_when_request_matches_glob_pattern_expect_success(
+async fn test_dependent_fonds_law_other_with_full_path_when_request_matches_glob_pattern_expect_success(
 ) {
     let archive_path = common::initialize_archive(ArchiveType::Basic(Jurisdiction::Multi)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
@@ -148,11 +148,11 @@ async fn test_dependent_stele_law_other_with_full_path_when_request_matches_glob
 }
 
 #[actix_web::test]
-async fn test_dependent_stele_law_other_with_full_path_when_underscore_routing_is_not_supported_expect_not_found(
+async fn test_dependent_fonds_law_other_with_full_path_when_underscore_routing_is_not_supported_expect_not_found(
 ) {
     let archive_path = common::initialize_archive(ArchiveType::Basic(Jurisdiction::Multi)).unwrap();
     let app = common::initialize_app(archive_path.path()).await;
-    // Serving dependent stele routes that start with a `_` prefix glob pattern is only supported for root stele.
+    // Serving dependent fonds routes that start with a `_` prefix glob pattern is only supported for root fonds.
     for request_uri in &[
         "/sub/scope/1/_prefix/index.html",
         "/sub/scope/4/_prefix/a/index.html",

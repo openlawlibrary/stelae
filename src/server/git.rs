@@ -5,35 +5,35 @@ use git2::{self, ErrorCode};
 use std::path::PathBuf;
 use tracing_actix_web::TracingLogger;
 
-use super::errors::{CliError, HTTPError, StelaeError};
+use super::errors::{CliError, HTTPError, TafServerError};
 use crate::server::headers;
 use crate::server::headers::etag_matches_if_none_match;
 use crate::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 use crate::utils::http::get_contenttype;
-use crate::{server::tracing::StelaeRootSpanBuilder, utils::paths::clean_path};
+use crate::{server::tracing::TafServerRootSpanBuilder, utils::paths::clean_path};
 
 /// Global, read-only state passed into the actix app
 struct AppState {
-    /// path to the Stelae archive
+    /// path to the Fonds archive
     archive_path: PathBuf,
 }
 
 /// Root index path
 #[get("/")]
 async fn index() -> &'static str {
-    "Welcome to Stelae"
+    "Welcome to Taf Server"
 }
 
 /// Just for development purposes at the moment
 #[get("{path}")]
-async fn misc(path: web::Path<String>) -> actix_web::Result<&'static str, StelaeError> {
+async fn misc(path: web::Path<String>) -> actix_web::Result<&'static str, TafServerError> {
     match path.as_str() {
-        "error" => Err(StelaeError::GitError),
+        "error" => Err(TafServerError::GitError),
         _ => Ok("\u{2728}"),
     }
 }
 
-/// Return the content in the stelae archive in the `{namespace}/{name}`
+/// Return the content in the fonds archive in the `{namespace}/{name}`
 /// repo at the `commitish` commit at the `remainder` path.
 /// Return 404 if any are not found or there are any errors.
 #[route(
@@ -106,7 +106,7 @@ fn blob_error_response(error: &anyhow::Error, namespace: &str, name: &str) -> Ht
     }
 }
 
-/// Serve git repositories in the Stelae archive.
+/// Serve git repositories in the Fonds archive.
 #[actix_web::main] // or #[tokio::main]
 pub async fn serve_git(
     raw_archive_path: &str,
@@ -114,12 +114,12 @@ pub async fn serve_git(
     port: u16,
 ) -> Result<(), CliError> {
     let bind = "127.0.0.1";
-    let message = "Serving content from the Stelae archive at";
+    let message = "Serving content from the Fonds archive at";
     tracing::info!("{message} '{raw_archive_path}' on http://{bind}:{port}.",);
 
     HttpServer::new(move || {
         App::new()
-            .wrap(TracingLogger::<StelaeRootSpanBuilder>::new())
+            .wrap(TracingLogger::<TafServerRootSpanBuilder>::new())
             .service(index)
             .service(misc)
             .service(get_blob)

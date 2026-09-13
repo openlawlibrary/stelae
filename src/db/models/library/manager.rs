@@ -10,11 +10,11 @@ impl super::Manager for DatabaseConnection {
     ///
     /// # Errors
     /// Errors if can't establish a connection to the database.
-    async fn find_lib_mpath_by_url(&self, url: &str, stele: &str) -> anyhow::Result<String> {
+    async fn find_lib_mpath_by_url(&self, url: &str, fonds: &str) -> anyhow::Result<String> {
         let statement = "
             SELECT l.mpath
             FROM library l
-            WHERE l.url = $1 AND l.stele = $2
+            WHERE l.url = $1 AND l.fonds = $2
             LIMIT 1
         ";
         let row = match self.kind {
@@ -22,7 +22,7 @@ impl super::Manager for DatabaseConnection {
                 let mut connection = self.pool.acquire().await?;
                 sqlx::query_as::<_, (String,)>(statement)
                     .bind(url)
-                    .bind(stele)
+                    .bind(fonds)
                     .fetch_one(&mut *connection)
                     .await?
             }
@@ -39,13 +39,13 @@ impl super::TxManager for DatabaseTransaction {
     /// Errors if the libraries cannot be inserted into the database.
     async fn insert_bulk(&mut self, libraries: Vec<Library>) -> anyhow::Result<()> {
         let mut query_builder =
-            QueryBuilder::new("INSERT OR IGNORE INTO library ( mpath, url, stele ) ");
+            QueryBuilder::new("INSERT OR IGNORE INTO library ( mpath, url, fonds ) ");
         for chunk in libraries.chunks(BATCH_SIZE) {
             query_builder.push_values(chunk, |mut bindings, lb| {
                 bindings
                     .push_bind(&lb.mpath)
                     .push_bind(&lb.url)
-                    .push_bind(&lb.stele);
+                    .push_bind(&lb.fonds);
             });
             let query = query_builder.build();
             query.execute(&mut *self.tx).await?;

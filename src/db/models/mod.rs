@@ -13,6 +13,8 @@ pub mod document;
 pub mod document_change;
 /// module for interacting with the `document_element` table.
 pub mod document_element;
+/// module for interacting with the `fonds` table.
+pub mod fonds;
 /// module for interacting with the `library` table.
 pub mod library;
 /// module for interacting with the `library_change` table.
@@ -27,7 +29,5 @@ pub mod publication_version;
 pub mod redirects;
 /// module for the document or library status utility.
 pub mod status;
-/// module for interacting with the `stele` table.
-pub mod stele;
 /// module for interacting with the `version` table.
 pub mod version;

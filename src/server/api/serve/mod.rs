@@ -1,4 +1,4 @@
-//! API endpoint for serving current documents from Stele repositories.
+//! API endpoint for serving current documents from Fonds repositories.
 use std::sync::Arc;
 
 use actix_http::header::IF_NONE_MATCH;
@@ -7,7 +7,7 @@ use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use crate::{
     db::models::redirects,
     server::{
-        api::{state::Global, versions::get_stele_from_request},
+        api::{state::Global, versions::get_fonds_from_request},
         errors::HTTPError,
         headers::etag_matches_if_none_match,
         headers::{self, HTTP_E_TAG},
@@ -34,18 +34,18 @@ pub async fn serve(
     app_data: web::Data<Arc<dyn Global>>,
     data: web::Data<RepoState>,
 ) -> impl Responder {
-    let auth_stele_name = match get_stele_from_request(&req, app_data.archive()) {
+    let auth_fonds_name = match get_fonds_from_request(&req, app_data.archive()) {
         Ok(rn) => rn,
         Err(err) => {
             tracing::error!(error = %err, "Couldn't extract auth_repo_name from request header");
             return HttpResponse::NotFound().body("");
         }
     };
-    if app_data.has_redirects(&auth_stele_name, &data.name) {
+    if app_data.has_redirects(&auth_fonds_name, &data.name) {
         // No redirect configured or error - fall through to normal serving either way.
         if let Ok(Some(to_url)) = redirects::Manager::find_redirect_for_url(
             app_data.db(),
-            auth_stele_name,
+            auth_fonds_name,
             data.name.clone(),
             req.path().to_owned(),
         )

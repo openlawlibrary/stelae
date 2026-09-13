@@ -6,8 +6,8 @@
 use std::sync::Arc;
 use std::{process, sync::OnceLock};
 
+use crate::fonds::{fonds::Fonds, types::repositories::Repositories};
 use crate::server::api::state;
-use crate::stelae::{stele::Stele, types::repositories::Repositories};
 use actix_service::ServiceFactory;
 use actix_web::{
     body::MessageBody,
@@ -23,7 +23,7 @@ use super::{serve::serve, state::Global, versions::versions};
 static HEADER_NAME: OnceLock<String> = OnceLock::new();
 /// Values of the header to guard current documents
 static HEADER_VALUES: OnceLock<Vec<String>> = OnceLock::new();
-/// Name of the root stelae
+/// Name of the root fonds
 static ROOT_NAME_VALUE: OnceLock<String> = OnceLock::new();
 
 #[expect(
@@ -133,7 +133,7 @@ pub fn register_app<
 
 /// Initialize all dynamic routes for the given Archive.
 ///
-/// Dynamic routes are determined at runtime by looking at the stele's `dependencies.json` and `repositories.json` files
+/// Dynamic routes are determined at runtime by looking at the fonds's `dependencies.json` and `repositories.json` files
 /// in the authentication (e.g. law) repository.
 ///
 /// # Errors
@@ -153,11 +153,11 @@ fn register_guarded_and_unguarded_routes<
     state: &V,
 ) -> anyhow::Result<App<U>> {
     let config = state.archive().get_config()?;
-    let stelae_guard = config
+    let fonds_guard = config
         .headers
         .and_then(|headers| headers.current_documents_guard);
 
-    if let Some(guard) = stelae_guard {
+    if let Some(guard) = fonds_guard {
         app = initialize_guarded_archive_route(guard.clone(), app, state)?;
         app = initialize_guarded_dynamic_routes(guard, app, state)?;
     } else {
@@ -169,7 +169,7 @@ fn register_guarded_and_unguarded_routes<
 
 #[expect(
     clippy::expect_used,
-    reason = "If there is no root stelae, we should panic"
+    reason = "If there is no root fonds, we should panic"
 )]
 /// Initialize all guarded archive routes for the given Archive.
 /// Routes are guarded by a header value specified in the config.toml file.
@@ -191,18 +191,18 @@ fn initialize_guarded_archive_route<
     mut app: App<U>,
     state: &V,
 ) -> anyhow::Result<App<U>> {
-    tracing::info!("Initializing guarded stelae routes with header: {}", guard);
+    tracing::info!("Initializing guarded fonds routes with header: {}", guard);
     HEADER_NAME.get_or_init(|| guard);
     let archive = state.archive();
     let guard_value = archive.get_root()?.get_qualified_name();
     ROOT_NAME_VALUE.get_or_init(|| guard_value);
     let data_state: Arc<dyn Global> = Arc::new(state.clone());
     if let Some(guard_name) = HEADER_NAME.get() {
-        let stele = state
+        let fonds = state
             .archive()
-            .stelae
+            .fonds_map
             .get(&archive.get_root()?.get_qualified_name());
-        if let Some(_guarded_stele) = stele {
+        if let Some(_guarded_fonds) = fonds {
             let mut archive_scope = web::scope("_archive");
             archive_scope = archive_scope.guard(guard::Header(
                 guard_name,
@@ -234,7 +234,7 @@ fn initialize_guarded_archive_route<
 /// Initialize _archive routes for the given Archive.
 ///
 /// # Errors
-/// Errors if unable to register stelae routes (e.g. if git repository cannot be opened)
+/// Errors if unable to register fonds routes (e.g. if git repository cannot be opened)
 fn initialize_archive_route<
     T: MessageBody,
     U: ServiceFactory<
@@ -291,7 +291,7 @@ fn initialize_guarded_dynamic_routes<
     HEADER_VALUES.get_or_init(|| {
         state
             .archive()
-            .stelae
+            .fonds_map
             .keys()
             .map(ToString::to_string)
             .collect()
@@ -299,21 +299,21 @@ fn initialize_guarded_dynamic_routes<
 
     if let (Some(guard_name), Some(guard_values)) = (HEADER_NAME.get(), HEADER_VALUES.get()) {
         for guard_value in guard_values {
-            let stele = state.archive().stelae.get(guard_value);
-            if let Some(guarded_stele) = stele {
-                let shared_state = state::init_shared(guarded_stele)?;
-                let mut stelae_scope = web::scope("");
+            let fonds = state.archive().fonds_map.get(guard_value);
+            if let Some(guarded_fonds) = fonds {
+                let shared_state = state::init_shared(guarded_fonds)?;
                 let data_state: Arc<dyn Global> = Arc::new(state.clone());
-                stelae_scope = stelae_scope.guard(guard::Header(guard_name, guard_value));
+                let mut fonds_scope = web::scope("");
+                fonds_scope = fonds_scope.guard(guard::Header(guard_name, guard_value));
                 app = app.service(
-                    stelae_scope
+                    fonds_scope
                         .app_data(web::Data::new(shared_state))
                         .app_data(web::Data::new(Arc::clone(&data_state)))
                         .configure(|cfg| {
-                            register_root_routes(cfg, guarded_stele).unwrap_or_else(|_| {
+                            register_root_routes(cfg, guarded_fonds).unwrap_or_else(|_| {
                                 tracing::error!(
-                                    "Failed to initialize routes for Stele: {}",
-                                    guarded_stele.get_qualified_name()
+                                    "Failed to initialize routes for Fonds: {}",
+                                    guarded_fonds.get_qualified_name()
                                 );
                                 process::exit(1);
                             });
@@ -359,7 +359,7 @@ fn initialize_dynamic_routes<
                 register_routes(cfg, state).unwrap_or_else(|_| {
                     tracing::error!(
                         // TODO: error handling
-                        "Failed to initialize routes for root Stele: {}",
+                        "Failed to initialize routes for root Fonds: {}",
                         root.get_qualified_name()
                     );
                     process::exit(1);
@@ -371,7 +371,7 @@ fn initialize_dynamic_routes<
 
 /// Registers all dynamic routes for the given Archive
 /// Each current document routes consists of two dynamic segments: `{prefix}/{tail}`.
-/// prefix: the first part of the request uri, used to determine which dependent Stele to serve.
+/// prefix: the first part of the request uri, used to determine which dependent Fonds to serve.
 /// tail: the remaining glob pattern path of the request uri.
 /// # Arguments
 /// * `cfg` - The Actix `ServiceConfig`
@@ -383,12 +383,12 @@ fn initialize_dynamic_routes<
     reason = "List of repositories that are registered as routes are always sorted, even with iterating over hash type"
 )]
 fn register_routes<T: Global>(cfg: &mut web::ServiceConfig, state: &T) -> anyhow::Result<()> {
-    for stele in state.archive().stelae.values() {
-        if let Some(repositories) = stele.repositories.as_ref() {
-            if stele.is_root() {
+    for fonds in state.archive().fonds_map.values() {
+        if let Some(repositories) = fonds.repositories.as_ref() {
+            if fonds.is_root() {
                 continue;
             }
-            register_dependent_routes(cfg, stele, repositories)?;
+            register_dependent_routes(cfg, fonds, repositories)?;
         }
     }
     let root = state.archive().get_root()?;
@@ -396,20 +396,20 @@ fn register_routes<T: Global>(cfg: &mut web::ServiceConfig, state: &T) -> anyhow
     Ok(())
 }
 
-/// Register routes for the root Stele
-/// Root Stele is the Stele specified in config.toml
+/// Register routes for the root Fonds
+/// Root Fonds is the Fonds specified in config.toml
 /// # Arguments
 /// * `cfg` - The Actix `ServiceConfig`
-/// * `stele` - The root Stele
+/// * `fonds` - The root Fonds
 /// # Errors
 /// Will error if unable to register routes (e.g. if git repository cannot be opened)
-fn register_root_routes(cfg: &mut web::ServiceConfig, stele: &Stele) -> anyhow::Result<()> {
+fn register_root_routes(cfg: &mut web::ServiceConfig, fonds: &Fonds) -> anyhow::Result<()> {
     let mut root_scope: Scope = web::scope("");
-    if let Some(repositories) = stele.repositories.as_ref() {
+    if let Some(repositories) = fonds.repositories.as_ref() {
         let sorted_repositories = repositories.get_sorted();
         for repository in sorted_repositories {
             let custom = &repository.custom;
-            let repo_state = state::init_repo(repository, stele)?;
+            let repo_state = state::init_repo(repository, fonds)?;
             for route in custom.routes.iter().flat_map(|routes| routes.iter()) {
                 let actix_route = format!("/{{tail:{route}}}");
                 root_scope = root_scope.service(
@@ -436,17 +436,17 @@ fn register_root_routes(cfg: &mut web::ServiceConfig, stele: &Stele) -> anyhow::
     Ok(())
 }
 
-/// Register routes for dependent Stele
-/// Dependent Stele are all Steles' specified in the root Stele's `dependencies.json` config file.
+/// Register routes for dependent Fonds
+/// Dependent Fonds are all Fonds' specified in the root Fonds's `dependencies.json` config file.
 /// # Arguments
 /// * `cfg` - The Actix `ServiceConfig`
-/// * `stele` - The root Stele
-/// * `repositories` - Data repositories of the dependent Stele
+/// * `fonds` - The root Fonds
+/// * `repositories` - Data repositories of the dependent Fonds
 /// # Errors
 /// Will error if unable to register routes (e.g. if git repository cannot be opened)
 fn register_dependent_routes(
     cfg: &mut web::ServiceConfig,
-    stele: &Stele,
+    fonds: &Fonds,
     repositories: &Repositories,
 ) -> anyhow::Result<()> {
     let sorted_repositories = repositories.get_sorted();
@@ -455,11 +455,11 @@ fn register_dependent_routes(
         let mut actix_scope = web::scope(scope_str.as_str());
         for repository in &sorted_repositories {
             let custom = &repository.custom;
-            let repo_state = state::init_repo(repository, stele)?;
+            let repo_state = state::init_repo(repository, fonds)?;
             for route in custom.routes.iter().flat_map(|routes| routes.iter()) {
                 if route.starts_with('_') {
-                    // Ignore routes in dependent Stele that start with underscore
-                    // These routes are handled by the root Stele.
+                    // Ignore routes in dependent Fonds that start with underscore
+                    // These routes are handled by the root Fonds.
                     continue;
                 }
                 let actix_route = format!("/{{tail:{route}}}");

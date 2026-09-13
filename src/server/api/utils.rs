@@ -1,4 +1,4 @@
-//! Utils file for all stelae endpoints
+//! Utils file for all taf server endpoints
 
 //! Centralized state management for the Actix web server
 use std::collections::HashMap;

@@ -13,16 +13,16 @@ use anyhow::Result;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Once;
-use stelae::db::models::redirects::Manager as _;
-use stelae::db::{self, DatabaseConnection};
-use stelae::server::api::state::Global;
+use taf_server::db::models::redirects::Manager as _;
+use taf_server::db::{self, DatabaseConnection};
+use taf_server::server::api::state::Global;
 use tempfile::Builder;
 static INIT: Once = Once::new();
 
 use actix_http::body::MessageBody;
 
+use taf_server::fonds::archive::Archive;
 use taf_server::server::app;
-use taf_server::stelae::archive::Archive;
 
 pub const BASIC_MODULE_NAME: &str = "basic";
 
@@ -51,9 +51,9 @@ impl Global for TestAppState {
     fn db(&self) -> &db::DatabaseConnection {
         &self.db
     }
-    fn has_redirects(&self, stele: &str, repo_name: &str) -> bool {
+    fn has_redirects(&self, fonds: &str, repo_name: &str) -> bool {
         self.repos_with_redirects
-            .contains(&(stele.to_owned(), repo_name.to_owned()))
+            .contains(&(fonds.to_owned(), repo_name.to_owned()))
     }
 }
 

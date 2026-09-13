@@ -14,7 +14,7 @@ pub trait TxManager {
         publication_id: &str,
         codified_date: &str,
     ) -> anyhow::Result<Option<i64>>;
-    /// Find the last inserted publication version by a `stele` and `publication`.
+    /// Find the last inserted publication version by a `publication`.
     async fn find_last_inserted_date_by_publication_id(
         &mut self,
         publication_id: &str,
@@ -29,7 +29,7 @@ pub trait TxManager {
         &mut self,
         publication_ids: Vec<String>,
     ) -> anyhow::Result<Vec<PublicationVersion>>;
-    /// Find all publication versions by a `publication` and `stele` recursively.
+    /// Find all publication versions by a `publication` recursively.
     async fn find_all_recursive_for_publication(
         &mut self,
         publication_id: String,
@@ -43,10 +43,10 @@ pub trait TxManager {
 }
 
 #[derive(Deserialize, Serialize, Debug, Hash, Eq, PartialEq, Clone)]
-/// Model for a Stele.
+/// Model for a Fonds.
 pub struct PublicationVersion {
     /// A hashed identifier for the publication version.
-    /// The hash is generated from the `publication` name, `version` date  and `stele` fields.
+    /// The hash is generated from the `publication` name, `version` date  and `fonds` fields.
     pub id: String,
     /// Date in a publication in %Y-%m-%d format
     pub version: String,

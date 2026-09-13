@@ -29,7 +29,7 @@ use super::doc_transform::{
     get_version_start_end_current, insert_notification, update_doc_urls, update_json_content,
 };
 use super::state::App as AppState;
-use crate::server::api::versions::get_stele_from_request;
+use crate::server::api::versions::get_fonds_from_request;
 use crate::utils;
 use crate::utils::archive::get_name_parts;
 use crate::{
@@ -72,7 +72,7 @@ pub async fn date(
         }
     };
     // get publication and repo name
-    let auth_stele_name = match get_stele_from_request(&req, &data.archive) {
+    let auth_fonds_name = match get_fonds_from_request(&req, &data.archive) {
         Ok(rn) => rn,
         Err(err) => {
             tracing::error!(error = %err, "Couldn't extract auth_repo_name from request header");
@@ -81,24 +81,24 @@ pub async fn date(
     };
     let publication = match get_publication_by_name_or_latest(
         &mut tx,
-        &auth_stele_name,
+        &auth_fonds_name,
         params.pub_name.as_deref(),
     )
     .await
     {
         Ok(publication) => publication,
         Err(err) => {
-            tracing::error!(error = %err, "Couldn't find publication for {auth_stele_name} (pub_name: {:?})", params.pub_name.clone());
+            tracing::error!(error = %err, "Couldn't find publication for {auth_fonds_name} (pub_name: {:?})", params.pub_name.clone());
             return HttpResponse::NotFound().body("");
         }
     };
     let html_repo_name = if let Some(archived_repo) = publication.html_data_repo_name.clone() {
         archived_repo
     } else {
-        match get_html_repo(&data, &auth_stele_name) {
+        match get_html_repo(&data, &auth_fonds_name) {
             Ok(html_repo) => html_repo,
             Err(err) => {
-                tracing::error!(error = %err, "Couldn't find html repo for {auth_stele_name}");
+                tracing::error!(error = %err, "Couldn't find html repo for {auth_fonds_name}");
                 return HttpResponse::NotFound().body("");
             }
         }
@@ -183,7 +183,7 @@ pub async fn date(
         }
 
         // Outdated publication notification: shown when a newer publication exists
-        match get_publication(&mut tx, &auth_stele_name).await {
+        match get_publication(&mut tx, &auth_fonds_name).await {
             Ok(latest_publication) => {
                 if publication.name != latest_publication.name {
                     let current_date_str = current_date.as_deref().unwrap_or_default();
@@ -220,17 +220,17 @@ pub async fn date(
         .body(blob.content);
 }
 
-/// Finds and returns the HTML repository name for the given stelae.
+/// Finds and returns the HTML repository name for the given fonds.
 /// # Errors
 ///
-/// Returns an error if the stele cannot be found, no repositories are defined,
+/// Returns an error if the fonds cannot be found, no repositories are defined,
 /// or no HTML repository exists for the given repository name.
 #[expect(clippy::pattern_type_mismatch, reason = "..")]
 pub fn get_html_repo(data: &web::Data<AppState>, repo_name: &str) -> anyhow::Result<String> {
-    let stelae = data.archive.get_stelae();
-    let Some((_, auth_repo)) = stelae.iter().find(|(s_name, _)| s_name == repo_name) else {
+    let all_fonds = data.archive.get_all_fonds();
+    let Some((_, auth_repo)) = all_fonds.iter().find(|(s_name, _)| s_name == repo_name) else {
         return Err(anyhow::anyhow!(
-            "Repository '{repo_name}' not found in stelae"
+            "Repository '{repo_name}' not found in fonds"
         ));
     };
 
@@ -244,9 +244,7 @@ pub fn get_html_repo(data: &web::Data<AppState>, repo_name: &str) -> anyhow::Res
         }
     }
 
-    Err(anyhow::anyhow!(
-        "No html repository in '{repo_name}' stelae",
-    ))
+    Err(anyhow::anyhow!("No html repository in '{repo_name}' fonds"))
 }
 
 /// Retrieves the commit hash for a given publication ID and version date.
@@ -316,23 +314,23 @@ pub fn get_document(
     Ok((blob, contenttype))
 }
 
-/// Finds the most recent non-revoked publication for the given `stelae_name`.
+/// Finds the most recent non-revoked publication for the given `fonds_name`.
 ///
 /// # Arguments
 ///
 /// * `tx` - Active database transaction
-/// * `stelae_name` - Publication (stelae) identifier
+/// * `fonds_name` - Publication (fonds) identifier
 ///
 /// # Errors
 ///
 /// Returns an error if the database query fails or the publication cannot be found.
 pub async fn get_publication(
     tx: &mut DatabaseTransaction,
-    stelae_name: &str,
+    fonds_name: &str,
 ) -> anyhow::Result<Publication> {
-    let Some(publication) = publication::TxManager::find_last_inserted(tx, stelae_name).await?
+    let Some(publication) = publication::TxManager::find_last_inserted(tx, fonds_name).await?
     else {
-        return Err(anyhow!("No publication found for {stelae_name}"));
+        return Err(anyhow!("No publication found for {fonds_name}"));
     };
 
     Ok(publication)
@@ -341,13 +339,13 @@ pub async fn get_publication(
 /// Finds a publication by name if provided, falling back to the latest non-revoked publication.
 ///
 /// If `pub_name` is `Some`, attempts to find a non-revoked publication matching that name
-/// for the given stelae. If none is found (or `pub_name` is `None`), returns the most
+/// for the given fonds. If none is found (or `pub_name` is `None`), returns the most
 /// recently inserted non-revoked publication.
 ///
 /// # Arguments
 ///
 /// * `tx` - Active database transaction
-/// * `stelae_name` - Publication (stelae) identifier
+/// * `fonds_name` - Publication (fonds) identifier
 /// * `pub_name` - Optional publication name to look up first
 ///
 /// # Errors
@@ -355,16 +353,16 @@ pub async fn get_publication(
 /// Returns an error if the database query fails or no publication can be found.
 pub async fn get_publication_by_name_or_latest(
     tx: &mut DatabaseTransaction,
-    stelae_name: &str,
+    fonds_name: &str,
     pub_name: Option<&str>,
 ) -> anyhow::Result<Publication> {
     if let Some(name) = pub_name {
         if let Some(publication) =
-            publication::TxManager::find_by_name_and_stele(tx, name, stelae_name).await?
+            publication::TxManager::find_by_name_and_fonds(tx, name, fonds_name).await?
         {
             return Ok(publication);
         }
         tracing::info!("Couldn't find publication for pub_name: {:?})", pub_name);
     }
-    get_publication(tx, stelae_name).await
+    get_publication(tx, fonds_name).await
 }
