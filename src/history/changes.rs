@@ -206,7 +206,15 @@ async fn process_stele(
         tracing::info!("[{name}] | --force flag set, rebuilding database from scratch");
         true
     } else {
-        is_stele_inconsistent(tx, name, stele, &rdf, &data_repos).await?
+        is_stele_inconsistent(
+            tx,
+            name,
+            stele,
+            &rdf,
+            &data_repos,
+            current_html_repo_name.as_deref(),
+        )
+        .await?
     };
     if needs_rebuild {
         if !force {
@@ -716,12 +724,16 @@ async fn revoke_same_date_publications(
 /// Returns `true` if an inconsistency is detected, meaning the stele should be
 /// deleted from the database and fully rebuilt from scratch.
 ///
-/// Two checks are performed:
+/// Three checks are performed:
 ///
 /// Publication count: the number of entries in the RDF repository's
 /// `_publication/` directory at HEAD must be ≥ the number of non-revoked publications
 /// stored in the database.  A lower count indicates that the RDF repository was rolled
 /// back or force-pushed and publications were lost.
+///
+/// `html_data_repo_name` completeness: when the stele has a current (non-archived)
+/// HTML repository, every non-revoked publication must record one.  Rows predating
+/// the column cannot be filled in by an incremental run, so a rebuild is required.
 ///
 /// Authentication commit existence: for each historical HTML data
 /// repository, the most-recently-recorded `auth_commit_hash` in `data_repo_commits`
@@ -733,11 +745,36 @@ async fn is_stele_inconsistent(
     stele: &Stele,
     rdf_repo: &Repo,
     data_repos: &[&Repository],
+    current_html_repo_name: Option<&str>,
 ) -> anyhow::Result<bool> {
     let db_pub_count = publication::TxManager::count_non_revoked(tx, stele_name).await?;
     if db_pub_count == 0 {
         // Fresh stele, nothing to be inconsistent with.
         return Ok(false);
+    }
+
+    // Publications recorded before `html_data_repo_name` existed carry NULL, and
+    // nothing rewrites them in place: `create` is INSERT OR IGNORE, and the
+    // publication walk skips dates already recorded.  The auth-commit check below
+    // cannot reach them either, because the lookup it uses matches on
+    // `html_data_repo_name` -- so a NULL row disables the very check that would
+    // otherwise rebuild it.  A rebuild is the only way to fill them in.
+    //
+    // Only when the stele has a current HTML repository to record.  A stele that
+    // serves no HTML legitimately has NULL here, and treating that as inconsistent
+    // would rebuild it on every run, each time producing NULL again.
+    if current_html_repo_name.is_some() {
+        let missing =
+            publication::TxManager::count_non_revoked_missing_html_data_repo_name(tx, stele_name)
+                .await?;
+        if missing > 0 {
+            tracing::warn!(
+                "[{stele_name}] | Inconsistency detected: {missing} non-revoked publication(s) \
+                 have no html_data_repo_name, but the stele has a current HTML repository. \
+                 These predate the column and cannot be filled in without a rebuild."
+            );
+            return Ok(true);
+        }
     }
 
     // Count publications in _publication/ at HEAD vs non-revoked in DB.

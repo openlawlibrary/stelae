@@ -71,6 +71,12 @@ pub trait TxManager {
     ) -> anyhow::Result<Vec<Publication>>;
     /// Count the number of non-revoked publications for a given stele.
     async fn count_non_revoked(&mut self, stele: &str) -> anyhow::Result<usize>;
+    /// Count the non-revoked publications for a given stele that carry no
+    /// `html_data_repo_name`.
+    async fn count_non_revoked_missing_html_data_repo_name(
+        &mut self,
+        stele: &str,
+    ) -> anyhow::Result<usize>;
 }
 
 #[derive(Deserialize, Serialize, Debug)]
