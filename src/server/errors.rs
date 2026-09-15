@@ -27,6 +27,9 @@ pub enum CliError {
     /// Errors during archive parsing
     #[display("Failed to parse the archive ")]
     ArchiveParseError,
+    /// The archive failed one or more `check` validations
+    #[display("Archive failed `stelae check` validation")]
+    CheckFailed,
 }
 
 impl From<io::Error> for CliError {

@@ -10,6 +10,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
+- Add command for validating the root archive: `stelae check` ([#122])
+
 ### Changed
 
 -  Upgrade Rust to 1.97.1 ([#115])
@@ -25,10 +27,9 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 - Re-ingest changes for a codified date when it is built again ([#124])
 
-### Removed
-
 [#127]: https://github.com/openlawlibrary/stelae/pull/127
 [#124]: https://github.com/openlawlibrary/stelae/pull/124
+[#122]: https://github.com/openlawlibrary/stelae/pull/122
 [#116]: https://github.com/openlawlibrary/stelae/pull/116
 [#115]: https://github.com/openlawlibrary/stelae/pull/115
 [#111]: https://github.com/openlawlibrary/stelae/pull/111
