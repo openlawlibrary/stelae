@@ -18,11 +18,16 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Fixed
 
+- Rebuild a stele whose non-revoked publications are missing `html_data_repo_name`. ([#127])
 - Fixed non-deterministic commit selection on tied codified/build dates in find_commit_by_pub_id_and_version_date ([#116])
+
+### Removed
+
 - Re-ingest changes for a codified date when it is built again ([#124])
 
 ### Removed
 
+[#127]: https://github.com/openlawlibrary/stelae/pull/127
 [#124]: https://github.com/openlawlibrary/stelae/pull/124
 [#116]: https://github.com/openlawlibrary/stelae/pull/116
 [#115]: https://github.com/openlawlibrary/stelae/pull/115
