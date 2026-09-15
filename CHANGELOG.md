@@ -18,12 +18,17 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Fixed
 
+- Rebuild a stele whose non-revoked publications are missing `html_data_repo_name`. ([#127])
 - Fixed non-deterministic commit selection on tied codified/build dates in find_commit_by_pub_id_and_version_date ([#116])
-- Rebuild a stele whose non-revoked publications are missing `html_data_repo_name`. Rows written before that column existed keep `NULL` and cannot be filled in by an incremental run, and they were invisible to the consistency check that would have rebuilt them ([#127])
+
+### Removed
+
+- Re-ingest changes for a codified date when it is built again ([#124])
 
 ### Removed
 
 [#127]: https://github.com/openlawlibrary/stelae/pull/127
+[#124]: https://github.com/openlawlibrary/stelae/pull/124
 [#116]: https://github.com/openlawlibrary/stelae/pull/116
 [#115]: https://github.com/openlawlibrary/stelae/pull/115
 [#111]: https://github.com/openlawlibrary/stelae/pull/111
@@ -39,6 +44,9 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 - Resolve archived HTML repo for historical publications in `_date` endpoint
 
 ### Removed
+
+[#116]: https://github.com/openlawlibrary/stelae/pull/116
+[#115]: https://github.com/openlawlibrary/stelae/pull/115
 
 ## [v0.6.8]
 
