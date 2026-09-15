@@ -292,7 +292,11 @@ mod tests {
 
         assert!(versions.iter().all(|ver| ver.date != CURRENT_VERSION_DATE));
         assert_eq!(versions.len(), 2);
-        assert!(versions.first().unwrap().display.ends_with("(last modified)"));
+        assert!(versions
+            .first()
+            .unwrap()
+            .display
+            .ends_with("(last modified)"));
     }
 
     #[test]
