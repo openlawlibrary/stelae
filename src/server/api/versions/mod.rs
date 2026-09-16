@@ -70,6 +70,9 @@ pub async fn versions(
         .iter()
         .find(|pb| pb.name == active_publication_name);
 
+    let is_current_publication = active_publication_name == current_publication.name
+        || active_publication_name == CURRENT_PUBLICATION_NAME.to_lowercase();
+
     let url = clean_url_path(&params.path.clone().unwrap_or_default());
     let mut versions = if let Some(publication) = active_publication {
         publication_versions(db, publication, url.clone()).await
@@ -82,9 +85,20 @@ pub async fn versions(
     // active version is the version the user is looking at right now
     let active_version =
         NaiveDate::parse_from_str(params.date.as_deref().unwrap_or_default(), "%Y-%m-%d")
-            .map_or(CURRENT_VERSION_DATE.to_owned(), |date| {
-                date.clone().to_string()
-            });
+            .map_or_else(
+                |_| {
+                    if is_current_publication {
+                        CURRENT_VERSION_DATE.to_owned()
+                    } else {
+                        // Historical publications have no "current" version: default to
+                        // the publication's own latest (real, dated) version instead.
+                        versions
+                            .first()
+                            .map_or_else(|| CURRENT_VERSION_DATE.to_owned(), |ver| ver.date.clone())
+                    }
+                },
+                |date| date.to_string(),
+            );
     let active_compare_to = params.compare_date.clone().map(|date| {
         NaiveDate::parse_from_str(&date, "%Y-%m-%d")
             .map_or_else(|_| date, |active_date| active_date.to_string())
@@ -108,22 +122,7 @@ pub async fn versions(
     response::Version::insert_if_not_present(&mut versions, params.date.clone());
     response::Version::insert_if_not_present(&mut versions, active_compare_to.clone());
 
-    let versions_size = versions.len();
-    for (idx, version) in versions.iter_mut().enumerate() {
-        version.display = format_date(&version.date.clone());
-        version.index = versions_size - idx;
-    }
-    if let Some(ver) = versions.first_mut() {
-        ver.display.push_str(" (last modified)");
-    }
-
-    let current_version = response::Version::new(
-        CURRENT_VERSION_DATE.to_owned(),
-        CURRENT_VERSION_NAME.to_owned(),
-        versions.first().map_or(0, |ver| ver.index),
-    );
-
-    versions.insert(versions_size - current_version.index, current_version);
+    finalize_versions(&mut versions, is_current_publication);
 
     let current_publication_name = current_publication.name.clone();
     // duplicate current publication with current label
@@ -212,6 +211,31 @@ pub fn get_stele_from_request(req: &HttpRequest, archive: &Archive) -> anyhow::R
     )
 }
 
+/// Finalize a list of versions for the response: assign display strings and
+/// descending indices, flag the newest entry as "(last modified)", and,
+/// only when `include_current` is true, insert the synthetic "Current"
+/// version. Historical (non-current) publications are frozen, so they must
+/// never be labelled "Current".
+fn finalize_versions(versions: &mut Vec<response::Version>, include_current: bool) {
+    let versions_size = versions.len();
+    for (idx, version) in versions.iter_mut().enumerate() {
+        version.display = format_date(&version.date.clone());
+        version.index = versions_size - idx;
+    }
+    if let Some(ver) = versions.first_mut() {
+        ver.display.push_str(" (last modified)");
+    }
+
+    if include_current {
+        let current_version = response::Version::new(
+            CURRENT_VERSION_DATE.to_owned(),
+            CURRENT_VERSION_NAME.to_owned(),
+            versions.first().map_or(0, |ver| ver.index),
+        );
+        versions.insert(versions_size - current_version.index, current_version);
+    }
+}
+
 /// Format a date from %Y-%m-%d to %B %d, %Y.
 fn format_date(date: &str) -> String {
     NaiveDate::parse_from_str(date, "%Y-%m-%d").map_or(date.to_owned(), |found_date| {
@@ -225,4 +249,72 @@ fn clean_url_path(path: &str) -> String {
     let url_parts = clean_path(path);
     url.push_str(&url_parts);
     url
+}
+
+#[cfg(test)]
+#[expect(
+    clippy::indexing_slicing,
+    clippy::inline_modules,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "tests"
+)]
+mod tests {
+    use super::{finalize_versions, response, CURRENT_VERSION_DATE, CURRENT_VERSION_NAME};
+
+    fn sample_versions() -> Vec<response::Version> {
+        vec![
+            response::Version::new("2024-06-01".to_owned(), String::new(), 0),
+            response::Version::new("2024-01-01".to_owned(), String::new(), 0),
+        ]
+    }
+
+    #[test]
+    fn finalize_versions_includes_current_when_current_publication() {
+        let mut versions = sample_versions();
+
+        finalize_versions(&mut versions, true);
+
+        let current = versions
+            .iter()
+            .find(|ver| ver.date == CURRENT_VERSION_DATE)
+            .expect("current version should be present");
+        assert_eq!(current.display, CURRENT_VERSION_NAME);
+        assert_eq!(current.index, 2);
+        assert_eq!(versions.len(), 3);
+    }
+
+    #[test]
+    fn finalize_versions_omits_current_when_historical_publication() {
+        let mut versions = sample_versions();
+
+        finalize_versions(&mut versions, false);
+
+        assert!(versions.iter().all(|ver| ver.date != CURRENT_VERSION_DATE));
+        assert_eq!(versions.len(), 2);
+        assert!(versions
+            .first()
+            .unwrap()
+            .display
+            .ends_with("(last modified)"));
+    }
+
+    #[test]
+    fn finalize_versions_indices_and_last_modified_unaffected_by_current_flag() {
+        let mut with_current = sample_versions();
+        let mut without_current = sample_versions();
+
+        finalize_versions(&mut with_current, true);
+        finalize_versions(&mut without_current, false);
+
+        for (with_ver, without_ver) in with_current
+            .iter()
+            .filter(|ver| ver.date != CURRENT_VERSION_DATE)
+            .zip(without_current.iter())
+        {
+            assert_eq!(with_ver.date, without_ver.date);
+            assert_eq!(with_ver.display, without_ver.display);
+            assert_eq!(with_ver.index, without_ver.index);
+        }
+    }
 }

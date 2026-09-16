@@ -149,9 +149,9 @@ impl Versions {
 
     /// Returns a formatted display date.
     ///
-    /// If the `date` is current, returns the date with `(current)` appended.
-    /// Append publication number suffix if present (in the form YYYY-MM-DD-N)
-    fn format_display_date(name: &str, date: &str, current_date: &str) -> String {
+    /// If `name` is the current publication's name, returns the date with `(current)`
+    /// appended. Append publication number suffix if present (in the form YYYY-MM-DD-N)
+    fn format_display_date(name: &str, date: &str, current_publication_name: &str) -> String {
         if name.to_lowercase() == CURRENT_PUBLICATION_NAME.to_lowercase() {
             CURRENT_PUBLICATION_NAME.to_owned()
         } else {
@@ -168,7 +168,7 @@ impl Versions {
                     }
                 }
             }
-            if date == current_date {
+            if name == current_publication_name {
                 formatted_date.push_str(" (current)");
             }
             formatted_date
@@ -235,5 +235,30 @@ impl Version {
                     .position(|ver| ver.date.as_str() == closest_date)
                     .unwrap_or(versions.len())
             })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Versions;
+
+    #[test]
+    fn format_display_date_appends_current_suffix_for_current_publication_name() {
+        let display = Versions::format_display_date("2024-06-01", "2024-06-01", "2024-06-01");
+        assert_eq!(display, "June 01, 2024 (current)");
+    }
+
+    #[test]
+    fn format_display_date_omits_current_suffix_for_historical_publication_with_same_date() {
+        // Two publications can share a date (e.g. via a `-N` suffix); only the
+        // publication whose *name* matches the current publication is "(current)".
+        let display = Versions::format_display_date("2024-06-01-1", "2024-06-01", "2024-06-01-2");
+        assert_eq!(display, "June 01, 2024 (1)");
+    }
+
+    #[test]
+    fn format_display_date_appends_current_suffix_for_suffixed_current_publication_name() {
+        let display = Versions::format_display_date("2024-06-01-2", "2024-06-01", "2024-06-01-2");
+        assert_eq!(display, "June 01, 2024 (2) (current)");
     }
 }
