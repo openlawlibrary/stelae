@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use taf_server::fonds::archive::{self, Headers};
 use taf_server::fonds::types::dependencies::{Dependencies, Dependency};
 use taf_server::fonds::types::repositories::{Repositories, Repository};
+use taf_server::fonds::types::targets_metadata::TargetsMetadata;
 use tempfile::TempDir;
 
 use crate::archive_testtools::config::get_private_root_test_data_repositories;
@@ -536,6 +537,43 @@ pub fn write_to_file(repo_path: &Path, file_content: String, file_path: String) 
 
     repo.add_file(&path, &file_path, &file_content).unwrap();
     repo.commit(None, "edit file").unwrap();
+    Ok(())
+}
+
+/// Write a target metadata file for a data repository at
+/// `targets/<org_name>/<data_repo_name>` in the given auth repo, and commit it.
+pub fn add_target_file(
+    auth_repo_path: &Path,
+    org_name: &str,
+    data_repo_name: &str,
+    metadata: &TargetsMetadata,
+) -> Result<()> {
+    let repo = GitRepository::open(auth_repo_path).unwrap();
+    let path = auth_repo_path.join("targets").join(org_name);
+    let content = serde_json::to_string_pretty(metadata).unwrap();
+
+    repo.add_file(&path, data_repo_name, &content).unwrap();
+    repo.commit(
+        Some(&format!("targets/{org_name}/{data_repo_name}")),
+        "Add target file",
+    )
+    .unwrap();
+    Ok(())
+}
+
+/// Write a valid `targets/protected/info.json` for the given auth repo, and commit it.
+pub fn add_info_json(auth_repo_path: &Path, namespace: &str, name: &str) -> Result<()> {
+    let repo = GitRepository::open(auth_repo_path).unwrap();
+    let path = auth_repo_path.join("targets/protected");
+    let content = serde_json::to_string_pretty(&serde_json::json!({
+        "namespace": namespace,
+        "name": name,
+    }))
+    .unwrap();
+
+    repo.add_file(&path, "info.json", &content).unwrap();
+    repo.commit(Some("targets/protected/info.json"), "Add info.json")
+        .unwrap();
     Ok(())
 }
 

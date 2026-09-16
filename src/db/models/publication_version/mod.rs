@@ -14,6 +14,13 @@ pub trait TxManager {
         publication_id: &str,
         codified_date: &str,
     ) -> anyhow::Result<Option<i64>>;
+    /// Delete a publication version, and everything that hangs off it, by a
+    /// `publication_id` and `version`.
+    async fn delete_by_publication_id_and_version(
+        &mut self,
+        publication_id: &str,
+        version: &str,
+    ) -> anyhow::Result<()>;
     /// Find the last inserted publication version by a `publication`.
     async fn find_last_inserted_date_by_publication_id(
         &mut self,

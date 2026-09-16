@@ -13,6 +13,7 @@ pub use crate::server::app::serve_archive;
 pub use crate::server::errors::CliError;
 pub use crate::server::git::serve_git;
 pub use crate::utils::archive::find_archive_path;
+pub use crate::utils::check;
 use clap::Parser;
 use std::env;
 use std::path::Path;
@@ -71,6 +72,60 @@ pub enum TafServerSubcommands {
         /// Force a full rebuild of each fonds's database records, skipping consistency checks.
         force: bool,
     },
+    /// Checks repository validity
+    ///
+    /// Validate a Fonds archive by examining its configuration files and
+    /// repository structure without starting a server or modifying any data.
+    /// This command is a "dry run" that reports problems so you can fix them
+    /// before running `taf-server serve` or `taf-server update`.
+    ///
+    /// The archive to check is located using the top‑level `--archive-path`
+    /// option (or the current directory if that option is not given). The
+    /// command starts from the root authentication repository and follows every dependency listed
+    /// in each authentication repository's `targets/dependencies.json`, recursively checking the
+    /// whole archive.
+    ///
+    /// For each authentication repository, the following aspects are validated:
+    ///
+    /// • Dependencies (`targets/dependencies.json`)
+    ///   - If present, the file must be valid JSON with no duplicate dependency
+    ///     names.
+    ///   - Every dependency must have a non‑empty `branch` and
+    ///     `out-of-band-authentication`.
+    ///   - A authentication repository may not list itself as a dependency.
+    ///
+    /// • Repositories (`targets/repositories.json`)
+    ///   - This file is required and must contain valid JSON.
+    ///   - For each repository entry:
+    ///       * A `type` should be present (missing type is a warning).
+    ///       * At least one of `serve-prefix` or `routes` must be defined.
+    ///       * The `serve` value must be either "latest" or "historical".
+    ///       * No two repositories in the same authentication repository may share the same
+    ///         `serve-prefix`.
+    ///       * At most one repository may be marked `is_fallback: true`.
+    ///
+    /// • Data repository directories
+    ///   - Each repository referenced in `repositories.json` must have a
+    ///     corresponding folder under the archive path (using the organisation
+    ///     and repository name). That folder must be a valid Git repository.
+    ///   - If a repository is marked as `archived` and its folder is missing or
+    ///     not a valid Git repository, a warning is shown instead of an error.
+    ///
+    /// • Target files
+    ///   - Each repository must have a target file at
+    ///     `targets/<organisation>/<repository_name>`. The file must be readable
+    ///     and contain non‑empty `branch` and `commit` values.
+    ///   - Missing `build-date` or `codified-date` (where applicable) result in
+    ///     warnings.
+    ///
+    /// • Info file (`targets/protected/info.json`)
+    ///   - This file must exist and be valid JSON.
+    ///
+    /// When the check finishes, all warnings and errors are displayed. Warnings
+    /// do not affect the exit status; errors cause the command to exit with a
+    /// non‑zero code. Use this command as a pre‑flight check to ensure your
+    /// archive is correctly configured.
+    Check,
 }
 
 /// Trait that CLI structs must implement to work with `execute_command`
@@ -113,6 +168,7 @@ impl CliProvider for Cli {
                 exclude: exclude.clone(),
                 force: *force,
             },
+            Subcommands::Check {} => TafServerSubcommands::Check,
         }
     }
 }
@@ -158,6 +214,8 @@ pub enum Subcommands {
         #[arg(short = 'f', long = "force", default_value_t = false)]
         force: bool,
     },
+    /// Checks repository validity
+    Check {},
 }
 
 /// Place to initialize tracing
@@ -235,6 +293,7 @@ pub fn execute_command<T: CliProvider>(cli: &T, archive_path: PathBuf) -> Result
             exclude,
             force,
         } => changes::insert(cli.archive_path(), archive_path, include, exclude, *force),
+        TafServerSubcommands::Check => check::run(cli.archive_path(), archive_path),
     }
 }
 

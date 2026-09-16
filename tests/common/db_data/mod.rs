@@ -34,3 +34,48 @@ pub async fn load_redirects(connection: &DatabaseConnection, fonds: &mut Fonds) 
     insert_redirects_for_fonds(&mut tx, fonds).await.unwrap();
     tx.commit().await.unwrap();
 }
+
+pub async fn insert_fonds(connection: &DatabaseConnection, fonds: &str) {
+    match connection.kind {
+        DatabaseKind::Sqlite => {
+            sqlx::query("INSERT OR IGNORE INTO fonds (name) VALUES (?)")
+                .bind(fonds)
+                .execute(&connection.pool)
+                .await
+                .unwrap();
+        }
+    }
+}
+
+/// Insert a publication row directly.
+///
+/// Passing `None` for `html_data_repo_name` reproduces the shape of a row written
+/// before that column existed, which is otherwise unreachable through the normal
+/// insert path.
+pub async fn insert_publication(
+    connection: &DatabaseConnection,
+    id: &str,
+    name: &str,
+    date: &str,
+    fonds: &str,
+    revoked: bool,
+    html_data_repo_name: Option<&str>,
+) {
+    match connection.kind {
+        DatabaseKind::Sqlite => {
+            sqlx::query(
+                "INSERT OR IGNORE INTO publication ( id, name, date, fonds, revoked, html_data_repo_name )
+                 VALUES (?, ?, ?, ?, ?, ?)",
+            )
+            .bind(id)
+            .bind(name)
+            .bind(date)
+            .bind(fonds)
+            .bind(revoked)
+            .bind(html_data_repo_name)
+            .execute(&connection.pool)
+            .await
+            .unwrap();
+        }
+    }
+}

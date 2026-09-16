@@ -10,6 +10,8 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
+- Add command for validating the root archive: `taf-server check` ([#122])
+
 ### Changed
 
 -  Upgrade Rust to 1.97.1 ([#115])
@@ -18,10 +20,16 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Fixed
 
+- Rebuild a fonds whose non-revoked publications are missing `html_data_repo_name`. ([#127])
 - Fixed non-deterministic commit selection on tied codified/build dates in find_commit_by_pub_id_and_version_date ([#116])
 
 ### Removed
 
+- Re-ingest changes for a codified date when it is built again ([#124])
+
+[#127]: https://github.com/openlawlibrary/taf-server/pull/127
+[#124]: https://github.com/openlawlibrary/taf-server/pull/124
+[#122]: https://github.com/openlawlibrary/taf-server/pull/122
 [#116]: https://github.com/openlawlibrary/taf-server/pull/116
 [#115]: https://github.com/openlawlibrary/taf-server/pull/115
 [#111]: https://github.com/openlawlibrary/taf-server/pull/111
@@ -37,6 +45,9 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 - Resolve archived HTML repo for historical publications in `_date` endpoint
 
 ### Removed
+
+[#116]: https://github.com/openlawlibrary/taf-server/pull/116
+[#115]: https://github.com/openlawlibrary/taf-server/pull/115
 
 ## [v0.6.8]
 
