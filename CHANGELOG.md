@@ -10,10 +10,21 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [v0.7.0-alpha.1]
+
+### Added
+
 - Add command for validating the root archive: `taf-server check` ([#122])
 
 ### Changed
 
+-  Rename project to taf-server ([#123])
 -  Upgrade Rust to 1.97.1 ([#115])
 -  Update `Cargo.toml` dependencies ([#115])
 -  Store repository redirects in the database and resolve them at request time instead of registering static routes at startup ([#111])
@@ -31,6 +42,7 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 [#128]: https://github.com/openlawlibrary/taf-server/pull/128
 [#127]: https://github.com/openlawlibrary/taf-server/pull/127
 [#124]: https://github.com/openlawlibrary/taf-server/pull/124
+[#123]: https://github.com/openlawlibrary/taf-server/pull/123
 [#122]: https://github.com/openlawlibrary/taf-server/pull/122
 [#116]: https://github.com/openlawlibrary/taf-server/pull/116
 [#115]: https://github.com/openlawlibrary/taf-server/pull/115
@@ -386,7 +398,10 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Removed
 
-[Unreleased]: https://github.com/openlawlibrary/taf-server/compare/v0.6.7...HEAD
+[Unreleased]: https://github.com/openlawlibrary/taf-server/compare/v0.7.0-alpha.1...HEAD
+[v0.7.0-alpha.1]: https://github.com/openlawlibrary/taf-server/compare/v0.6.9...v0.7.0-alpha.1
+[v0.6.9]: https://github.com/openlawlibrary/taf-server/compare/v0.6.8...v0.6.9
+[v0.6.8]: https://github.com/openlawlibrary/taf-server/compare/v0.6.7...v0.6.8
 [v0.6.7]: https://github.com/openlawlibrary/taf-server/compare/v0.6.6...v0.6.7
 [v0.6.6]: https://github.com/openlawlibrary/taf-server/compare/v0.6.5...v0.6.6
 [v0.6.5]: https://github.com/openlawlibrary/taf-server/compare/v0.6.4...v0.6.5
