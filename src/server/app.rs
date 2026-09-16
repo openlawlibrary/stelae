@@ -1,13 +1,13 @@
-//! Serve documents in a Stelae archive.
+//! Serve documents in a Fonds archive.
 #![expect(
     clippy::exit,
     reason = "We exit with 1 error code on any application errors"
 )]
 use crate::db;
 use crate::db::models::redirects::Manager as _;
+use crate::fonds::archive::Archive;
 use crate::server::api::state::App as AppState;
 use crate::server::errors::CliError;
-use crate::stelae::archive::Archive;
 use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::{App, Error, HttpServer};
 use tracing_actix_web::TracingLogger;
@@ -18,10 +18,10 @@ use actix_http::body::MessageBody;
 use actix_service::ServiceFactory;
 
 use super::api::state::Global;
-use super::tracing::StelaeRootSpanBuilder;
+use super::tracing::TafServerRootSpanBuilder;
 use crate::server::api::routes;
 
-/// Serve documents in a Stelae archive.
+/// Serve documents in a Fonds archive.
 #[actix_web::main]
 #[tracing::instrument(skip(raw_archive_path, archive_path, port, individual))]
 pub async fn serve_archive(
@@ -31,7 +31,7 @@ pub async fn serve_archive(
     individual: bool,
     bind_to: &str,
 ) -> Result<(), CliError> {
-    let message = "Running Publish Server on a Stelae archive at";
+    let message = "Running Publish Server on a Fonds archive at";
     tracing::info!("{message} '{raw_archive_path}' on http://{bind_to}:{port}.",);
 
     let db = match db::init::connect(&archive_path).await {
@@ -113,7 +113,7 @@ pub fn init<T: Global + Clone + 'static>(
         >,
     >,
 > {
-    let app = App::new().wrap(TracingLogger::<StelaeRootSpanBuilder>::new());
+    let app = App::new().wrap(TracingLogger::<TafServerRootSpanBuilder>::new());
     let registered_app = routes::register_app(app, state)?;
     Ok(registered_app)
 }

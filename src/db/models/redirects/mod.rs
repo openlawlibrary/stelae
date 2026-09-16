@@ -11,12 +11,12 @@ pub trait Manager {
     /// Finds a redirect target for a given URL.
     async fn find_redirect_for_url(
         &self,
-        stele: String,
+        fonds: String,
         repo_name: String,
         from_url: String,
     ) -> anyhow::Result<Option<String>>;
 
-    /// Returns the set of `(stele_name, repo_name)` pairs that currently have
+    /// Returns the set of `(fonds_name, repo_name)` pairs that currently have
     /// at least one redirect configured.
     async fn repos_with_redirects(&self) -> anyhow::Result<HashSet<(String, String)>>;
 }
@@ -27,7 +27,7 @@ pub trait TxManager {
     /// Inserts multiple redirect mappings in a single transactional operation.
     async fn insert_bulk(
         &mut self,
-        stele: &str,
+        fonds: &str,
         repo_name: &str,
         redirect_pairs: Vec<RedirectPair>,
     ) -> anyhow::Result<()>;

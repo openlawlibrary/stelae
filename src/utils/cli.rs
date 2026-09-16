@@ -29,55 +29,55 @@ use tracing_subscriber::{
     filter::EnvFilter, layer::SubscriberExt as _, util::SubscriberInitExt as _,
 };
 
-/// Stelae is currently just a simple git server.
+/// taf-server serves and manages a Fonds archive.
 /// run from the library directory or pass
 /// path to archive.
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
-    /// Path to the Stelae archive. Defaults to cwd.
+    /// Path to the Fonds archive. Defaults to cwd.
     #[arg(short, long, default_value_t = String::from(".").to_owned())]
     archive_path: String,
     /// Path to the log location
     #[arg(short = 'l', long = "log-location")]
     log_path: Option<String>,
-    /// Stelae cli subcommands
+    /// Taf server cli subcommands
     #[command(subcommand)]
     subcommands: Subcommands,
 }
 
-/// Stelae subcommands
+/// TAF server subcommands
 #[derive(Clone, Debug)]
-pub enum StelaeSubcommands {
-    /// Serve git repositories in the Stelae archive
+pub enum TafServerSubcommands {
+    /// Serve git repositories in the Fonds archive
     Git {
         /// Port on which to run the git server.
         port: u16,
     },
-    /// Serve documents in a Stelae archive.
+    /// Serve documents in a Fonds archive.
     Serve {
         /// Port on which to serve the archive.
         port: u16,
-        /// Serve an individual stele instead of the Stele specified in config.toml.
+        /// Serve an individual fonds instead of the Fonds specified in config.toml.
         individual: bool,
         /// Bind to specify ip address instead of 127.0.0.1.
         bind_to: String,
     },
     /// Update the archive
     Update {
-        /// List of stelae to include in update
+        /// List of fonds to include in update
         include: Vec<String>,
-        /// List of stelae to exclude in update
+        /// List of fonds to exclude in update
         exclude: Vec<String>,
-        /// Force a full rebuild of each stele's database records, skipping consistency checks.
+        /// Force a full rebuild of each fonds's database records, skipping consistency checks.
         force: bool,
     },
     /// Checks repository validity
     ///
-    /// Validate a Stelae archive by examining its configuration files and
+    /// Validate a Fonds archive by examining its configuration files and
     /// repository structure without starting a server or modifying any data.
     /// This command is a "dry run" that reports problems so you can fix them
-    /// before running `stelae serve` or `stelae update`.
+    /// before running `taf-server serve` or `taf-server update`.
     ///
     /// The archive to check is located using the top‑level `--archive-path`
     /// option (or the current directory if that option is not given). The
@@ -133,8 +133,8 @@ pub trait CliProvider {
     /// Get the archive path as a string
     fn archive_path(&self) -> &str;
 
-    /// Convert the CLI's subcommands to the generic `StelaeSubcommand`
-    fn subcommand(&self) -> StelaeSubcommands;
+    /// Convert the CLI's subcommands to the generic `TafServerSubcommand`
+    fn subcommand(&self) -> TafServerSubcommands;
 }
 
 // Implement CliProvider for the existing Cli struct for backward compatibility
@@ -147,14 +147,14 @@ impl CliProvider for Cli {
         clippy::pattern_type_mismatch,
         reason = "Matching on a reference (&cli.subcommands) instead of by value; the match patterns borrow fields, which is intentional to avoid moving data."
     )]
-    fn subcommand(&self) -> StelaeSubcommands {
+    fn subcommand(&self) -> TafServerSubcommands {
         match &self.subcommands {
-            Subcommands::Git { port } => StelaeSubcommands::Git { port: *port },
+            Subcommands::Git { port } => TafServerSubcommands::Git { port: *port },
             Subcommands::Serve {
                 port,
                 individual,
                 bind_to,
-            } => StelaeSubcommands::Serve {
+            } => TafServerSubcommands::Serve {
                 port: *port,
                 individual: *individual,
                 bind_to: bind_to.clone(),
@@ -163,32 +163,32 @@ impl CliProvider for Cli {
                 include,
                 exclude,
                 force,
-            } => StelaeSubcommands::Update {
+            } => TafServerSubcommands::Update {
                 include: include.clone(),
                 exclude: exclude.clone(),
                 force: *force,
             },
-            Subcommands::Check {} => StelaeSubcommands::Check,
+            Subcommands::Check {} => TafServerSubcommands::Check,
         }
     }
 }
 
-/// Subcommands for the Stelae CLI
+/// Subcommands for the Taf server CLI
 #[derive(Clone, clap::Subcommand)]
 pub enum Subcommands {
-    /// Serve git repositories in the Stelae archive
+    /// Serve git repositories in the Fonds archive
     Git {
         /// Port on which to serve the archive.
         #[arg(short, long, default_value_t = 8080)]
         port: u16,
     },
-    /// Serve documents in a Stelae archive.
+    /// Serve documents in a Fonds archive.
     Serve {
         /// Port on which to serve the archive.
         #[arg(short, long, default_value_t = 8080)]
         port: u16,
         #[arg(short, long, default_value_t = false)]
-        /// Serve an individual stele instead of the Stele specified in config.toml.
+        /// Serve an individual fonds instead of the Fonds specified in config.toml.
         individual: bool,
         /// Bind to specify ip address instead of 127.0.0.1
         #[arg(short, long, default_value = "127.0.0.1")]
@@ -196,20 +196,20 @@ pub enum Subcommands {
     },
     /// Update the archive
     ///
-    /// NOTE: Once TAF is embedded with stelae, this command will be used to update the repositories within the archive.
-    /// Currently inserts historical information about the Steles in the archive.
+    /// NOTE: Once TAF is embedded with taf-server, this command will be used to update the repositories within the archive.
+    /// Currently inserts historical information about the Fonds in the archive.
     ///
     ///  - Populates the database with change objects loaded in from RDF repository
-    ///  - By default inserts historical information for the root and all referenced stele in the archive
+    ///  - By default inserts historical information for the root and all referenced fonds in the archive
     Update {
-        /// List of stelae to include in update
+        /// List of fonds to include in update
         #[arg(short = 'i', long = "include", num_args(1..))]
         include: Vec<String>,
-        /// List of stelae to exclude in update
+        /// List of fonds to exclude in update
         #[arg(short = 'e', long = "exclude", num_args(1..))]
         exclude: Vec<String>,
-        /// Force a full rebuild of each stele's database records.
-        /// Skips consistency checks and always deletes and re-inserts all data for the stele.
+        /// Force a full rebuild of each fonds's database records.
+        /// Skips consistency checks and always deletes and re-inserts all data for the fonds.
         /// Respects --include and --exclude filters.
         #[arg(short = 'f', long = "force", default_value_t = false)]
         force: bool,
@@ -236,9 +236,9 @@ pub fn init_tracing(archive_path: &Path, log_path: &Option<String>) {
         .map_or_else(|| archive_path.join(".taf"), PathBuf::from);
 
     let debug_file_appender =
-        rolling::never(&log_dir, "stelae-debug.log").with_max_level(Level::DEBUG);
+        rolling::never(&log_dir, "taf-server-debug.log").with_max_level(Level::DEBUG);
     let error_file_appender =
-        rolling::never(&log_dir, "stelae-error.log").with_max_level(Level::WARN);
+        rolling::never(&log_dir, "taf-server-error.log").with_max_level(Level::WARN);
 
     let mut debug_layer = fmt::layer().with_writer(debug_file_appender);
     let mut error_layer = fmt::layer().with_writer(error_file_appender);
@@ -276,8 +276,8 @@ pub fn init_tracing(archive_path: &Path, log_path: &Option<String>) {
 /// Generic `execute_command` function that works with any CLI implementing `CliProvider`
 pub fn execute_command<T: CliProvider>(cli: &T, archive_path: PathBuf) -> Result<(), CliError> {
     match &cli.subcommand() {
-        StelaeSubcommands::Git { port } => serve_git(cli.archive_path(), archive_path, *port),
-        StelaeSubcommands::Serve {
+        TafServerSubcommands::Git { port } => serve_git(cli.archive_path(), archive_path, *port),
+        TafServerSubcommands::Serve {
             port,
             individual,
             bind_to,
@@ -288,12 +288,12 @@ pub fn execute_command<T: CliProvider>(cli: &T, archive_path: PathBuf) -> Result
             *individual,
             bind_to,
         ),
-        StelaeSubcommands::Update {
+        TafServerSubcommands::Update {
             include,
             exclude,
             force,
         } => changes::insert(cli.archive_path(), archive_path, include, exclude, *force),
-        StelaeSubcommands::Check => check::run(cli.archive_path(), archive_path),
+        TafServerSubcommands::Check => check::run(cli.archive_path(), archive_path),
     }
 }
 

@@ -9,8 +9,8 @@ use actix_http::header::IF_NONE_MATCH;
 use actix_http::StatusCode;
 use actix_web::test;
 use std::path::PathBuf;
-use stelae::server::headers::HTTP_E_TAG;
-use stelae::stelae::archive::Archive;
+use taf_server::fonds::archive::Archive;
+use taf_server::server::headers::HTTP_E_TAG;
 
 #[actix_web::test]
 async fn test_resolve_law_html_request_with_full_path_expect_success() {
@@ -28,7 +28,7 @@ async fn test_resolve_law_html_request_with_full_path_expect_success() {
 }
 
 #[actix_web::test]
-async fn test_resolve_root_stele_law_html_request_with_full_path_no_trailing_slash_expect_success()
+async fn test_resolve_root_fonds_law_html_request_with_full_path_no_trailing_slash_expect_success()
 {
     let archive_path =
         common::initialize_archive(ArchiveType::Basic(Jurisdiction::Single)).unwrap();

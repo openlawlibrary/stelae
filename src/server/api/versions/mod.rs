@@ -15,7 +15,7 @@ use crate::{
         },
         DatabaseConnection,
     },
-    stelae::archive::Archive,
+    fonds::archive::Archive,
     utils::paths::clean_path,
 };
 
@@ -43,20 +43,20 @@ pub async fn versions(
     data: web::Data<AppState>,
     params: web::Path<request::Version>,
 ) -> impl Responder {
-    let stele = match get_stele_from_request(&req, data.archive()) {
-        Ok(stele) => stele,
+    let fonds = match get_fonds_from_request(&req, data.archive()) {
+        Ok(fonds) => fonds,
         Err(err) => {
-            tracing::error!("Error getting stele from request: {err}");
+            tracing::error!("Error getting fonds from request: {err}");
             return HttpResponse::BadRequest().body(format!("Error: {err}"));
         }
     };
     let db = data.db();
-    let mut publications = publication::Manager::find_all_non_revoked_publications(db, &stele)
+    let mut publications = publication::Manager::find_all_non_revoked_publications(db, &fonds)
         .await
         .unwrap_or_default();
 
     let Some(current_publication) = publications.first() else {
-        tracing::warn!("No publications found for stele: {stele}");
+        tracing::warn!("No publications found for fonds: {fonds}");
         return HttpResponse::NotFound().body("No publications found.");
     };
 
@@ -132,7 +132,7 @@ pub async fn versions(
             current_publication.id.clone(),
             CURRENT_PUBLICATION_NAME.to_lowercase(),
             current_publication.date.clone(),
-            current_publication.stele.clone(),
+            current_publication.fonds.clone(),
         ),
     );
 
@@ -161,7 +161,7 @@ pub async fn publication_versions(
     tracing::debug!("Fetching publication versions for '{url}'");
     let mut versions = vec![];
     let doc_mpath =
-        document_element::Manager::find_doc_mpath_by_url(db, &url, &publication.stele).await;
+        document_element::Manager::find_doc_mpath_by_url(db, &url, &publication.fonds).await;
     if let Ok(mpath) = doc_mpath {
         let doc_versions =
             document_change::Manager::find_all_document_versions_by_mpath_and_publication(
@@ -173,7 +173,7 @@ pub async fn publication_versions(
             .unwrap_or_default();
         versions = doc_versions.into_iter().map(Into::into).collect();
     } else {
-        let lib_mpath = library::Manager::find_lib_mpath_by_url(db, &url, &publication.stele).await;
+        let lib_mpath = library::Manager::find_lib_mpath_by_url(db, &url, &publication.fonds).await;
         if let Ok(mpath) = lib_mpath {
             let coll_versions =
                 library_change::Manager::find_all_collection_versions_by_mpath_and_publication(
@@ -190,21 +190,21 @@ pub async fn publication_versions(
     versions
 }
 
-/// Extracts the stele from the request.
-/// If the `X-Stelae` header is present, it will return the value of the header.
-/// Otherwise, it will return the root stele.
+/// Extracts the fonds from the request.
+/// If the `X-Fonds` header is present, it will return the value of the header.
+/// Otherwise, it will return the root fonds.
 ///
 /// # Errors
-/// Errors if X-Stelae is in invalid format
-pub fn get_stele_from_request(req: &HttpRequest, archive: &Archive) -> anyhow::Result<String> {
+/// Errors if X-Fonds is in invalid format
+pub fn get_fonds_from_request(req: &HttpRequest, archive: &Archive) -> anyhow::Result<String> {
     let req_headers = req.headers();
-    let stele = archive.get_root()?.get_qualified_name();
+    let fonds = archive.get_root()?.get_qualified_name();
 
-    req_headers.get("X-Stelae").map_or_else(
-        || Ok(stele),
+    req_headers.get("X-Fonds").map_or_else(
+        || Ok(fonds),
         |value| {
             value.to_str().map_or_else(
-                |_| anyhow::bail!("Invalid X-Stelae header value"),
+                |_| anyhow::bail!("Invalid X-Fonds header value"),
                 |str| Ok(str.to_owned()),
             )
         },

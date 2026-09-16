@@ -21,14 +21,14 @@ impl super::Manager for DatabaseConnection {
     /// query fails for any reason other than the row not being found.
     async fn find_redirect_for_url(
         &self,
-        stele: String,
+        fonds: String,
         repo_name: String,
         from_url: String,
     ) -> anyhow::Result<Option<String>> {
         let statement = "
             SELECT from_url, to_url
             FROM redirects
-            WHERE stele_name = $1
+            WHERE fonds_name = $1
               AND repo_name = $2
               AND from_url = $3
         ";
@@ -36,7 +36,7 @@ impl super::Manager for DatabaseConnection {
             DatabaseKind::Sqlite => {
                 let mut connection = self.pool.acquire().await?;
                 sqlx::query_as::<_, RedirectPair>(statement)
-                    .bind(stele)
+                    .bind(fonds)
                     .bind(repo_name)
                     .bind(from_url)
                     .fetch_one(&mut *connection)
@@ -57,14 +57,14 @@ impl super::Manager for DatabaseConnection {
         }
     }
 
-    /// Returns the set of `(stele_name, repo_name)` pairs that currently have
+    /// Returns the set of `(fonds_name, repo_name)` pairs that currently have
     /// at least one redirect configured.
     ///
     /// # Errors
     /// Errors if a connection to the database can't be established or the
     /// query fails.
     async fn repos_with_redirects(&self) -> anyhow::Result<HashSet<(String, String)>> {
-        let statement = "SELECT DISTINCT stele_name, repo_name FROM redirects";
+        let statement = "SELECT DISTINCT fonds_name, repo_name FROM redirects";
         let rows: Vec<(String, String)> = match self.kind {
             DatabaseKind::Sqlite => {
                 let mut connection = self.pool.acquire().await?;
@@ -85,17 +85,17 @@ impl super::TxManager for DatabaseTransaction {
     /// Errors if the redirects cannot be inserted into the database.
     async fn insert_bulk(
         &mut self,
-        stele: &str,
+        fonds: &str,
         repo_name: &str,
         redirect_pairs: Vec<RedirectPair>,
     ) -> anyhow::Result<()> {
         let mut query_builder = QueryBuilder::new(
-            "INSERT OR IGNORE INTO redirects ( stele_name, repo_name, from_url, to_url ) ",
+            "INSERT OR IGNORE INTO redirects ( fonds_name, repo_name, from_url, to_url ) ",
         );
         for chunk in redirect_pairs.chunks(BATCH_SIZE) {
             query_builder.push_values(chunk, |mut bindings, rp| {
                 bindings
-                    .push_bind(stele)
+                    .push_bind(fonds)
                     .push_bind(repo_name)
                     .push_bind(&rp.from_url)
                     .push_bind(&rp.to_url);

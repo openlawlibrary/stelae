@@ -1,4 +1,4 @@
-use stelae::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
+use taf_server::utils::git::{Repo, GIT_REQUEST_NOT_FOUND};
 
 use crate::common::{self, BASIC_MODULE_NAME};
 

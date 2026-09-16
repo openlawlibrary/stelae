@@ -21,20 +21,20 @@ use crate::db::models::publication_has_publication_versions::{
 use crate::db::models::publication_version;
 use crate::db::models::status::Status;
 use crate::db::models::{document, document_element};
-use crate::db::models::{stele, version};
+use crate::db::models::{fonds, version};
 use crate::db::{DatabaseTransaction, Tx as _};
-use crate::history::rdf::graph::StelaeGraph;
+use crate::fonds::fonds::Fonds;
+use crate::fonds::types::repositories::Repository;
+use crate::history::rdf::graph::FondsGraph;
 use crate::history::rdf::namespaces::{dcterms, oll};
-use crate::redirects::insert_redirects_for_stele;
+use crate::redirects::insert_redirects_for_fonds;
 use crate::server::errors::CliError;
-use crate::stelae::stele::Stele;
-use crate::stelae::types::repositories::Repository;
 use crate::utils::archive::get_name_parts;
 use crate::utils::git::Repo;
 use crate::utils::md5;
 use crate::{
     db::{self, DatabaseConnection},
-    stelae::archive::Archive,
+    fonds::archive::Archive,
 };
 use anyhow::Context as _;
 use chrono::DateTime;
@@ -56,7 +56,7 @@ use std::{
 /// Errors if the changes cannot be inserted into the archive
 #[actix_web::main]
 #[tracing::instrument(
-    name = "Stelae update",
+    name = "Taf-server update",
     skip(raw_archive_path, archive_path, include, exclude, force)
 )]
 pub async fn insert(
@@ -67,10 +67,10 @@ pub async fn insert(
     force: bool,
 ) -> Result<(), CliError> {
     if !include.is_empty() {
-        tracing::info!("Following stele are included: {:#?}", include);
+        tracing::info!("Following fonds are included: {:#?}", include);
     }
     if !exclude.is_empty() {
-        tracing::info!("Following stele are excluded: {:#?}", exclude);
+        tracing::info!("Following fonds are excluded: {:#?}", exclude);
     }
     let conn = match db::init::connect(&archive_path).await {
         Ok(conn) => conn,
@@ -93,7 +93,7 @@ pub async fn insert(
     )
     .await
     .map_err(|err| {
-        tracing::error!("Failed to update stele in the archive");
+        tracing::error!("Failed to update fonds in the archive");
         tracing::error!("{err:?}");
         CliError::GenericError
     })
@@ -120,7 +120,7 @@ async fn insert_changes_archive(
         false,
     )?;
     let mut errors = Vec::new();
-    for (name, mut stele) in archive.get_stelae() {
+    for (name, mut fonds) in archive.get_all_fonds() {
         if exclude.contains(&name) || (!include.is_empty() && !include.contains(&name)) {
             tracing::info!("Skipping update for {:?}", name);
             continue;
@@ -128,13 +128,13 @@ async fn insert_changes_archive(
         let mut tx = DatabaseTransaction {
             tx: conn.pool.begin().await?,
         };
-        match process_stele(&mut tx, &name, &mut stele, archive_path, force).await {
+        match process_fonds(&mut tx, &name, &mut fonds, archive_path, force).await {
             Ok(()) => {
-                tracing::debug!("Applying transaction for stele: {name}");
+                tracing::debug!("Applying transaction for fonds: {name}");
                 tx.commit().await?;
             }
             Err(err) => {
-                tracing::error!("Rolling back transaction for stele: {name} due to error: {err:?}");
+                tracing::error!("Rolling back transaction for fonds: {name} due to error: {err:?}");
                 tx.rollback().await?;
                 errors.push(format!("{name}: {err}"));
             }
@@ -153,23 +153,23 @@ async fn insert_changes_archive(
     clippy::cognitive_complexity,
     reason = "Splitting would reduce readability"
 )]
-/// Process the stele and insert changes into the database
-async fn process_stele(
+/// Process the fonds and insert changes into the database
+async fn process_fonds(
     tx: &mut DatabaseTransaction,
     name: &str,
-    stele: &mut Stele,
+    fonds: &mut Fonds,
     archive_path: &Path,
     force: bool,
 ) -> anyhow::Result<()> {
-    let Some(repositories) = stele.get_repositories()? else {
-        tracing::warn!("No repositories found for stele: {name}");
+    let Some(repositories) = fonds.get_repositories()? else {
+        tracing::warn!("No repositories found for fonds: {name}");
         return Ok(());
     };
 
-    insert_redirects_for_stele(tx, stele).await?;
+    insert_redirects_for_fonds(tx, fonds).await?;
 
     let Some(rdf_repo) = repositories.get_one_by_custom_type("rdf") else {
-        tracing::warn!("No RDF repository found for stele: {name}");
+        tracing::warn!("No RDF repository found for fonds: {name}");
         return Ok(());
     };
     let rdf_repo_path = archive_path.to_path_buf().join(&rdf_repo.name);
@@ -206,10 +206,10 @@ async fn process_stele(
         tracing::info!("[{name}] | --force flag set, rebuilding database from scratch");
         true
     } else {
-        is_stele_inconsistent(
+        is_fonds_inconsistent(
             tx,
             name,
-            stele,
+            fonds,
             &rdf,
             &data_repos,
             current_html_repo_name.as_deref(),
@@ -220,12 +220,12 @@ async fn process_stele(
         if !force {
             tracing::warn!("[{name}] | Rebuilding database from scratch due to inconsistency");
         }
-        stele::TxManager::delete(tx, name).await?;
+        fonds::TxManager::delete(tx, name).await?;
     }
     insert_changes_from_rdf_repository(tx, rdf, name, current_html_repo_name.as_deref()).await?;
     // Insert commit hashes for data repositories with serve type 'historical'
     for data_repo in data_repos {
-        insert_commit_hashes_from_auth_repository(tx, stele, data_repo).await?;
+        insert_commit_hashes_from_auth_repository(tx, fonds, data_repo).await?;
     }
     Ok(())
 }
@@ -234,36 +234,36 @@ async fn process_stele(
 async fn insert_changes_from_rdf_repository(
     tx: &mut DatabaseTransaction,
     rdf_repo: Repo,
-    stele_id: &str,
+    fonds_id: &str,
     current_html_repo_name: Option<&str>,
 ) -> anyhow::Result<()> {
-    tracing::debug!("Inserting changes from RDF repository: {}", stele_id);
+    tracing::debug!("Inserting changes from RDF repository: {}", fonds_id);
     tracing::debug!("RDF repository path: {}", rdf_repo.path.display());
-    load_delta_for_stele(tx, &rdf_repo, stele_id, current_html_repo_name).await?;
+    load_delta_for_fonds(tx, &rdf_repo, fonds_id, current_html_repo_name).await?;
     Ok(())
 }
 
 /// Load deltas from the publications
-async fn load_delta_for_stele(
+async fn load_delta_for_fonds(
     tx: &mut DatabaseTransaction,
     rdf_repo: &Repo,
-    stele: &str,
+    fonds: &str,
     current_html_repo_name: Option<&str>,
 ) -> anyhow::Result<()> {
-    stele::TxManager::create(tx, stele).await?;
-    if let Some(publication) = publication::TxManager::find_last_inserted(tx, stele).await? {
-        tracing::info!("[{stele}] | Inserting RDF changes from last inserted publication");
+    fonds::TxManager::create(tx, fonds).await?;
+    if let Some(publication) = publication::TxManager::find_last_inserted(tx, fonds).await? {
+        tracing::info!("[{fonds}] | Inserting RDF changes from last inserted publication");
         load_delta_from_publications(
             tx,
             rdf_repo,
-            stele,
+            fonds,
             Some(publication),
             current_html_repo_name,
         )
         .await?;
     } else {
-        tracing::info!("[{stele}] | Inserting RDF changes from beginning...");
-        load_delta_from_publications(tx, rdf_repo, stele, None, current_html_repo_name).await?;
+        tracing::info!("[{fonds}] | Inserting RDF changes from beginning...");
+        load_delta_from_publications(tx, rdf_repo, fonds, None, current_html_repo_name).await?;
     }
     Ok(())
 }
@@ -283,7 +283,7 @@ async fn load_delta_for_stele(
 async fn load_delta_from_publications(
     tx: &mut DatabaseTransaction,
     rdf_repo: &Repo,
-    stele: &str,
+    fonds: &str,
     last_inserted_publication: Option<Publication>,
     current_html_repo_name: Option<&str>,
 ) -> anyhow::Result<()> {
@@ -312,7 +312,7 @@ async fn load_delta_from_publications(
         None
     };
     for publication_entry in &publications_subtree {
-        let mut pub_graph = StelaeGraph::new();
+        let mut pub_graph = FondsGraph::new();
         let object = publication_entry.to_object(&rdf_repo.repo)?;
         let publication_tree = object
             .as_tree()
@@ -341,7 +341,7 @@ async fn load_delta_from_publications(
                 continue;
             }
         }
-        tracing::info!("[{stele}] | Publication: {pub_name}");
+        tracing::info!("[{fonds}] | Publication: {pub_name}");
         publication_tree.walk(TreeWalkMode::PreOrder, |_, entry| {
             let path_name = entry.name().unwrap_or_default();
             if path_name.contains(".rdf") {
@@ -365,13 +365,13 @@ async fn load_delta_from_publications(
         })?;
         let (last_valid_pub_name, last_valid_codified_date) =
             referenced_publication_information(&pub_graph);
-        let publication_hash = md5::compute(format!("{}{}", pub_name.clone(), stele));
+        let publication_hash = md5::compute(format!("{}{}", pub_name.clone(), fonds));
         let last_inserted_pub_id = if let Some(valid_pub_name) = last_valid_pub_name {
             let Some(last_inserted_pub) =
-                publication::TxManager::find_by_name_and_stele(tx, &valid_pub_name, stele).await?
+                publication::TxManager::find_by_name_and_fonds(tx, &valid_pub_name, fonds).await?
             else {
                 tracing::debug!(
-                    "[{stele}] | Publication {pub_name} not found in database after creation, which indicates revocation"
+                    "[{fonds}] | Publication {pub_name} not found in database after creation, which indicates revocation"
                 );
                 continue;
             };
@@ -392,28 +392,28 @@ async fn load_delta_from_publications(
             &publication_hash,
             &pub_name,
             &pub_date,
-            stele,
+            fonds,
             last_inserted_pub_id,
             last_valid_codified_date,
             html_data_repo_name,
         )
         .await?;
         // If this is the boundary publication, backfill all earlier publications for
-        // this stele with the same archived HTML repo name.
+        // this fonds with the same archived HTML repo name.
         if let Some(archived_repo) = archived_html_repo.as_deref() {
             publication::TxManager::set_html_data_repo_name_for_prior_publications(
                 tx,
-                stele,
+                fonds,
                 &pub_date,
                 archived_repo,
             )
             .await?;
         }
         let Some(publication) =
-            publication::TxManager::find_by_name_and_stele(tx, &pub_name, stele).await?
+            publication::TxManager::find_by_name_and_fonds(tx, &pub_name, fonds).await?
         else {
             tracing::debug!(
-                    "[{stele}] | Publication {pub_name} not found in database after creation, which indicates revocation"
+                    "[{fonds}] | Publication {pub_name} not found in database after creation, which indicates revocation"
                 );
             continue;
         };
@@ -424,14 +424,14 @@ async fn load_delta_from_publications(
     Ok(())
 }
 
-/// Load all deltas for the publication given a stele
+/// Load all deltas for the publication given a fonds
 ///
 /// # Errors
 /// Errors if database connection fails or if delta cannot be loaded for the publication
 async fn load_delta_for_publication(
     tx: &mut DatabaseTransaction,
     publication: Publication,
-    pub_graph: &StelaeGraph,
+    pub_graph: &FondsGraph,
     last_inserted_date: Option<NaiveDate>,
 ) -> anyhow::Result<()> {
     let pub_document_versions =
@@ -478,7 +478,7 @@ async fn insert_document_changes(
     tx: &mut DatabaseTransaction,
     last_inserted_date: Option<&NaiveDate>,
     pub_document_versions: Vec<&SimpleTerm<'_>>,
-    pub_graph: &StelaeGraph,
+    pub_graph: &FondsGraph,
     publication: &Publication,
 ) -> anyhow::Result<()> {
     let mut document_elements_bulk: Vec<DocumentElement> = vec![];
@@ -498,7 +498,7 @@ async fn insert_document_changes(
             "{}{}{}",
             publication.name.clone(),
             codified_date,
-            publication.stele
+            publication.fonds
         ));
         publication_version::TxManager::create(
             tx,
@@ -528,7 +528,7 @@ async fn insert_document_changes(
                 doc_mpath.clone(),
                 url.clone(),
                 doc_id.clone(),
-                publication.stele.clone(),
+                publication.fonds.clone(),
             ));
             let reason = pub_graph
                 .literal_from_triple_matching(Some(&change), Some(oll::reason), None)
@@ -566,7 +566,7 @@ async fn insert_library_changes(
     tx: &mut DatabaseTransaction,
     last_inserted_date: Option<&NaiveDate>,
     pub_collection_versions: Vec<&SimpleTerm<'_>>,
-    pub_graph: &StelaeGraph,
+    pub_graph: &FondsGraph,
     publication: &Publication,
 ) -> anyhow::Result<()> {
     let mut library_changes_bulk: Vec<LibraryChange> = vec![];
@@ -594,13 +594,13 @@ async fn insert_library_changes(
         library_bulk.push(Library::new(
             library_mpath.clone(),
             url.clone(),
-            publication.stele.clone(),
+            publication.fonds.clone(),
         ));
         let pub_version_hash = md5::compute(format!(
             "{}{}{}",
             publication.name.clone(),
             codified_date,
-            publication.stele
+            publication.fonds
         ));
         library_changes_bulk.push(LibraryChange::new(
             pub_version_hash.clone(),
@@ -685,7 +685,7 @@ async fn insert_shared_publication_versions_for_publication(
 }
 
 /// Get the last valid publication name and codified date from the graph
-fn referenced_publication_information(pub_graph: &StelaeGraph) -> (Option<String>, Option<String>) {
+fn referenced_publication_information(pub_graph: &FondsGraph) -> (Option<String>, Option<String>) {
     let last_valid_pub = pub_graph
         .literal_from_triple_matching(None, Some(oll::lastValidPublication), None)
         .ok()
@@ -705,18 +705,18 @@ async fn revoke_same_date_publications(
     publication: Publication,
 ) -> anyhow::Result<()> {
     let duplicate_publications =
-        publication::TxManager::find_all_by_date_and_stele_order_by_name_desc(
+        publication::TxManager::find_all_by_date_and_fonds_order_by_name_desc(
             tx,
             publication.date,
-            publication.stele,
+            publication.fonds,
         )
         .await?;
     if let Some(duplicate_publications_slice) = duplicate_publications.get(1..) {
         for duplicate_pub in duplicate_publications_slice {
-            publication::TxManager::update_by_name_and_stele_set_revoked_true(
+            publication::TxManager::update_by_name_and_fonds_set_revoked_true(
                 tx,
                 &duplicate_pub.name,
-                &duplicate_pub.stele,
+                &duplicate_pub.fonds,
             )
             .await?;
         }
@@ -728,9 +728,9 @@ async fn revoke_same_date_publications(
     clippy::cognitive_complexity,
     reason = "Splitting would reduce readability"
 )]
-/// Check whether the database state for a stele is consistent with its git repositories.
+/// Check whether the database state for a fonds is consistent with its git repositories.
 ///
-/// Returns `true` if an inconsistency is detected, meaning the stele should be
+/// Returns `true` if an inconsistency is detected, meaning the fonds should be
 /// deleted from the database and fully rebuilt from scratch.
 ///
 /// Three checks are performed:
@@ -740,7 +740,7 @@ async fn revoke_same_date_publications(
 /// stored in the database.  A lower count indicates that the RDF repository was rolled
 /// back or force-pushed and publications were lost.
 ///
-/// `html_data_repo_name` completeness: when the stele has a current (non-archived)
+/// `html_data_repo_name` completeness: when the fonds has a current (non-archived)
 /// HTML repository, every non-revoked publication must record one.  Rows predating
 /// the column cannot be filled in by an incremental run, so a rebuild is required.
 ///
@@ -748,17 +748,17 @@ async fn revoke_same_date_publications(
 /// repository, the most-recently-recorded `auth_commit_hash` in `data_repo_commits`
 /// must resolve to a real commit in the auth repository.  If it does not, the auth
 /// repository was force-pushed past that commit.
-async fn is_stele_inconsistent(
+async fn is_fonds_inconsistent(
     tx: &mut DatabaseTransaction,
-    stele_name: &str,
-    stele: &Stele,
+    fonds_name: &str,
+    fonds: &Fonds,
     rdf_repo: &Repo,
     data_repos: &[&Repository],
     current_html_repo_name: Option<&str>,
 ) -> anyhow::Result<bool> {
-    let db_pub_count = publication::TxManager::count_non_revoked(tx, stele_name).await?;
+    let db_pub_count = publication::TxManager::count_non_revoked(tx, fonds_name).await?;
     if db_pub_count == 0 {
-        // Fresh stele, nothing to be inconsistent with.
+        // Fresh fonds, nothing to be inconsistent with.
         return Ok(false);
     }
 
@@ -769,17 +769,17 @@ async fn is_stele_inconsistent(
     // `html_data_repo_name` -- so a NULL row disables the very check that would
     // otherwise rebuild it.  A rebuild is the only way to fill them in.
     //
-    // Only when the stele has a current HTML repository to record.  A stele that
+    // Only when the fonds has a current HTML repository to record.  A fonds that
     // serves no HTML legitimately has NULL here, and treating that as inconsistent
     // would rebuild it on every run, each time producing NULL again.
     if current_html_repo_name.is_some() {
         let missing =
-            publication::TxManager::count_non_revoked_missing_html_data_repo_name(tx, stele_name)
+            publication::TxManager::count_non_revoked_missing_html_data_repo_name(tx, fonds_name)
                 .await?;
         if missing > 0 {
             tracing::warn!(
-                "[{stele_name}] | Inconsistency detected: {missing} non-revoked publication(s) \
-                 have no html_data_repo_name, but the stele has a current HTML repository. \
+                "[{fonds_name}] | Inconsistency detected: {missing} non-revoked publication(s) \
+                 have no html_data_repo_name, but the fonds has a current HTML repository. \
                  These predate the column and cannot be filled in without a rebuild."
             );
             return Ok(true);
@@ -794,7 +794,7 @@ async fn is_stele_inconsistent(
         let rdf_pub_count = publications_subtree.len();
         if rdf_pub_count < db_pub_count {
             tracing::warn!(
-                "[{stele_name}] | Inconsistency detected: RDF repository has {rdf_pub_count} \
+                "[{fonds_name}] | Inconsistency detected: RDF repository has {rdf_pub_count} \
                  publication(s) at HEAD but the database has {db_pub_count} non-revoked \
                  publication(s). The RDF repository may have been force-pushed or rolled back."
             );
@@ -804,9 +804,9 @@ async fn is_stele_inconsistent(
 
     // Most-recent auth_commit_hash for each data repo must exist in the auth repo.
     for data_repo in data_repos {
-        let Some(last_auth_commit) = data_repo_commits::TxManager::find_last_auth_commit_for_stele(
+        let Some(last_auth_commit) = data_repo_commits::TxManager::find_last_auth_commit_for_fonds(
             tx,
-            stele_name,
+            fonds_name,
             &data_repo.name,
         )
         .await?
@@ -817,15 +817,15 @@ async fn is_stele_inconsistent(
             Ok(oid) => oid,
             Err(err) => {
                 tracing::warn!(
-                    "[{stele_name}] | Could not parse stored auth commit hash \
+                    "[{fonds_name}] | Could not parse stored auth commit hash \
                      '{last_auth_commit}' as a git OID: {err:?}"
                 );
                 return Ok(true);
             }
         };
-        if stele.auth_repo.repo.find_commit(oid).is_err() {
+        if fonds.auth_repo.repo.find_commit(oid).is_err() {
             tracing::warn!(
-                "[{stele_name}] | Inconsistency detected: auth commit '{last_auth_commit}' \
+                "[{fonds_name}] | Inconsistency detected: auth commit '{last_auth_commit}' \
                  for data repo '{}' is not present in the auth repository. \
                  The auth repository may have been force-pushed.",
                 data_repo.name
@@ -847,26 +847,26 @@ async fn is_stele_inconsistent(
 /// Errors if the commit cannot be processed or inserted into the database.
 async fn insert_commit_hashes_from_auth_repository(
     tx: &mut DatabaseTransaction,
-    stele: &Stele,
+    fonds: &Fonds,
     data_repo: &Repository,
 ) -> anyhow::Result<()> {
-    let auth_repo = &stele.auth_repo;
-    let stele_name = stele.get_qualified_name();
+    let auth_repo = &fonds.auth_repo;
+    let fonds_name = fonds.get_qualified_name();
 
     let mut data_repo_commits_bulk: Vec<DataRepoCommits> = vec![];
 
     let loaded_auth_commits =
-        data_repo_commits::TxManager::find_all_auth_commits_for_stele_and_data_repo(
+        data_repo_commits::TxManager::find_all_auth_commits_for_fonds_and_data_repo(
             tx,
-            &stele_name,
+            &fonds_name,
             &data_repo.name,
         )
         .await?;
 
     if loaded_auth_commits.is_empty() {
-        tracing::info!("[{stele_name}] | Inserting commit hashes from the beginning...");
+        tracing::info!("[{fonds_name}] | Inserting commit hashes from the beginning...");
     } else {
-        tracing::info!("[{stele_name}] | Inserting commit hashes...");
+        tracing::info!("[{fonds_name}] | Inserting commit hashes...");
     }
 
     for commit in auth_repo.iter_commits()? {
@@ -876,9 +876,9 @@ async fn insert_commit_hashes_from_auth_repository(
         }
         match process_commit(
             &commit,
-            stele,
+            fonds,
             data_repo,
-            &stele_name,
+            &fonds_name,
             tx,
             &mut data_repo_commits_bulk,
         )
@@ -887,7 +887,7 @@ async fn insert_commit_hashes_from_auth_repository(
             Ok(()) => {}
             Err(err) => {
                 tracing::error!(
-                    "[{stele_name}] | Error processing commit {}: {err:?}",
+                    "[{fonds_name}] | Error processing commit {}: {err:?}",
                     commit.id().to_string()
                 );
             }
@@ -896,11 +896,11 @@ async fn insert_commit_hashes_from_auth_repository(
     let inserted_len = data_repo_commits_bulk.len();
     data_repo_commits::TxManager::insert_bulk(tx, data_repo_commits_bulk).await?;
     if inserted_len == 0 {
-        tracing::info!("[{stele_name}] | All hashes up to date");
+        tracing::info!("[{fonds_name}] | All hashes up to date");
         return Ok(());
     }
     tracing::info!(
-        "[{stele_name}] | Inserted {} commit hashes for: {}",
+        "[{fonds_name}] | Inserted {} commit hashes for: {}",
         inserted_len,
         &data_repo.name
     );
@@ -919,14 +919,14 @@ async fn insert_commit_hashes_from_auth_repository(
 /// or the commit cannot be inserted into the database.
 async fn process_commit(
     commit: &git2::Commit<'_>,
-    stele: &Stele,
+    fonds: &Fonds,
     data_repo: &Repository,
-    stele_name: &str,
+    fonds_name: &str,
     tx: &mut DatabaseTransaction,
     data_repo_commits_bulk: &mut Vec<DataRepoCommits>,
 ) -> anyhow::Result<()> {
     let auth_commit_hash = commit.id().to_string();
-    let Some(targets_metadata) = stele
+    let Some(targets_metadata) = fonds
         .get_targets_metadata_at_commit_and_filename(&auth_commit_hash, &data_repo.get_name())?
     else {
         //Skip commits without metadata target file
@@ -935,20 +935,20 @@ async fn process_commit(
     let Some(publication_name) = date_from_publication_parts(&targets_metadata.branch) else {
         // Skip commits that aren't on a publication
         tracing::debug!(
-            "[{stele_name}] | Skipping commits without publication branch date {}",
+            "[{fonds_name}] | Skipping commits without publication branch date {}",
             &targets_metadata.branch
         );
         return Ok(());
     };
-    let Ok(publication) = publication::TxManager::find_first_by_name_and_stele_non_revoked(
+    let Ok(publication) = publication::TxManager::find_first_by_name_and_fonds_non_revoked(
         tx,
         &publication_name,
-        stele_name,
+        fonds_name,
     )
     .await
     else {
         tracing::debug!(
-            "[{stele_name}] | Skipping commit {} without publication on date {}",
+            "[{fonds_name}] | Skipping commit {} without publication on date {}",
             &auth_commit_hash,
             publication_name
         );

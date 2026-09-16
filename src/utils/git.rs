@@ -1,5 +1,5 @@
 //! The git module contains structs for interacting with git repositories
-//! in the Stelae Archive.
+//! in the Fonds Archive.
 use crate::utils::paths::clean_path;
 use anyhow::Context as _;
 use anyhow::Result;
@@ -19,7 +19,7 @@ pub const GIT_REQUEST_NOT_FOUND: &str = "Git object doesn't exist";
 pub struct Repo {
     /// Path to the archive
     pub archive_path: String,
-    /// Path to the Stele
+    /// Path to the Fonds
     pub path: PathBuf,
     /// Repo organization
     pub org: String,

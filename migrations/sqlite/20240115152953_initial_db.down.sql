@@ -25,6 +25,6 @@ DROP TABLE IF EXISTS version;
 DROP TABLE IF EXISTS library;
 DROP TABLE IF EXISTS document_element;
 DROP TABLE IF EXISTS document;
-DROP TABLE IF EXISTS stele;
+DROP TABLE IF EXISTS fonds;
 
 PRAGMA optimize;

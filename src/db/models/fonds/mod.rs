@@ -3,22 +3,22 @@ use serde::{Deserialize, Serialize};
 
 pub mod manager;
 
-/// Trait for managing transactional stele.
+/// Trait for managing transactional fonds.
 #[async_trait]
 pub trait TxManager {
-    /// Create a stele.
-    async fn create(&mut self, stele: &str) -> anyhow::Result<Option<i64>>;
-    /// Delete a stele and all of its associated data via cascade.
+    /// Create a fonds.
+    async fn create(&mut self, fonds: &str) -> anyhow::Result<Option<i64>>;
+    /// Delete a fonds and all of its associated data via cascade.
     ///
     /// Requires `PRAGMA foreign_keys = ON` (set at connection time) for the
     /// `ON DELETE CASCADE` constraints to take effect.
-    async fn delete(&mut self, stele: &str) -> anyhow::Result<()>;
+    async fn delete(&mut self, fonds: &str) -> anyhow::Result<()>;
 }
 
 #[derive(sqlx::FromRow, Deserialize, Serialize)]
-/// Model for a Stele.
-pub struct Stele {
-    /// Stele identifier in <org>/<name> format.
+/// Model for a Fonds.
+pub struct Fonds {
+    /// Fonds identifier in <org>/<name> format.
     /// Example: `org-name/repo-name-law`.
     pub name: String,
 }

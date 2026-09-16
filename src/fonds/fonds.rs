@@ -1,11 +1,11 @@
-//! The Stele module contains the Stele object for interacting with
-//! Stelae.
+//! The Fonds module contains the Fonds object for interacting with
+//! Fonds.
 
 use std::path::{Path, PathBuf};
 
 use super::types::{repositories::Repository, targets_metadata::TargetsMetadata};
 use crate::{
-    stelae::types::{dependencies::Dependencies, repositories::Repositories},
+    fonds::types::{dependencies::Dependencies, repositories::Repositories},
     utils::git::Repo,
 };
 use anyhow::Context as _;
@@ -13,25 +13,25 @@ use git2::Repository as GitRepository;
 use serde_derive::{Deserialize, Serialize};
 use serde_json;
 
-/// Stele
+/// Fonds
 #[derive(Debug, Clone)]
-pub struct Stele {
-    /// Path to the containing Stelae archive.
+pub struct Fonds {
+    /// Path to the containing Fonds archive.
     pub archive_path: PathBuf,
-    /// Stele's repositories (as specified in repositories.json).
+    /// Fonds's repositories (as specified in repositories.json).
     pub repositories: Option<Repositories>,
-    /// Indicates whether or not the Stele is the root Stele.
+    /// Indicates whether or not the Fonds is the root Fonds.
     pub root: bool,
-    /// Stele's authentication repo.
+    /// Fonds's authentication repo.
     pub auth_repo: Repo,
 }
 
-impl Stele {
-    /// Create a new Stele object
+impl Fonds {
+    /// Create a new Fonds object
     /// # Errors
     /// Will error if unable to find or parse repositories file at `targets/repositories.json`
     /// # Panics
-    /// Will panic if unable to determine the current root Stele.
+    /// Will panic if unable to determine the current root Fonds.
     #[expect(clippy::shadow_reuse, reason = "Use same param as field name")]
     pub fn new(
         archive_path: &Path,
@@ -53,7 +53,7 @@ impl Stele {
                 .into()
         };
         let path = path.unwrap_or_else(|| archive_path.join(&org));
-        let mut stele = Self {
+        let mut fonds = Self {
             archive_path: archive_path.to_path_buf(),
             repositories: None,
             root,
@@ -65,11 +65,11 @@ impl Stele {
                 repo: GitRepository::open(path.join(&name))?,
             },
         };
-        stele.get_repositories()?;
-        Ok(stele)
+        fonds.get_repositories()?;
+        Ok(fonds)
     }
 
-    /// Get Stele's dependencies.
+    /// Get Fonds's dependencies.
     /// # Errors
     /// Will error if unable to parse dependencies file from `targets/dependencies.json`
     pub fn get_dependencies(&self) -> anyhow::Result<Option<Dependencies>> {
@@ -84,7 +84,7 @@ impl Stele {
         Ok(Some(dependencies))
     }
 
-    /// Get Stele's repositories.
+    /// Get Fonds's repositories.
     /// # Errors
     /// Will error if unable to find or parse repositories file at `targets/repositories.json`
     pub fn get_repositories(&mut self) -> anyhow::Result<Option<Repositories>> {
@@ -100,16 +100,16 @@ impl Stele {
         Ok(Some(repositories))
     }
 
-    /// Check if Stele's private access file exists.
+    /// Check if Fonds's private access file exists.
     /// Returns true if `targets/private.json` exists, false otherwise.
     #[must_use]
-    pub fn is_private_stelae(&self) -> bool {
+    pub fn is_private_fonds(&self) -> bool {
         self.auth_repo
             .get_bytes_at_path("HEAD", "targets/private.json")
             .is_ok()
     }
 
-    /// Get Stele's repositories for specific commitish.
+    /// Get Fonds's repositories for specific commitish.
     /// # Errors
     /// Will error if unable to find or parse repositories file at `targets/repositories.json`
     pub fn get_repositories_for_commitish(
@@ -127,7 +127,7 @@ impl Stele {
         Ok(Some(repositories))
     }
 
-    /// Get Stele's targets metadata file at a specific committish and filename.
+    /// Get Fonds's targets metadata file at a specific committish and filename.
     ///
     /// # Arguments
     /// * `committish` - The committish to look for the targets metadata file.
@@ -152,7 +152,7 @@ impl Stele {
         Ok(Some(targets_metadata))
     }
 
-    /// Get Stele's qualified name.
+    /// Get Fonds's qualified name.
     #[must_use]
     pub fn get_qualified_name(&self) -> String {
         format!(
@@ -162,7 +162,7 @@ impl Stele {
         )
     }
 
-    /// Get Stele's fallback repo.
+    /// Get Fonds's fallback repo.
     /// A fallback repository is a data repository which contains `is_fallback` = true in its custom field.
     /// # Returns
     /// Returns the first fallback repository found, or None if no fallback repository is found.
@@ -175,20 +175,20 @@ impl Stele {
             .find(|repository| repository.custom.is_fallback.unwrap_or(false))
     }
 
-    /// See if Stele is a root Stele.
+    /// See if Fonds is a root Fonds.
     #[must_use]
     pub const fn is_root(&self) -> bool {
         self.root
     }
 }
 
-/// Config object for a Stele
+/// Config object for a Fonds
 #[derive(Deserialize, Serialize)]
 pub struct Config {
     /// Name of the authentication repo (e.g. law).
     pub name: String,
-    /// Name of the Stele's directory, also known as Stele's organization (e.g. openlawlibrary).
+    /// Name of the Fonds's directory, also known as Fonds's organization (e.g. openlawlibrary).
     pub org: String,
-    /// The out-of-band authenticated hash of the Stele.
+    /// The out-of-band authenticated hash of the Fonds.
     pub hash: Option<String>,
 }

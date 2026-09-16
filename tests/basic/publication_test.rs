@@ -1,10 +1,10 @@
-use crate::common::db_data::{insert_publication, insert_stele};
+use crate::common::db_data::{insert_fonds, insert_publication};
 use crate::common::get_db;
-use stelae::db::models::publication;
-use stelae::db::{DatabaseTransaction, Tx as _};
+use taf_server::db::models::publication;
+use taf_server::db::{DatabaseTransaction, Tx as _};
 use tempfile::TempDir;
 
-const STELE: &str = "test_org/law";
+const FONDS: &str = "test_org/law";
 
 /// A bare directory holding only a migrated database.
 ///
@@ -17,10 +17,10 @@ fn db_dir() -> TempDir {
     dir
 }
 
-async fn count_missing(db: &stelae::db::DatabaseConnection, stele: &str) -> usize {
+async fn count_missing(db: &taf_server::db::DatabaseConnection, fonds: &str) -> usize {
     let mut tx = DatabaseTransaction::begin(db.pool.clone()).await.unwrap();
     let count =
-        publication::TxManager::count_non_revoked_missing_html_data_repo_name(&mut tx, stele)
+        publication::TxManager::count_non_revoked_missing_html_data_repo_name(&mut tx, fonds)
             .await
             .unwrap();
     tx.commit().await.unwrap();
@@ -31,20 +31,20 @@ async fn count_missing(db: &stelae::db::DatabaseConnection, stele: &str) -> usiz
 async fn test_count_missing_html_data_repo_name_where_all_recorded_expect_zero() {
     let dir = db_dir();
     let db = get_db(dir.path()).await;
-    insert_stele(&db, STELE).await;
+    insert_fonds(&db, FONDS).await;
 
     insert_publication(
         &db,
         "pub-1",
         "2024-01-01",
         "2024-01-01",
-        STELE,
+        FONDS,
         false,
         Some("test_org/law-html"),
     )
     .await;
 
-    assert_eq!(count_missing(&db, STELE).await, 0);
+    assert_eq!(count_missing(&db, FONDS).await, 0);
     drop(db);
 }
 
@@ -56,14 +56,14 @@ async fn test_count_missing_html_data_repo_name_where_row_predates_column_expect
     // this an inconsistency worth rebuilding for.
     let dir = db_dir();
     let db = get_db(dir.path()).await;
-    insert_stele(&db, STELE).await;
+    insert_fonds(&db, FONDS).await;
 
     insert_publication(
         &db,
         "pub-old",
         "2023-01-01",
         "2023-01-01",
-        STELE,
+        FONDS,
         false,
         None,
     )
@@ -73,7 +73,7 @@ async fn test_count_missing_html_data_repo_name_where_row_predates_column_expect
         "pub-new",
         "2024-01-01",
         "2024-01-01",
-        STELE,
+        FONDS,
         false,
         Some("test_org/law-html"),
     )
@@ -81,40 +81,40 @@ async fn test_count_missing_html_data_repo_name_where_row_predates_column_expect
 
     // the mixed state an existing database is most likely to be in: recent
     // publications recorded, older ones not
-    assert_eq!(count_missing(&db, STELE).await, 1);
+    assert_eq!(count_missing(&db, FONDS).await, 1);
     drop(db);
 }
 
 #[actix_web::test]
 async fn test_count_missing_html_data_repo_name_where_publication_revoked_expect_ignored() {
     // Revoked publications are not served, so a missing name on one is not a
-    // reason to rebuild the stele.
+    // reason to rebuild the fonds.
     let dir = db_dir();
     let db = get_db(dir.path()).await;
-    insert_stele(&db, STELE).await;
+    insert_fonds(&db, FONDS).await;
 
     insert_publication(
         &db,
         "pub-revoked",
         "2023-01-01",
         "2023-01-01",
-        STELE,
+        FONDS,
         true,
         None,
     )
     .await;
 
-    assert_eq!(count_missing(&db, STELE).await, 0);
+    assert_eq!(count_missing(&db, FONDS).await, 0);
     drop(db);
 }
 
 #[actix_web::test]
-async fn test_count_missing_html_data_repo_name_where_other_stele_expect_not_counted() {
-    // The count is per stele: one stele's gap must not trigger a rebuild of another.
+async fn test_count_missing_html_data_repo_name_where_other_fonds_expect_not_counted() {
+    // The count is per fonds: one fonds's gap must not trigger a rebuild of another.
     let dir = db_dir();
     let db = get_db(dir.path()).await;
-    insert_stele(&db, STELE).await;
-    insert_stele(&db, "other_org/law").await;
+    insert_fonds(&db, FONDS).await;
+    insert_fonds(&db, "other_org/law").await;
 
     insert_publication(
         &db,
@@ -127,7 +127,7 @@ async fn test_count_missing_html_data_repo_name_where_other_stele_expect_not_cou
     )
     .await;
 
-    assert_eq!(count_missing(&db, STELE).await, 0);
+    assert_eq!(count_missing(&db, FONDS).await, 0);
     assert_eq!(count_missing(&db, "other_org/law").await, 1);
     drop(db);
 }

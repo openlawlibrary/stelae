@@ -1,4 +1,4 @@
-//! A Stele's data repositories.
+//! A Fonds's data repositories.
 use std::{collections::HashMap, fmt, string::String};
 
 use serde::{
@@ -10,7 +10,7 @@ use serde_json::Value;
 
 /// Repositories object
 ///
-/// Represents data repositories in a Stele.
+/// Represents data repositories in a Fonds.
 /// Repositories object is serialized from `repositories.json`.
 ///
 /// `repositories.json` is expected to exist in /targets/repositories.json in the authentication repository.
@@ -18,7 +18,7 @@ use serde_json::Value;
 ///
 /// ```rust
 /// use serde_json::json;
-/// use stelae::stelae::types::repositories::Repositories;
+/// use taf_server::fonds::types::repositories::Repositories;
 ///
 /// let data = r#"
 /// {
@@ -55,7 +55,7 @@ pub struct Repositories {
 
 /// Repository object
 ///
-/// Represents one concrete data repository in a stele.
+/// Represents one concrete data repository in a fonds.
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct Repository {
     /// Fully qualified name in `<org>/<name>` format.
@@ -200,7 +200,7 @@ impl Repositories {
     /// Example:
     /// ```rust
     /// use serde_json::json;
-    /// use stelae::stelae::types::repositories::Repositories;
+    /// use taf_server::fonds::types::repositories::Repositories;
     ///
     /// let data = r#"
     /// {

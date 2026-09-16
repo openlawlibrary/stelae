@@ -12,11 +12,11 @@ impl super::Manager for DatabaseConnection {
     ///
     /// # Errors
     /// Errors if can't establish a connection to the database.
-    async fn find_doc_mpath_by_url(&self, url: &str, stele: &str) -> anyhow::Result<String> {
+    async fn find_doc_mpath_by_url(&self, url: &str, fonds: &str) -> anyhow::Result<String> {
         let statement = "
             SELECT de.doc_mpath
             FROM document_element de
-            WHERE de.url = $1 AND de.stele = $2
+            WHERE de.url = $1 AND de.fonds = $2
             LIMIT 1
         ";
         let row = match self.kind {
@@ -24,7 +24,7 @@ impl super::Manager for DatabaseConnection {
                 let mut connection = self.pool.acquire().await?;
                 sqlx::query_as::<_, (String,)>(statement)
                     .bind(url)
-                    .bind(stele)
+                    .bind(fonds)
                     .fetch_one(&mut *connection)
                     .await?
             }
@@ -41,7 +41,7 @@ impl super::TxManager for DatabaseTransaction {
     /// Errors if the document elements cannot be inserted into the database.
     async fn insert_bulk(&mut self, document_elements: Vec<DocumentElement>) -> anyhow::Result<()> {
         let mut query_builder = QueryBuilder::new(
-            "INSERT OR IGNORE INTO document_element ( doc_mpath, url, doc_id, stele ) ",
+            "INSERT OR IGNORE INTO document_element ( doc_mpath, url, doc_id, fonds ) ",
         );
         for chunk in document_elements.chunks(BATCH_SIZE) {
             query_builder.push_values(chunk, |mut bindings, de| {
@@ -49,7 +49,7 @@ impl super::TxManager for DatabaseTransaction {
                     .push_bind(&de.doc_mpath)
                     .push_bind(&de.url)
                     .push_bind(&de.doc_id)
-                    .push_bind(&de.stele);
+                    .push_bind(&de.fonds);
             });
             let query = query_builder.build();
             query.execute(&mut *self.tx).await?;

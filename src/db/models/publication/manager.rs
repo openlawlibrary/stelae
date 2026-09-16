@@ -7,25 +7,25 @@ use super::Publication;
 
 #[async_trait]
 impl super::Manager for DatabaseConnection {
-    /// Find all publications which are not revoked for a given stele.
+    /// Find all publications which are not revoked for a given fonds.
     ///
     /// # Errors
     /// Errors if can't establish a connection to the database.
     async fn find_all_non_revoked_publications(
         &self,
-        stele: &str,
+        fonds: &str,
     ) -> anyhow::Result<Vec<Publication>> {
         let statement = "
             SELECT *
             FROM publication
-            WHERE revoked = 0 AND stele = $1
+            WHERE revoked = 0 AND fonds = $1
             ORDER BY name DESC
         ";
         let rows = match self.kind {
             DatabaseKind::Sqlite => {
                 let mut connection = self.pool.acquire().await?;
                 sqlx::query_as::<_, Publication>(statement)
-                    .bind(stele)
+                    .bind(fonds)
                     .fetch_all(&mut *connection)
                     .await?
             }
@@ -45,20 +45,20 @@ impl super::TxManager for DatabaseTransaction {
         hash_id: &str,
         name: &str,
         date: &NaiveDate,
-        stele: &str,
+        fonds: &str,
         last_valid_publication_id: Option<String>,
         last_valid_version: Option<String>,
         html_data_repo_name: Option<String>,
     ) -> anyhow::Result<Option<i64>> {
         let statement = "
-            INSERT OR IGNORE INTO publication ( id, name, date, stele, revoked, last_valid_publication_id, last_valid_version, html_data_repo_name )
+            INSERT OR IGNORE INTO publication ( id, name, date, fonds, revoked, last_valid_publication_id, last_valid_version, html_data_repo_name )
             VALUES ( $1, $2, $3, $4, FALSE, $5, $6, $7)
         ";
         let id = sqlx::query(statement)
             .bind(hash_id)
             .bind(name)
             .bind(date.to_string())
-            .bind(stele)
+            .bind(fonds)
             .bind(last_valid_publication_id)
             .bind(last_valid_version)
             .bind(html_data_repo_name)
@@ -67,173 +67,173 @@ impl super::TxManager for DatabaseTransaction {
             .last_insert_id();
         Ok(id)
     }
-    /// Update a publication by name and stele to be revoked.
+    /// Update a publication by name and fonds to be revoked.
     ///
     /// # Errors
     /// Errors if the publication cannot be updated.
-    async fn update_by_name_and_stele_set_revoked_true(
+    async fn update_by_name_and_fonds_set_revoked_true(
         &mut self,
         name: &str,
-        stele: &str,
+        fonds: &str,
     ) -> anyhow::Result<()> {
         let statement = "
             UPDATE publication
             SET revoked = TRUE
-            WHERE name = $1 AND stele = $2
+            WHERE name = $1 AND fonds = $2
         ";
         sqlx::query(statement)
             .bind(name)
-            .bind(stele)
+            .bind(fonds)
             .execute(&mut *self.tx)
             .await?;
         Ok(())
     }
-    /// Find the last non-revoked publication by `stele_id`.
+    /// Find the last non-revoked publication by `fonds_id`.
     ///
     /// # Errors
     /// Errors if can't establish a connection to the database.
-    async fn find_last_inserted(&mut self, stele: &str) -> anyhow::Result<Option<Publication>> {
+    async fn find_last_inserted(&mut self, fonds: &str) -> anyhow::Result<Option<Publication>> {
         let statement = "
             SELECT *
             FROM publication
-            WHERE revoked = 0 AND stele = $1
+            WHERE revoked = 0 AND fonds = $1
             ORDER BY date DESC
             LIMIT 1
         ";
         let row = sqlx::query_as::<_, Publication>(statement)
-            .bind(stele)
+            .bind(fonds)
             .fetch_one(&mut *self.tx)
             .await
             .ok();
         Ok(row)
     }
 
-    /// Find a publication by `name` and `stele_id`.
+    /// Find a publication by `name` and `fonds_id`.
     ///
     /// # Errors
     /// Errors if can't establish a connection to the database.
-    async fn find_by_name_and_stele(
+    async fn find_by_name_and_fonds(
         &mut self,
         name: &str,
-        stele: &str,
+        fonds: &str,
     ) -> anyhow::Result<Option<Publication>> {
         let statement = "
             SELECT *
             FROM publication
-            WHERE name = $1 AND stele = $2 AND revoked = 0
+            WHERE name = $1 AND fonds = $2 AND revoked = 0
         ";
         let row = sqlx::query_as::<_, Publication>(statement)
             .bind(name)
-            .bind(stele)
+            .bind(fonds)
             .fetch_one(&mut *self.tx)
             .await
             .ok();
         Ok(row)
     }
 
-    /// Filter publications by `name` and `stele_id` which is not revoked.
+    /// Filter publications by `name` and `fonds_id` which is not revoked.
     ///
     /// # Errors
     /// Errors if can't establish a connection to the database.
-    async fn find_first_by_name_and_stele_non_revoked(
+    async fn find_first_by_name_and_fonds_non_revoked(
         &mut self,
         name: &str,
-        stele: &str,
+        fonds: &str,
     ) -> anyhow::Result<Publication> {
         let statement = "
             SELECT *
             FROM publication
-            WHERE name = $1 AND stele = $2 AND revoked = 0
+            WHERE name = $1 AND fonds = $2 AND revoked = 0
         ";
         let row = sqlx::query_as::<_, Publication>(statement)
             .bind(name)
-            .bind(stele)
+            .bind(fonds)
             .fetch_one(&mut *self.tx)
             .await?;
         Ok(row)
     }
 
-    /// Set `html_data_repo_name` on all publications for the given stele whose date is
+    /// Set `html_data_repo_name` on all publications for the given fonds whose date is
     /// strictly earlier than `boundary_date`.
     ///
     /// # Errors
     /// Errors if the update cannot be executed.
     async fn set_html_data_repo_name_for_prior_publications(
         &mut self,
-        stele: &str,
+        fonds: &str,
         boundary_date: &NaiveDate,
         html_data_repo_name: &str,
     ) -> anyhow::Result<()> {
         let statement = "
             UPDATE publication
             SET html_data_repo_name = $1
-            WHERE stele = $2 AND date < $3
+            WHERE fonds = $2 AND date < $3
         ";
         sqlx::query(statement)
             .bind(html_data_repo_name)
-            .bind(stele)
+            .bind(fonds)
             .bind(boundary_date.to_string())
             .execute(&mut *self.tx)
             .await?;
         Ok(())
     }
 
-    /// Count the number of non-revoked publications for a given stele.
+    /// Count the number of non-revoked publications for a given fonds.
     ///
     /// # Errors
     /// Errors if can't establish a connection to the database.
-    async fn count_non_revoked(&mut self, stele: &str) -> anyhow::Result<usize> {
+    async fn count_non_revoked(&mut self, fonds: &str) -> anyhow::Result<usize> {
         let statement = "
             SELECT COUNT(*) as count
             FROM publication
-            WHERE revoked = 0 AND stele = $1
+            WHERE revoked = 0 AND fonds = $1
         ";
         let row: (i64,) = sqlx::query_as(statement)
-            .bind(stele)
+            .bind(fonds)
             .fetch_one(&mut *self.tx)
             .await?;
         Ok(usize::try_from(row.0).unwrap_or(0))
     }
 
-    /// Count the non-revoked publications for a given stele that carry no
+    /// Count the non-revoked publications for a given fonds that carry no
     /// `html_data_repo_name`.
     ///
     /// # Errors
     /// Errors if can't establish a connection to the database.
     async fn count_non_revoked_missing_html_data_repo_name(
         &mut self,
-        stele: &str,
+        fonds: &str,
     ) -> anyhow::Result<usize> {
         let statement = "
             SELECT COUNT(*) as count
             FROM publication
-            WHERE revoked = 0 AND stele = $1 AND html_data_repo_name IS NULL
+            WHERE revoked = 0 AND fonds = $1 AND html_data_repo_name IS NULL
         ";
         let row: (i64,) = sqlx::query_as(statement)
-            .bind(stele)
+            .bind(fonds)
             .fetch_one(&mut *self.tx)
             .await?;
         Ok(usize::try_from(row.0).unwrap_or(0))
     }
 
-    /// Find all publication names by date and stele.
+    /// Find all publication names by date and fonds.
     ///
     /// # Errors
     /// Errors if can't establish a connection to the database.
-    async fn find_all_by_date_and_stele_order_by_name_desc(
+    async fn find_all_by_date_and_fonds_order_by_name_desc(
         &mut self,
         date: String,
-        stele: String,
+        fonds: String,
     ) -> anyhow::Result<Vec<Publication>> {
         let statement = "
             SELECT *
             FROM publication
-            WHERE date = $1 AND stele = $2
+            WHERE date = $1 AND fonds = $2
             ORDER BY name DESC
         ";
         let rows = sqlx::query_as::<_, Publication>(statement)
             .bind(date)
-            .bind(stele)
+            .bind(fonds)
             .fetch_all(&mut *self.tx)
             .await?;
         Ok(rows)

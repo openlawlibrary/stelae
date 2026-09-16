@@ -42,11 +42,7 @@ pub mod request;
     clippy::pattern_type_mismatch,
     reason = "The pattern is clear and intentional; matching by reference adds unnecessary verbosity for this context."
 )]
-#[expect(
-    clippy::similar_names,
-    reason = "Variable names are intentionally similar to reflect singular/plural distinction"
-)]
-/// Return the content in the stelae archive in the `{namespace}/{name}`
+/// Return the content in the fonds archive in the `{namespace}/{name}`
 /// repo at the `commitish` commit at the `path` path.
 /// Return 404 if any are not found or there are any errors.
 #[tracing::instrument(name = "Retrieving a Git blob", skip(path, data, query))]
@@ -65,18 +61,18 @@ pub async fn get_blob(
     let query_data: ArchiveQueryData = query.into_inner();
     let commitish = query_data.commitish.unwrap_or_else(|| String::from("HEAD"));
     let file_path = query_data.path.unwrap_or_default();
-    let stelae = archive_data.archive().get_stelae();
-    let Some((_, stele)) = stelae
+    let all_fonds = archive_data.archive().get_all_fonds();
+    let Some((_, fonds)) = all_fonds
         .iter()
         .find(|(s_name, _)| *s_name == format!("{namespace}/law"))
     else {
         return HttpResponse::NotFound().body(format!("repo {namespace}/{name} does not exist"));
     };
 
-    if stele.is_private_stelae() {
+    if fonds.is_private_fonds() {
         return HttpResponse::NotFound().body(format!("repo {namespace}/{name} does not exist"));
     }
-    let repositories = match stele.get_repositories_for_commitish("HEAD") {
+    let repositories = match fonds.get_repositories_for_commitish("HEAD") {
         Ok(Some(repos)) => repos,
         Ok(None) => {
             tracing::error!("No repositories found");

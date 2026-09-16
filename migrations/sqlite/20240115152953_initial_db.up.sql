@@ -1,7 +1,7 @@
 -- Add migration script here
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE stele (
+CREATE TABLE fonds (
     name TEXT PRIMARY KEY
 );
 CREATE TABLE document (
@@ -11,24 +11,24 @@ CREATE TABLE document_element (
     doc_mpath TEXT,
     url TEXT,
     doc_id TEXT,
-    stele TEXT,
+    fonds TEXT,
     CONSTRAINT fk_doc_id
         FOREIGN KEY (doc_id)
         REFERENCES document(doc_id),
     PRIMARY KEY (doc_mpath),
-    CONSTRAINT fk_stele FOREIGN KEY (stele) REFERENCES stele(name) ON DELETE CASCADE
+    CONSTRAINT fk_fonds FOREIGN KEY (fonds) REFERENCES fonds(name) ON DELETE CASCADE
 );
 CREATE TABLE library (
     mpath TEXT PRIMARY KEY,
     url TEXT,
-    stele TEXT,
-    CONSTRAINT fk_stele FOREIGN KEY (stele) REFERENCES stele(name) ON DELETE CASCADE
+    fonds TEXT,
+    CONSTRAINT fk_fonds FOREIGN KEY (fonds) REFERENCES fonds(name) ON DELETE CASCADE
 );
 CREATE TABLE publication (
     id TEXT,
     name TEXT,
     date INTEGER,
-    stele TEXT,
+    fonds TEXT,
     revoked INTEGER,
     last_valid_publication_id TEXT,
     last_valid_version TEXT,
@@ -38,9 +38,9 @@ CREATE TABLE publication (
     CONSTRAINT fk_last_valid_publication
         FOREIGN KEY (last_valid_publication_id)
         REFERENCES publication(id),
-    CONSTRAINT fk_stele
-        FOREIGN KEY (stele)
-        REFERENCES stele(name)
+    CONSTRAINT fk_fonds
+        FOREIGN KEY (fonds)
+        REFERENCES fonds(name)
         ON DELETE CASCADE,
     PRIMARY KEY (id)
 );

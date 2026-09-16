@@ -1,10 +1,10 @@
 use std::path::Path;
 
 use anyhow::Result;
-use stelae::server::errors::CliError;
-use stelae::stelae::types::repositories::Repositories;
-use stelae::stelae::types::targets_metadata::TargetsMetadata;
-use stelae::utils::check;
+use taf_server::fonds::types::repositories::Repositories;
+use taf_server::fonds::types::targets_metadata::TargetsMetadata;
+use taf_server::server::errors::CliError;
+use taf_server::utils::check;
 
 use crate::archive_testtools::{
     self,
@@ -25,7 +25,7 @@ const BASIC_REPO_NAMES: [&str; 6] = [
     "law-other",
 ];
 
-/// Make the root Stele of a basic archive (created via
+/// Make the root Fonds of a basic archive (created via
 /// `initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single))`)
 /// fully valid: scopes set, a valid `info.json`, and a valid target file
 /// (with all fields) for every default data repository except those listed
@@ -62,11 +62,11 @@ fn make_root_valid(archive_path: &Path, org: &str, skip_target_files: &[&str]) -
     Ok(())
 }
 
-/// Initialize a Stele with an empty (but valid) `targets/repositories.json`,
+/// Initialize a Fonds with an empty (but valid) `targets/repositories.json`,
 /// a valid `info.json`, and no `targets/dependencies.json`. Used as a
 /// dependency target that should recurse cleanly (0 errors, at most a "no
 /// scopes" warning).
-fn init_minimal_valid_stele(archive_path: &Path, org: &str) -> Result<()> {
+fn init_minimal_valid_fonds(archive_path: &Path, org: &str) -> Result<()> {
     let repo_path = archive_path.join(org).join("law");
     std::fs::create_dir_all(&repo_path)?;
     let repo = GitRepository::init(&repo_path)?;
@@ -80,9 +80,9 @@ fn init_minimal_valid_stele(archive_path: &Path, org: &str) -> Result<()> {
     Ok(())
 }
 
-/// Initialize a Stele's auth repo with a valid `info.json` but no
+/// Initialize a Fonds's auth repo with a valid `info.json` but no
 /// `targets/repositories.json` at all.
-fn init_stele_without_repositories_json(archive_path: &Path, org: &str) -> Result<()> {
+fn init_fonds_without_repositories_json(archive_path: &Path, org: &str) -> Result<()> {
     let repo_path = archive_path.join(org).join("law");
     std::fs::create_dir_all(&repo_path)?;
     GitRepository::init(&repo_path)?;
@@ -125,7 +125,7 @@ fn test_check_when_repositories_json_missing_expect_error() {
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     make_root_valid(archive_path.path(), "test_org", &[]).unwrap();
 
-    init_stele_without_repositories_json(archive_path.path(), "ghost_org").unwrap();
+    init_fonds_without_repositories_json(archive_path.path(), "ghost_org").unwrap();
     archive_testtools::add_dependencies(archive_path.path(), "test_org", vec!["ghost_org"], None)
         .unwrap();
 
@@ -136,7 +136,7 @@ fn test_check_when_repositories_json_missing_expect_error() {
     .unwrap();
 
     assert_eq!(report.errors.len(), 1, "errors: {:?}", report.errors);
-    assert_eq!(report.errors[0].stele, "ghost_org/law");
+    assert_eq!(report.errors[0].fonds, "ghost_org/law");
     assert!(report.errors[0]
         .message
         .contains("required file is missing"));
@@ -151,11 +151,11 @@ fn test_check_when_repositories_json_missing_expect_error() {
     );
 }
 
-/// `repositories.json` and `dependencies.json` are both read during Stele
-/// construction (`Stele::new` / `Archive::traverse_children`), so a
+/// `repositories.json` and `dependencies.json` are both read during Fonds
+/// construction (`Fonds::new` / `Archive::traverse_children`), so a
 /// syntactically malformed one anywhere in the tree makes `Archive::parse`
-/// fail before `check_stele` ever runs. This collapses to one generic
-/// error rather than the per-stele "invalid JSON" message
+/// fail before `check_fonds` ever runs. This collapses to one generic
+/// error rather than the per-fonds "invalid JSON" message
 /// `check_repositories_json` would give for a file that's valid JSON but
 /// violates a business rule.
 #[test]
@@ -178,7 +178,7 @@ fn test_check_when_repositories_json_malformed_expect_generic_parse_error() {
     .unwrap();
 
     assert_eq!(report.errors.len(), 1, "errors: {:?}", report.errors);
-    assert_eq!(report.errors[0].stele, "None");
+    assert_eq!(report.errors[0].fonds, "None");
     assert!(report.errors[0].message.contains("failed to parse archive"));
 }
 
@@ -537,7 +537,7 @@ fn test_check_when_dependencies_json_malformed_expect_generic_parse_error() {
     .unwrap();
 
     assert_eq!(report.errors.len(), 1, "errors: {:?}", report.errors);
-    assert_eq!(report.errors[0].stele, "None");
+    assert_eq!(report.errors[0].fonds, "None");
     assert!(report.errors[0].message.contains("failed to parse archive"));
 }
 
@@ -548,8 +548,8 @@ fn test_check_when_dependency_fields_empty_expect_error() {
     make_root_valid(archive_path.path(), "test_org", &[]).unwrap();
     let auth_repo_path = archive_path.path().join("test_org/law");
 
-    init_minimal_valid_stele(archive_path.path(), "ghost_org").unwrap();
-    init_minimal_valid_stele(archive_path.path(), "another_org").unwrap();
+    init_minimal_valid_fonds(archive_path.path(), "ghost_org").unwrap();
+    init_minimal_valid_fonds(archive_path.path(), "another_org").unwrap();
 
     let content = r#"
     {
@@ -584,7 +584,7 @@ fn test_check_when_dependencies_has_duplicate_key_expect_error() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     make_root_valid(archive_path.path(), "test_org", &[]).unwrap();
-    init_minimal_valid_stele(archive_path.path(), "ghost_org").unwrap();
+    init_minimal_valid_fonds(archive_path.path(), "ghost_org").unwrap();
     let auth_repo_path = archive_path.path().join("test_org/law");
 
     // Syntactically valid JSON, but "ghost_org/law" appears twice. This
@@ -678,14 +678,14 @@ fn test_check_when_dependency_directory_missing_expect_error() {
         .contains("does not exist on the filesystem"));
 }
 
-/// stele A depends on B, B depends back on A. The recursion should detect
+/// fonds A depends on B, B depends back on A. The recursion should detect
 /// the repeat and report a helpful cycle error rather than looping forever.
 #[test]
 fn test_check_when_dependency_cycle_expect_error() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     make_root_valid(archive_path.path(), "test_org", &[]).unwrap();
-    init_minimal_valid_stele(archive_path.path(), "cyclic_org").unwrap();
+    init_minimal_valid_fonds(archive_path.path(), "cyclic_org").unwrap();
     archive_testtools::add_dependencies(archive_path.path(), "test_org", vec!["cyclic_org"], None)
         .unwrap();
 
@@ -724,9 +724,9 @@ fn test_check_when_diamond_dependency_expect_deduplicated_warning() {
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     make_root_valid(archive_path.path(), "test_org", &[]).unwrap();
 
-    init_minimal_valid_stele(archive_path.path(), "branch_a").unwrap();
-    init_minimal_valid_stele(archive_path.path(), "branch_b").unwrap();
-    init_minimal_valid_stele(archive_path.path(), "shared_org").unwrap();
+    init_minimal_valid_fonds(archive_path.path(), "branch_a").unwrap();
+    init_minimal_valid_fonds(archive_path.path(), "branch_b").unwrap();
+    init_minimal_valid_fonds(archive_path.path(), "shared_org").unwrap();
 
     archive_testtools::add_dependencies(
         archive_path.path(),
@@ -757,7 +757,7 @@ fn test_check_when_diamond_dependency_expect_deduplicated_warning() {
     let shared_warnings = report
         .warnings
         .iter()
-        .filter(|warning| warning.stele == "shared_org/law")
+        .filter(|warning| warning.fonds == "shared_org/law")
         .count();
     assert_eq!(
         shared_warnings, 1,
@@ -766,19 +766,19 @@ fn test_check_when_diamond_dependency_expect_deduplicated_warning() {
     );
 }
 
-/// `repositories.json`/`dependencies.json` are read during Stele
+/// `repositories.json`/`dependencies.json` are read during Fonds
 /// construction, so a malformed one anywhere collapses to the generic
-/// archive-parse error (see above) with no stele attribution.
+/// archive-parse error (see above) with no fonds attribution.
 /// `targets/protected/info.json` is only read by our own `check_info_json`,
 /// so use that instead to prove recursion actually descends into a nested
-/// Stele and attributes the error to the right one.
+/// Fonds and attributes the error to the right one.
 #[test]
 fn test_check_when_nested_dependency_invalid_expect_error() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Basic(Jurisdiction::Single)).unwrap();
     make_root_valid(archive_path.path(), "test_org", &[]).unwrap();
 
-    init_minimal_valid_stele(archive_path.path(), "dependent_org").unwrap();
+    init_minimal_valid_fonds(archive_path.path(), "dependent_org").unwrap();
     archive_testtools::add_dependencies(
         archive_path.path(),
         "test_org",
@@ -802,7 +802,7 @@ fn test_check_when_nested_dependency_invalid_expect_error() {
     .unwrap();
 
     assert_eq!(report.errors.len(), 1, "errors: {:?}", report.errors);
-    assert_eq!(report.errors[0].stele, "dependent_org/law");
+    assert_eq!(report.errors[0].fonds, "dependent_org/law");
     assert_eq!(report.errors[0].file, "targets/protected/info.json");
     assert!(report.errors[0].message.contains("invalid JSON"));
 }

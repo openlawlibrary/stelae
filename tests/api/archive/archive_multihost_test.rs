@@ -20,62 +20,62 @@ async fn test_archive_api_without_private_json_file_expect_success() {
     let app = common::initialize_app(archive_path.path()).await;
 
     test_archive_paths(
-        "root_stele",
+        "root_fonds",
         "law-html",
         vec!["/a/b/c.html"],
         "HEAD",
         &app,
         true,
         "x-current-documents-guard",
-        "root_stele/law-private",
+        "root_fonds/law-private",
     )
     .await;
 
     test_archive_paths(
-        "stele_1",
+        "fonds_1",
         "law-html",
         vec!["/a/b/c.html"],
         "HEAD",
         &app,
         true,
         "x-current-documents-guard",
-        "root_stele/law-private",
+        "root_fonds/law-private",
     )
     .await;
 
     test_archive_paths(
-        "stele_1_1",
+        "fonds_1_1",
         "law-pdf",
         vec!["/a/b/example.pdf"],
         "HEAD",
         &app,
         true,
         "x-current-documents-guard",
-        "root_stele/law-private",
+        "root_fonds/law-private",
     )
     .await;
 
     test_archive_paths(
-        "stele_1_2",
+        "fonds_1_2",
         "law-xml",
         vec!["/a/b/c/index.xml"],
         "HEAD",
         &app,
         true,
         "x-current-documents-guard",
-        "root_stele/law-private",
+        "root_fonds/law-private",
     )
     .await;
 
     test_archive_paths(
-        "stele_2",
+        "fonds_2",
         "law-rdf",
         vec!["/a/b/c.rdf"],
         "HEAD",
         &app,
         true,
         "x-current-documents-guard",
-        "root_stele/law-private",
+        "root_fonds/law-private",
     )
     .await;
 }
@@ -87,7 +87,7 @@ async fn test_archive_api_with_wrong_guard_expect_failure() {
     let app = common::initialize_app(archive_path.path()).await;
 
     test_archive_paths(
-        "root_stele",
+        "root_fonds",
         "law-html",
         vec!["/a/b/c.html"],
         "HEAD",
@@ -106,14 +106,14 @@ async fn test_archive_api_with_wrong_header_expect_failure() {
     let app = common::initialize_app(archive_path.path()).await;
 
     test_archive_paths(
-        "root_stele",
+        "root_fonds",
         "law-html",
         vec!["/a/b/c.html"],
         "HEAD",
         &app,
         false,
         "xxx",
-        "root_stele/law-private",
+        "root_fonds/law-private",
     )
     .await;
 }
@@ -123,8 +123,8 @@ async fn test_archive_api_where_private_json_file_exists_expect_error() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Multihost(MultihostConfig::Private))
             .unwrap();
-    let stele_path: PathBuf = archive_path.path().join("stele_1");
-    let auth_repo_path: PathBuf = archive_path.path().join("stele_1/law");
+    let fonds_path: PathBuf = archive_path.path().join("fonds_1");
+    let auth_repo_path: PathBuf = archive_path.path().join("fonds_1/law");
 
     let file_content = r#"
     {
@@ -134,14 +134,14 @@ async fn test_archive_api_where_private_json_file_exists_expect_error() {
     .to_string();
 
     let _ = add_private_json_file(&auth_repo_path, file_content);
-    let _ = init_secret_repository(&stele_path);
+    let _ = init_secret_repository(&fonds_path);
     let app = common::initialize_app(archive_path.path()).await;
 
     let req = test::TestRequest::get()
-        .uri("/_archive/stele_1/law-html?path=/index.html")
+        .uri("/_archive/fonds_1/law-html?path=/index.html")
         .insert_header((
             header::HeaderName::from_static("x-current-documents-guard"),
-            "root_stele/law-private",
+            "root_fonds/law-private",
         ))
         .to_request();
     let resp = test::call_service(&app, req).await;
@@ -152,7 +152,7 @@ async fn test_archive_api_where_private_json_file_exists_expect_error() {
     );
 
     let actual = test::read_body(resp).await;
-    let expected = "repo stele_1/law-html does not exist";
+    let expected = "repo fonds_1/law-html does not exist";
     assert!(
         common::blob_to_string(actual.to_vec()).starts_with(expected),
         "doesn't start with {expected}"
@@ -163,15 +163,15 @@ async fn test_archive_api_where_private_json_file_exists_expect_error() {
 async fn test_archive_api_where_repo_name_is_not_in_repository_json_file_expect_error() {
     let archive_path =
         common::initialize_archive(ArchiveType::Multihost(MultihostConfig::Private)).unwrap();
-    let stele_path: PathBuf = archive_path.path().join("stele_1");
-    let _ = init_secret_repository(&stele_path);
+    let fonds_path: PathBuf = archive_path.path().join("fonds_1");
+    let _ = init_secret_repository(&fonds_path);
     let app = common::initialize_app(archive_path.path()).await;
 
     let req = test::TestRequest::get()
-        .uri("/_archive/stele_1/secret_repo?path=/password.txt")
+        .uri("/_archive/fonds_1/secret_repo?path=/password.txt")
         .insert_header((
             header::HeaderName::from_static("x-current-documents-guard"),
-            "root_stele/law-private",
+            "root_fonds/law-private",
         ))
         .to_request();
     let resp = test::call_service(&app, req).await;
@@ -182,7 +182,7 @@ async fn test_archive_api_where_repo_name_is_not_in_repository_json_file_expect_
     );
 
     let actual = test::read_body(resp).await;
-    let expected = "repo stele_1/secret_repo does not exist";
+    let expected = "repo fonds_1/secret_repo does not exist";
     assert!(
         common::blob_to_string(actual.to_vec()).starts_with(expected),
         "doesn't start with {expected}"
@@ -194,20 +194,20 @@ async fn test_archive_api_with_empty_private_json_file_exists_expect_error() {
     let archive_path =
         common::initialize_archive_without_bare(ArchiveType::Multihost(MultihostConfig::Private))
             .unwrap();
-    let stele_path: PathBuf = archive_path.path().join("stele_1");
-    let auth_repo_path: PathBuf = archive_path.path().join("stele_1/law");
+    let fonds_path: PathBuf = archive_path.path().join("fonds_1");
+    let auth_repo_path: PathBuf = archive_path.path().join("fonds_1/law");
 
     let file_content = "".to_string();
 
     let _ = add_private_json_file(&auth_repo_path, file_content);
-    let _ = init_secret_repository(&stele_path);
+    let _ = init_secret_repository(&fonds_path);
     let app = common::initialize_app(archive_path.path()).await;
 
     let req = test::TestRequest::get()
-        .uri("/_archive/stele_1/law-html?path=/index.html")
+        .uri("/_archive/fonds_1/law-html?path=/index.html")
         .insert_header((
             header::HeaderName::from_static("x-current-documents-guard"),
-            "root_stele/law-private",
+            "root_fonds/law-private",
         ))
         .to_request();
     let resp = test::call_service(&app, req).await;
@@ -218,7 +218,7 @@ async fn test_archive_api_with_empty_private_json_file_exists_expect_error() {
     );
 
     let actual = test::read_body(resp).await;
-    let expected = "repo stele_1/law-html does not exist";
+    let expected = "repo fonds_1/law-html does not exist";
     assert!(
         common::blob_to_string(actual.to_vec()).starts_with(expected),
         "doesn't start with {expected}"
