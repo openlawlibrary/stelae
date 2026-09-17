@@ -14,7 +14,11 @@ and this project adheres to a _modified_ form of _[Semantic Versioning][semver]_
 
 ### Fixed
 
+- Build the Windows release binary by installing libxml2 through vcpkg in CI ([#130])
+
 ### Removed
+
+[#130]: https://github.com/openlawlibrary/taf-server/pull/130
 
 ## [v0.7.0-alpha.1]
 
